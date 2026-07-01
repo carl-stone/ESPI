@@ -39,6 +39,22 @@ Follow these important style rules when writing R code:
 
 ------------------------------------------------------------------------
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live in GitHub Issues for `carl-stone/ESPI`; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The triage vocabulary uses the canonical default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a single-context domain-doc layout: root `CONTEXT.md` plus root `docs/adr/`. See `docs/agents/domain.md`.
+
+------------------------------------------------------------------------
+
 ## Experimental design
 
 - Conditions: `p27CKO` vs `p27CKO +EStim`.
