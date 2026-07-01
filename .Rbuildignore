@@ -5,3 +5,4 @@
 ^[.]?air[.]toml$
 ^\.vscode$
 ^AGENTS\.md$
+^\.agents$
