@@ -1,0 +1,4 @@
+# Project-local Oh My Pi config.
+# Loads the generated-file guard extension for this repository.
+extensions:
+  - ./.omp/extensions/generated-file-guard.ts
