@@ -82,8 +82,7 @@ splot_hvg_scatter <- function(sobj, n_top = 10) {
       points = top_features,
       repel = TRUE,
       xnudge = 0,
-      ynudge = 0,
-      max.overlaps = 15
+      ynudge = 0
     )
   }
 
@@ -118,18 +117,26 @@ splot_viz_dim_loadings <- function(sobj, n_pcs = 30) {
   out_dir <- file.path(FIGURE_DIR, "preprocess")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
-  plot <- Seurat::VizDimLoadings(sobj, dims = 1:n_pcs, reduction = "pca")
-  height <- max(6, ceiling(n_pcs / 2) * 1.2)
+  ncol <- ceiling(sqrt(n_pcs))
+  nrow <- ceiling(n_pcs / ncol)
+  width <- max(6, ncol * 2.2)
+  height <- max(6, nrow * 2.2)
+  plot <- Seurat::VizDimLoadings(
+    sobj,
+    dims = 1:n_pcs,
+    reduction = "pca",
+    ncol = ncol
+  )
   ggplot2::ggsave(
     file.path(out_dir, sprintf("viz_dim_loadings_%s.png", norm)),
     plot,
-    width = 8,
+    width = width,
     height = height
   )
   ggplot2::ggsave(
     file.path(out_dir, sprintf("viz_dim_loadings_%s.pdf", norm)),
     plot,
-    width = 8,
+    width = width,
     height = height
   )
 
@@ -164,45 +171,5 @@ splot_elbow <- function(sobj, n_pcs = 50) {
     height = 3
   )
 
-  invisible(NULL)
-}
-
-#' Save a DimPlot on a specified UMAP reduction colored by a metadata column.
-#'
-#' Filename encodes the UMAP reduction and coloring column.
-#'
-#' @param sobj Seurat object with the named UMAP reduction populated.
-#' @param umap Character name of the UMAP reduction in `sobj@reductions`.
-#' @param color_by Character name of a `sobj@meta.data` column.
-#'
-#' @return `invisible(NULL)`.
-#' @export
-splot_umap_by <- function(sobj, umap, color_by) {
-  # 1. p <- Seurat::DimPlot(sobj, reduction = umap, group.by = color_by)
-  # 2. save p as PNG and PDF at 5 in x 5 in to
-  #    FIGURE_DIR/preprocess/<umap>__<color_by>.{png,pdf}
-  # 3. invisible(NULL)
-  invisible(NULL)
-}
-
-#' Save a clustree plot for a family of resolution-varying cluster columns.
-#'
-#' @param sobj Seurat object with the resolution-family cluster columns
-#'   populated in `meta.data`, all sharing a common prefix.
-#' @param prefix Character prefix shared by the cluster columns; clustree
-#'   requires the shared prefix to walk resolution levels.
-#' @param out_tag Character tag embedded in the output filename to distinguish
-#'   dims choices.
-#'
-#' @return `invisible(NULL)`.
-#' @export
-splot_clustree <- function(sobj, prefix, out_tag) {
-  # 1. p <- clustree::clustree(sobj, prefix = prefix)
-  # 2. save p as PNG and PDF at 6 in x 6 in to
-  #    FIGURE_DIR/preprocess/clustree_<out_tag>.{png,pdf}
-  # 3. invisible(NULL)
-  # Note for implementation: if clustree is not installed at runtime, wrap the
-  # body in requireNamespace("clustree", quietly = TRUE), warn, and return
-  # invisible(NULL) when unavailable.
   invisible(NULL)
 }

@@ -76,14 +76,7 @@ sobj <- FindVariableFeatures(sobj, nfeatures = 2000)
 splot_hvg_scatter(sobj, n_top = 10)
 
 if (cli_args$filter_cc) {
-  cell_cycle_genes <- c(
-    Seurat::cc.genes.updated.2019$s.genes,
-    Seurat::cc.genes.updated.2019$g2m.genes
-  )
-  SeuratObject::VariableFeatures(sobj) <- setdiff(
-    SeuratObject::VariableFeatures(sobj),
-    cell_cycle_genes
-  )
+  sobj <- filter_cell_cycle_hvg(sobj)
 }
 
 sobj <- switch(

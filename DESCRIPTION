@@ -7,6 +7,14 @@ Authors@R:
 Description: What the package does (one paragraph).
 License: MIT + file LICENSE
 Encoding: UTF-8
+Imports:
+    clustree,
+    ggplot2,
+    ggraph,
+    here,
+    scclrR,
+    Seurat,
+    SeuratObject
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0
 URL: https://github.com/carl-stone/ESPI
