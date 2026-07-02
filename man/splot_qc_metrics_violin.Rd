@@ -17,5 +17,5 @@ metadata columns \code{nFeature_RNA}, \code{nCount_RNA}, \code{percent.mt}, and
 \description{
 Draws one violin plot each for \code{nFeature_RNA}, \code{nCount_RNA}, \code{percent.mt},
 and \code{percent.ribo}, groups cells by \code{sample_id}, arranges the plots in a
-2x2 grid, and writes PNG and PDF files to \code{FIGURE_DIR/preprocess}.
+2x2 grid, and writes branch-tagged PNG and PDF files to \code{FIGURE_DIR/preprocess}.
 }

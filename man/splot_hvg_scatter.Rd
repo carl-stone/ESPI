@@ -15,6 +15,6 @@ splot_hvg_scatter(sobj, n_top = 10)
 \code{NULL}, invisibly.
 }
 \description{
-Labels the first \code{n_top} genes from \code{VariableFeatures(sobj)} and writes PNG
-and PDF files to \code{FIGURE_DIR/preprocess}.
+Labels the first \code{n_top} genes from \code{VariableFeatures(sobj)} and writes
+branch-tagged PNG and PDF files to \code{FIGURE_DIR/preprocess}.
 }

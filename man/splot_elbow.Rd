@@ -15,5 +15,5 @@ splot_elbow(sobj, n_pcs = 50)
 \code{invisible(NULL)}.
 }
 \description{
-Filename includes the normalization branch tag.
+Filename includes the normalization and cell-cycle filtering branch tag.
 }

@@ -7,7 +7,7 @@
 
 <!-- badges: end -->
 
-The goal of ESPI is to …
+This is the companion code to Stone<sub>\textit{et</sub>al.}~2026—.
 
 ## Installation
 
@@ -21,37 +21,20 @@ pak::pak("carl-stone/ESPI")
 
 ## Preprocessing
 
-Run the Seurat preprocessing script with `Rscript`, choosing one
-normalization branch:
+Run all preprocessing branches:
+
+``` sh
+Rscript scripts/preprocess-all.R
+```
+
+Or run one branch directly:
 
 ``` sh
 Rscript scripts/preprocess-sobj.R --normalization log1p
+Rscript scripts/preprocess-sobj.R --normalization log1p --filter-cell-cycle
 Rscript scripts/preprocess-sobj.R --normalization pflog
+Rscript scripts/preprocess-sobj.R --normalization pflog --filter-cell-cycle
 ```
 
 Use `--input /path/to/object.rds` to override the default Trailmaker
 input object.
-
-## Example
-
-This is a basic example which shows you how to solve a common problem:
-
-``` r
-#library(ESPI)
-## basic example code
-```
-
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
-
-``` r
-#summary(cars)
-```
-
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this.
-
-You can also embed plots, for example:
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.

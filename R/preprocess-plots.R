@@ -2,7 +2,7 @@
 #'
 #' Draws one violin plot each for `nFeature_RNA`, `nCount_RNA`, `percent.mt`,
 #' and `percent.ribo`, groups cells by `sample_id`, arranges the plots in a
-#' 2x2 grid, and writes PNG and PDF files to `FIGURE_DIR/preprocess`.
+#' 2x2 grid, and writes branch-tagged PNG and PDF files to `FIGURE_DIR/preprocess`.
 #'
 #' @param sobj Seurat object with a `sample_id` metadata column and the QC
 #'   metadata columns `nFeature_RNA`, `nCount_RNA`, `percent.mt`, and
@@ -29,6 +29,13 @@ splot_qc_metrics_violin <- function(sobj) {
 
   out_dir <- file.path(FIGURE_DIR, "preprocess")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  norm <- sobj@misc$preprocessing$normalization
+  cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
+    "filter-cc"
+  } else {
+    "no-filter-cc"
+  }
+  branch_tag <- sprintf("%s_%s", norm, cc_tag)
 
   metrics <- c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.ribo")
   plot <- Seurat::VlnPlot(
@@ -38,13 +45,13 @@ splot_qc_metrics_violin <- function(sobj) {
     ncol = 2
   )
   ggplot2::ggsave(
-    file.path(out_dir, "qc_metrics_violin.png"),
+    file.path(out_dir, sprintf("qc_metrics_violin_%s.png", branch_tag)),
     plot,
     width = 8,
     height = 8
   )
   ggplot2::ggsave(
-    file.path(out_dir, "qc_metrics_violin.pdf"),
+    file.path(out_dir, sprintf("qc_metrics_violin_%s.pdf", branch_tag)),
     plot,
     width = 8,
     height = 8
@@ -55,8 +62,8 @@ splot_qc_metrics_violin <- function(sobj) {
 
 #' Save the HVG mean-vs-variance scatter plot.
 #'
-#' Labels the first `n_top` genes from `VariableFeatures(sobj)` and writes PNG
-#' and PDF files to `FIGURE_DIR/preprocess`.
+#' Labels the first `n_top` genes from `VariableFeatures(sobj)` and writes
+#' branch-tagged PNG and PDF files to `FIGURE_DIR/preprocess`.
 #'
 #' @param sobj Seurat object with `VariableFeatures` populated.
 #' @param n_top Integer count of top variable features to label. Default 10.
@@ -73,6 +80,13 @@ splot_hvg_scatter <- function(sobj, n_top = 10) {
 
   out_dir <- file.path(FIGURE_DIR, "preprocess")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  norm <- sobj@misc$preprocessing$normalization
+  cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
+    "filter-cc"
+  } else {
+    "no-filter-cc"
+  }
+  branch_tag <- sprintf("%s_%s", norm, cc_tag)
 
   top_features <- head(variable_features, n_top)
   plot <- Seurat::VariableFeaturePlot(sobj)
@@ -87,13 +101,13 @@ splot_hvg_scatter <- function(sobj, n_top = 10) {
   }
 
   ggplot2::ggsave(
-    file.path(out_dir, "hvg_scatter.png"),
+    file.path(out_dir, sprintf("hvg_scatter_%s.png", branch_tag)),
     plot,
     width = 6,
     height = 5
   )
   ggplot2::ggsave(
-    file.path(out_dir, "hvg_scatter.pdf"),
+    file.path(out_dir, sprintf("hvg_scatter_%s.pdf", branch_tag)),
     plot,
     width = 6,
     height = 5
@@ -102,42 +116,45 @@ splot_hvg_scatter <- function(sobj, n_top = 10) {
   invisible(NULL)
 }
 
-#' Save VizDimLoadings for the first n PCs of the `pca` reduction.
+#' Save PCA DimHeatmap plots.
 #'
-#' The output filename includes the normalization branch tag from
-#' `sobj@misc$preprocessing$normalization`.
+#' The output filename includes the normalization and cell-cycle filtering branch
+#' tag from `sobj@misc$preprocessing`.
 #'
 #' @param sobj Seurat object with `pca` reduction and preprocessing metadata.
-#' @param n_pcs Integer number of PCs to plot. Default 30.
 #'
 #' @return `invisible(NULL)`.
 #' @export
-splot_viz_dim_loadings <- function(sobj, n_pcs = 30) {
+splot_dim_heatmap <- function(sobj) {
   norm <- sobj@misc$preprocessing$normalization
+  cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
+    "filter-cc"
+  } else {
+    "no-filter-cc"
+  }
+  branch_tag <- sprintf("%s_%s", norm, cc_tag)
   out_dir <- file.path(FIGURE_DIR, "preprocess")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
-  ncol <- ceiling(sqrt(n_pcs))
-  nrow <- ceiling(n_pcs / ncol)
-  width <- max(6, ncol * 2.2)
-  height <- max(6, nrow * 2.2)
-  plot <- Seurat::VizDimLoadings(
+  plot <- Seurat::DimHeatmap(
     sobj,
-    dims = 1:n_pcs,
-    reduction = "pca",
-    ncol = ncol
+    dims = 1:6,
+    cells = 500,
+    balanced = TRUE,
+    fast = FALSE,
+    combine = TRUE
   )
   ggplot2::ggsave(
-    file.path(out_dir, sprintf("viz_dim_loadings_%s.png", norm)),
+    file.path(out_dir, sprintf("dim_heatmap_%s.png", branch_tag)),
     plot,
-    width = width,
-    height = height
+    width = 8,
+    height = 8
   )
   ggplot2::ggsave(
-    file.path(out_dir, sprintf("viz_dim_loadings_%s.pdf", norm)),
+    file.path(out_dir, sprintf("dim_heatmap_%s.pdf", branch_tag)),
     plot,
-    width = width,
-    height = height
+    width = 8,
+    height = 8
   )
 
   invisible(NULL)
@@ -145,7 +162,7 @@ splot_viz_dim_loadings <- function(sobj, n_pcs = 30) {
 
 #' Save an ElbowPlot for the `pca` reduction.
 #'
-#' Filename includes the normalization branch tag.
+#' Filename includes the normalization and cell-cycle filtering branch tag.
 #'
 #' @param sobj Seurat object with `pca` reduction and preprocessing metadata.
 #' @param n_pcs Integer number of PCs to plot. Default 50.
@@ -154,18 +171,24 @@ splot_viz_dim_loadings <- function(sobj, n_pcs = 30) {
 #' @export
 splot_elbow <- function(sobj, n_pcs = 50) {
   norm <- sobj@misc$preprocessing$normalization
+  cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
+    "filter-cc"
+  } else {
+    "no-filter-cc"
+  }
+  branch_tag <- sprintf("%s_%s", norm, cc_tag)
   out_dir <- file.path(FIGURE_DIR, "preprocess")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
   plot <- Seurat::ElbowPlot(sobj, ndims = n_pcs, reduction = "pca")
   ggplot2::ggsave(
-    file.path(out_dir, sprintf("elbow_%s.png", norm)),
+    file.path(out_dir, sprintf("elbow_%s.png", branch_tag)),
     plot,
     width = 5,
     height = 3
   )
   ggplot2::ggsave(
-    file.path(out_dir, sprintf("elbow_%s.pdf", norm)),
+    file.path(out_dir, sprintf("elbow_%s.pdf", branch_tag)),
     plot,
     width = 5,
     height = 3

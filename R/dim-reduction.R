@@ -17,6 +17,7 @@ run_log1p_pca <- function(sobj, n_pcs = 50) {
   if (length(features) == 0) {
     stop("VariableFeatures(sobj) is empty.", call. = FALSE)
   }
+  filtered_cell_cycle <- isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)
 
   sobj <- Seurat::NormalizeData(sobj)
   sobj <- Seurat::ScaleData(sobj, features = features)
@@ -29,7 +30,8 @@ run_log1p_pca <- function(sobj, n_pcs = 50) {
     pca_source_layer = "scale.data",
     hvg_method = "Seurat::FindVariableFeatures(selection.method = 'vst')",
     n_variable_features = length(features),
-    n_pcs = n_pcs
+    n_pcs = n_pcs,
+    filtered_cell_cycle = filtered_cell_cycle
   )
 
   sobj
@@ -59,6 +61,7 @@ run_pflog_pca <- function(sobj, n_pcs = 50) {
   if (length(features) == 0) {
     stop("VariableFeatures(sobj) is empty.", call. = FALSE)
   }
+  filtered_cell_cycle <- isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)
 
   sobj <- scclrR::pflog(sobj)
   pflog_layer <- SeuratObject::LayerData(sobj[[assay]], layer = "pflog")
@@ -96,7 +99,8 @@ run_pflog_pca <- function(sobj, n_pcs = 50) {
     pca_center_key = "pflog_center",
     hvg_method = "Seurat::FindVariableFeatures(selection.method = 'vst')",
     n_variable_features = length(features),
-    n_pcs = n_pcs
+    n_pcs = n_pcs,
+    filtered_cell_cycle = filtered_cell_cycle
   )
 
   sobj

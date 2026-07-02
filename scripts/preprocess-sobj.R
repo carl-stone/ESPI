@@ -67,6 +67,9 @@ sobj[["percent.ribo"]] <- Seurat::PercentageFeatureSet(
   pattern = "^Rp[sl]"
 )
 
+sobj@misc$preprocessing$normalization <- cli_args$normalization
+sobj@misc$preprocessing$filtered_cell_cycle <- cli_args$filter_cc
+
 # Plot QC diagnostics.
 splot_qc_metrics_violin(sobj)
 
@@ -76,6 +79,7 @@ sobj <- FindVariableFeatures(sobj, nfeatures = 2000)
 splot_hvg_scatter(sobj, n_top = 10)
 
 if (cli_args$filter_cc) {
+  utils::data("mouse_cell_cycle_genes", package = "ESPI", envir = environment())
   VariableFeatures(sobj) <- setdiff(
     VariableFeatures(sobj),
     mouse_cell_cycle_genes
@@ -89,15 +93,15 @@ sobj <- switch(
   stop("Unknown normalization: ", cli_args$normalization, call. = FALSE)
 )
 
-sobj@misc$preprocessing$filter_cc <- cli_args$filter_cc
-
-splot_viz_dim_loadings(sobj, n_pcs = 30)
+splot_dim_heatmap(sobj)
 splot_elbow(sobj, n_pcs = 50)
+
+cc_tag <- if (cli_args$filter_cc) "filter-cc" else "no-filter-cc"
 
 dir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
 out_path <- file.path(
   CURRENT_OBJECT_DIR,
-  sprintf("preprocess_%s.rds", cli_args$normalization)
+  sprintf("preprocess_%s_%s.rds", cli_args$normalization, cc_tag)
 )
 saveRDS(sobj, out_path)
 

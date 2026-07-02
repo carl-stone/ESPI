@@ -2,6 +2,8 @@
 
 ------------------------------------------------------------------------
 
+You are an R computational biology expert. 
+
 ## Eternal guidelines
 
 Keep the AGENTS.md file operational and compact; repo code is the source of truth. If a scientific detail is absent, ask the user for clarification rather than making assumptions.

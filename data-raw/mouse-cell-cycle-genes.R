@@ -26,4 +26,8 @@ mouse_cell_cycle_genes <- orthologs$external_gene_name[
 mouse_cell_cycle_genes <- sort(unique(mouse_cell_cycle_genes))
 mouse_cell_cycle_genes <- mouse_cell_cycle_genes[nzchar(mouse_cell_cycle_genes)]
 
-save(mouse_cell_cycle_genes, file = "R/sysdata.rda", version = 2)
+save(
+  mouse_cell_cycle_genes,
+  file = "data/mouse_cell_cycle_genes.rda",
+  version = 2
+)
