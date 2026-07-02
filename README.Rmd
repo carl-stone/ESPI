@@ -29,6 +29,17 @@ You can install the development version of ESPI from [GitHub](https://github.com
 pak::pak("carl-stone/ESPI")
 ```
 
+## Preprocessing
+
+Run the Seurat preprocessing script with `Rscript`, choosing one normalization branch:
+
+```sh
+Rscript scripts/preprocess-sobj.R --normalization log1p
+Rscript scripts/preprocess-sobj.R --normalization pflog --filter-cell-cycle
+```
+
+Use `--input /path/to/object.rds` to override the default Trailmaker input object.
+
 ## Example
 
 This is a basic example which shows you how to solve a common problem:
