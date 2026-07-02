@@ -53,7 +53,7 @@ stopifnot(
 suppressPackageStartupMessages({
   library(Seurat)
   library(here)
-  pkgload::load_all(here::here(), export_all = FALSE, quiet = TRUE)
+  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
 
 sobj <- readRDS(cli_args$input)
@@ -70,6 +70,7 @@ for (d in dims_grid) {
     sobj <- Seurat::FindClusters(
       sobj,
       algorithm = 4,
+      leiden_method = "igraph",
       resolution = r,
       random.seed = SEED
     )

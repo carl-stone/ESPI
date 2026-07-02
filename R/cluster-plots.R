@@ -9,7 +9,7 @@
 #' @return `invisible(NULL)`.
 #' @export
 splot_umap_by <- function(sobj, umap, color_by) {
-  out_dir <- file.path(FIGURE_DIR, "preprocess")
+  out_dir <- file.path(FIGURE_DIR, "cluster")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
   plot <- Seurat::DimPlot(sobj, reduction = umap, group.by = color_by)
@@ -42,7 +42,7 @@ splot_umap_by <- function(sobj, umap, color_by) {
 #' @import ggraph
 #' @export
 splot_clustree <- function(sobj, prefix, out_tag) {
-  out_dir <- file.path(FIGURE_DIR, "preprocess")
+  out_dir <- file.path(FIGURE_DIR, "cluster")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   plot <- clustree::clustree(sobj, prefix = prefix) +
     ggplot2::guides(edge_colour = "none")

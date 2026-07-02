@@ -26,7 +26,7 @@ normalization branch:
 
 ``` sh
 Rscript scripts/preprocess-sobj.R --normalization log1p
-Rscript scripts/preprocess-sobj.R --normalization pflog --filter-cell-cycle
+Rscript scripts/preprocess-sobj.R --normalization pflog
 ```
 
 Use `--input /path/to/object.rds` to override the default Trailmaker

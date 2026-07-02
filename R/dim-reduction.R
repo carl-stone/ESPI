@@ -101,25 +101,3 @@ run_pflog_pca <- function(sobj, n_pcs = 50) {
 
   sobj
 }
-
-#' Remove Seurat cell-cycle genes from a Seurat object's VariableFeatures.
-#'
-#' Uses `Seurat::cc.genes.updated.2019`. Counts and layers are not modified;
-#' only the `VariableFeatures` vector on the active assay changes.
-#'
-#' @param sobj Seurat object with `VariableFeatures` already selected.
-#'
-#' @return `sobj` with cell-cycle genes removed from `VariableFeatures`.
-#' @export
-filter_cell_cycle_hvg <- function(sobj) {
-  cell_cycle_genes <- c(
-    Seurat::cc.genes.updated.2019$s.genes,
-    Seurat::cc.genes.updated.2019$g2m.genes
-  )
-  SeuratObject::VariableFeatures(sobj) <- setdiff(
-    SeuratObject::VariableFeatures(sobj),
-    cell_cycle_genes
-  )
-
-  sobj
-}

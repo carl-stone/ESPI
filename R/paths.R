@@ -21,34 +21,40 @@ CTRL_LABEL <- "p27CKO"
 # or:
 #   MEGAN_SC_DATA_DIR <- "/path/to/megan_sc_data"
 #
-# If neither is set, generated artifacts fall back to the repo-local `output/`
-# directory for compatibility with older checkouts.
+# If neither is set, use Carl's local Box Drive path. If the resolved data root
+# does not exist, fail immediately rather than writing to a different directory.
 PROJECT_ROOT <- here::here()
 LOCAL_CONFIG <- file.path(PROJECT_ROOT, "config.local.R")
 if (file.exists(LOCAL_CONFIG)) {
   source(LOCAL_CONFIG, local = FALSE)
 }
 
-local_config_value <- function(name) {
-  if (exists(name, inherits = FALSE)) {
-    return(get(name, inherits = FALSE))
-  }
-  if (exists(name, envir = .GlobalEnv, inherits = FALSE)) {
-    return(get(name, envir = .GlobalEnv, inherits = FALSE))
-  }
-  NULL
+MEGAN_SC_DATA_DIR_VALUE <- NULL
+if (exists("MEGAN_SC_DATA_DIR", inherits = FALSE)) {
+  MEGAN_SC_DATA_DIR_VALUE <- get("MEGAN_SC_DATA_DIR", inherits = FALSE)
+} else if (exists("MEGAN_SC_DATA_DIR", envir = .GlobalEnv, inherits = FALSE)) {
+  MEGAN_SC_DATA_DIR_VALUE <- get("MEGAN_SC_DATA_DIR", envir = .GlobalEnv)
 }
 
-MEGAN_SC_DATA_DIR_VALUE <- local_config_value("MEGAN_SC_DATA_DIR")
-BOX_PATH_VALUE <- local_config_value("BOX_PATH")
+BOX_PATH_VALUE <- NULL
+if (exists("BOX_PATH", inherits = FALSE)) {
+  BOX_PATH_VALUE <- get("BOX_PATH", inherits = FALSE)
+} else if (exists("BOX_PATH", envir = .GlobalEnv, inherits = FALSE)) {
+  BOX_PATH_VALUE <- get("BOX_PATH", envir = .GlobalEnv)
+}
 
+DEFAULT_BOX_PATH <- path.expand("~/Library/CloudStorage/Box-Box")
 
 if (!is.null(MEGAN_SC_DATA_DIR_VALUE)) {
   DATA_ROOT_DIR <- MEGAN_SC_DATA_DIR_VALUE
 } else if (!is.null(BOX_PATH_VALUE)) {
   DATA_ROOT_DIR <- file.path(BOX_PATH_VALUE, "megan_sc_data")
 } else {
-  DATA_ROOT_DIR <- here::here("output")
+  DATA_ROOT_DIR <- file.path(DEFAULT_BOX_PATH, "megan_sc_data")
+}
+
+if (!dir.exists(DATA_ROOT_DIR)) {
+  stop("Data root does not exist: ", DATA_ROOT_DIR, call. = FALSE)
 }
 
 #' Root directory for generated project artifacts.

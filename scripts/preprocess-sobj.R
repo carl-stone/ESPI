@@ -42,7 +42,7 @@ suppressPackageStartupMessages({
   library(Seurat)
   library(here)
   library(scclrR)
-  pkgload::load_all(here::here(), export_all = FALSE, quiet = TRUE)
+  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
 
 in_path <- if (is.null(cli_args$input)) {
@@ -76,7 +76,10 @@ sobj <- FindVariableFeatures(sobj, nfeatures = 2000)
 splot_hvg_scatter(sobj, n_top = 10)
 
 if (cli_args$filter_cc) {
-  sobj <- filter_cell_cycle_hvg(sobj)
+  VariableFeatures(sobj) <- setdiff(
+    VariableFeatures(sobj),
+    mouse_cell_cycle_genes
+  )
 }
 
 sobj <- switch(
