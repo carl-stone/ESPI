@@ -1,0 +1,127 @@
+---
+title: "sc_analysis"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    code-fold: true
+    number-sections: true
+    embed-resources: true
+---
+
+```{r}
+#| label: package-load
+#| include: false
+library(Seurat)
+```
+
+
+## Data p(re)processing and analysis
+
+I used the Seurat object from Trailmaker as the input for this analysis. I am overwriting all processing, transformations, reductions, etc., but the initial QC filtering that Megan did subsets the object, so that remains in place.
+
+The analysis is being done both with and without cell-cycle genes (S/G2/M) filtered out of HVGs. These analyses are complementary, so we can compare the results to see if the cell cycle genes are driving any of the clustering results, but DEG results are based on counts, which are not affected by HVGs, so those are the same in both analyses.
+
+Pre-processing steps:
+
+1. Normalize counts: adjust expression values for library-size and compositional differences across cells. This pipeline does not perform gene-length normalization.
+2. Scale the data: centers and scales the expression values of each gene across all cells.
+3. Identify highly variable genes (HVGs): identifies the 2000 genes that are most variable across all cells. This selects the most "informative" genes for downstream analysis, removing genes that could add noise but not signal.
+4. Run PCA and select number of PCs to keep for downstream analysis.
+
+### Normalization
+
+There are two good options for normalization:
+
+1. log1p normalization (Seurat default):
+  $$
+  y_{gc} = \log(1 + \frac{x_{gc}}{N_c} \cdot 10^6)
+  $$ {#eq-log1p-normalization}
+  * where $x_{gc}$ is the raw count for gene $g$ in cell $c$, and $N_c$ is the 
+  total counts for cell $c$.
+  * This is the default normalization method in Seurat. It normalizes the counts to account for differences in sequencing depth and technical factors.
+2. PFlog normalization (`scclrR`):
+  $$
+  y_{gc} = \log(x_{gc} + \alpha) - 
+    \frac{1}{G} \sum_{g=1}^G \log(x_{gc} + \alpha)
+  $$ {#eq-pflog-normalization}
+  * where $\alpha$ is the estimated overdispersion of counts in cell $c$, and 
+  $G$ is the total number of genes.
+  * This is equivalent to a centered log-ratio transform of the counts where 
+  each side of the transformation is shifted by $\alpha$, effectively 
+  functioning as a pseudocount.
+  $$
+  y_{gc} = \log \frac{x_{gc} + \alpha}{Gmean_c(x + \alpha)}
+  $$ {#eq-pflog-normalization-2}
+  * This is a shifted centered log-ratio transformation, using the Aitchison
+  compositional-data framework with a pseudocount adapted for single-cell counts.
+
+**Choice 1**: I am carrying both log1p and PFlog branches through preprocessing so we can see whether downstream PCA, clustering, and marker interpretation are robust to normalization. PFlog is promising because it is designed for compositional count data and has a relevant single-cell benchmark (Booeshaghi 2026 bioRxiv), but we should keep the claim scoped to this ESPI analysis before treating it as the primary normalization.
+
+### Choosing PCs
+
+I tried a "principled" way to choose PCs but I think that's getting too fancy. 
+Everyone says to just eyeball it, so that's what we'll do. The most common 
+heuristic is the elbow plot: pick a number of PCs that's safely past the elbow.
+
+::: {#fig-elbows layout-ncol=2}
+
+![log1p normalization](figures/elbow_log1p_no-filter-cc.png){#fig-elbow-log1p}
+
+![PFlog normalization](figures/elbow_pflog_no-filter-cc.png){#fig-elbow-pflog}
+
+:::
+
+PFlog normalization has a steeper elbow in these plots. That pattern is 
+consistent with stronger variance stabilization, but the elbow plot alone does
+not identify the cause. I'm doing downstream analyses with both at
+$\mathrm{PC} = \{20, 30, 50\}$ to see how normalization affects clustering and
+marker segregation. Those will be supplemental figures.
+
+:::: {#fig-hvg-heatmap layout-nrow=2}
+
+![log1p, no CC-filtering](figures/dim_heatmap_log1p_no-filter-cc.png){#fig-heatmap-log1p-nofilter}
+
+![log1p, CC-filtering](figures/dim_heatmap_log1p_filter-cc.png){#fig-heatmap-log1p-filter}
+
+![PFlog, no CC-filtering](figures/dim_heatmap_pflog_no-filter-cc.png){#fig-heatmap-pflog-nofilter}
+
+![PFlog, CC-filtering](figures/dim_heatmap_pflog_filter-cc.png){#fig-heatmap-pflog-filter}
+
+For each PC, the heatmap displays the default top loading features selected by `Seurat::DimHeatmap()` across 500 cells. These plots show PCs 1--6 as a diagnostic for whether early PCs are dominated by cell-cycle or other technical programs.
+
+::::
+
+### Selecting HVGs
+
+We'll use the default 2000 HVGs, with and without cell cycle genes removed. 
+These plots label the top 20 retained HVGs in each branch.
+
+::: {#fig-hvg-scatter layout-nrow=2}
+
+![log1p, no CC-filtering](figures/hvg_scatter_log1p_no-filter-cc.png){#fig-hvg-log1p-nofilter}
+
+![log1p, CC-filtering](figures/hvg_scatter_log1p_filter-cc.png){#fig-hvg-log1p-filter}
+
+![PFlog, no CC-filtering](figures/hvg_scatter_pflog_no-filter-cc.png){#fig-hvg-pflog-nofilter}
+
+![PFlog, CC-filtering](figures/hvg_scatter_pflog_filter-cc.png){#fig-hvg-pflog-filter}
+
+:::
+
+## Clustering
+
+1. Clustering: Construct a KNN graph, and use Leiden clustering on that graph.
+2. Visualize clusters with UMAP.
+
+### Clustering resolution
+
+Low resolution = fewer clusters, high resolution = more clusters. 
+
+Plots:
+- clustree
+- UMAP by cluster for each resolution
+- Next to each UMAP, another UMAP with Ascl1 and Otx2 colored.
+- Heatmap of our marker genes plotted in each cluster. Take the genes from manuscript figure 5C.
+- 

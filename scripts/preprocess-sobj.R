@@ -51,6 +51,13 @@ in_path <- if (is.null(cli_args$input)) {
   cli_args$input
 }
 sobj <- readRDS(in_path)
+emit_tripwire_checkpoint(
+  "raw_data_available",
+  input = in_path,
+  n_cells = ncol(sobj),
+  n_features = nrow(sobj)
+)
+validate_required_metadata(sobj@meta.data, c("Mouse", "Condition"))
 # Drop any pre-existing reductions from upstream Trailmaker export.
 sobj@reductions <- list()
 sobj[["RNA"]] <- as(sobj[["RNA"]], Class = "Assay5")
@@ -75,9 +82,6 @@ splot_qc_metrics_violin(sobj)
 
 sobj <- FindVariableFeatures(sobj, nfeatures = 2000)
 
-# Plot gene mean-vs-variance scatter with top 10 HVGs labeled.
-splot_hvg_scatter(sobj, n_top = 10)
-
 if (cli_args$filter_cc) {
   utils::data("mouse_cell_cycle_genes", package = "ESPI", envir = environment())
   VariableFeatures(sobj) <- setdiff(
@@ -85,12 +89,27 @@ if (cli_args$filter_cc) {
     mouse_cell_cycle_genes
   )
 }
+emit_tripwire_checkpoint(
+  "variable_features_selected",
+  normalization = cli_args$normalization,
+  filtered_cell_cycle = cli_args$filter_cc,
+  n_variable_features = length(VariableFeatures(sobj))
+)
+
+# Plot gene mean-vs-variance scatter with top 20 retained HVGs labeled.
+splot_hvg_scatter(sobj, n_top = 20)
 
 sobj <- switch(
   cli_args$normalization,
   log1p = run_log1p_pca(sobj, n_pcs = 50),
   pflog = run_pflog_pca(sobj, n_pcs = 50),
   stop("Unknown normalization: ", cli_args$normalization, call. = FALSE)
+)
+emit_tripwire_checkpoint(
+  "pca_ready",
+  normalization = cli_args$normalization,
+  filtered_cell_cycle = cli_args$filter_cc,
+  n_pcs = ncol(SeuratObject::Embeddings(sobj, reduction = "pca"))
 )
 
 splot_dim_heatmap(sobj)
@@ -104,6 +123,12 @@ out_path <- file.path(
   sprintf("preprocess_%s_%s.rds", cli_args$normalization, cc_tag)
 )
 saveRDS(sobj, out_path)
+emit_tripwire_checkpoint(
+  "preprocess_object_written",
+  output = out_path,
+  normalization = cli_args$normalization,
+  filtered_cell_cycle = cc_tag
+)
 
 message(
   "Saved ",

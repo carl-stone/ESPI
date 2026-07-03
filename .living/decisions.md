@@ -1,0 +1,59 @@
+# Decision Log
+
+Append-only log of non-obvious decisions and their rationale.
+
+### [2026-07-03] Enable Mycelium without restructuring ESPI
+
+**Tags**: mycelium, repo-structure, r-package
+
+**Context**: ESPI is already organized as a minimal R package with executable analysis scripts and a Quarto notebook.
+
+**Decision**: Initialize Mycelium's `.living/` memory layer, manifests, convention packs, and local Claude hooks, but keep existing `R/`, `scripts/`, and `notebook/` layout intact.
+
+**Alternatives considered**: Moving existing scripts into Mycelium `analysis/` folders would satisfy generic Mycelium structure but would obscure the current package workflow.
+
+**Rationale**: The repo's scientific and executable source of truth already lives in stable R package locations. Mycelium should add memory and provenance, not force a new layout.
+
+**Consequences**: Future agents should use `analysis/` for new standalone Mycelium reports only. Existing pipeline work remains in `scripts/` and `R/`.
+
+### [2026-07-03] Install bioinformatics conventions by default
+
+**Tags**: mycelium, conventions, bioinformatics, single-cell
+
+**Context**: Mycelium core conventions were installed manually because the initializer did not auto-detect the plugin network path from the OMP plugin cache. ESPI is a single-cell bioinformatics analysis.
+
+**Decision**: Install `robust-analysis`, `report-generator`, `idea-generator`, and the domain-specific `bioinformatics` convention pack.
+
+**Alternatives considered**: Installing only core packs would be more conservative but would omit relevant single-cell and genomics guidance.
+
+**Rationale**: The project context clearly fits the bioinformatics convention pack.
+
+**Consequences**: Generic conventions apply only when compatible with ESPI-specific rules in `AGENTS.md` and `.living/conventions.md`.
+
+### [2026-07-03] Treat Mycelium restructure audit as advisory only
+
+**Tags**: mycelium, repo-structure, audit, r-package
+
+**Context**: The Mycelium init protocol says existing repos should run restructure audit before moving files. The audit reported 13 reference-material candidates and 64 unclassified package/notebook/generated files.
+
+**Decision**: Do not apply the restructure moves automatically.
+
+**Alternatives considered**: Moving root docs and agent files into `reference_material/` would align with generic Mycelium output but would break or obscure existing ESPI/agent conventions.
+
+**Rationale**: ESPI is a working R package; package files, agent files, Quarto notebook files, generated Rd files, and existing docs should stay in their current locations unless the user explicitly requests a layout migration.
+
+**Consequences**: `reference_material/` remains a manifest/index area. Any future restructuring requires explicit user approval.
+
+### [2026-07-03] Enable skill-bridge after cloning available skillpacks
+
+**Tags**: mycelium, skillpacks, skill-bridge, conventions
+
+**Context**: The user asked to set up the external skillpacks referenced by Mycelium. `scientific-agent-skills` and `bioSkills` cloned successfully; the documented `Autonomous-Science` URL was not found.
+
+**Decision**: Install the `skill-bridge` convention pack now and document the missing `Autonomous-Science` repo instead of blocking use of the available skillpacks.
+
+**Alternatives considered**: Waiting for all three external repositories would keep setup symmetric but would leave the two available references unused.
+
+**Rationale**: `skill-bridge` can route to the installed skillpack libraries immediately, and the missing repo is a source URL problem outside this repo.
+
+**Consequences**: `skillpacks/README.md` records exact installed commits and the missing URL. Add `Autonomous-Science` later only after a corrected public or accessible URL is available.

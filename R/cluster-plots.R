@@ -1,6 +1,6 @@
 #' Save a DimPlot on a specified UMAP reduction colored by a metadata column.
 #'
-#' Filename encodes the UMAP reduction and coloring column.
+#' Filename combines the UMAP reduction and coloring column.
 #'
 #' @param sobj Seurat object with the named UMAP reduction populated.
 #' @param umap Character name of the UMAP reduction in `sobj@reductions`.
@@ -11,16 +11,23 @@
 splot_umap_by <- function(sobj, umap, color_by) {
   out_dir <- file.path(FIGURE_DIR, "cluster")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+  umap_tag <- gsub("[^A-Za-z0-9_-]", "_", umap)
+  color_tag <- gsub("[^A-Za-z0-9_-]", "_", color_by)
 
-  plot <- Seurat::DimPlot(sobj, reduction = umap, group.by = color_by)
+  plot <- Seurat::DimPlot(
+    sobj,
+    reduction = umap,
+    group.by = color_by,
+    label = TRUE
+  )
   ggplot2::ggsave(
-    file.path(out_dir, sprintf("%s__%s.png", umap, color_by)),
+    file.path(out_dir, sprintf("%s_by_%s.png", umap_tag, color_tag)),
     plot,
     width = 5,
     height = 5
   )
   ggplot2::ggsave(
-    file.path(out_dir, sprintf("%s__%s.pdf", umap, color_by)),
+    file.path(out_dir, sprintf("%s_by_%s.pdf", umap_tag, color_tag)),
     plot,
     width = 5,
     height = 5

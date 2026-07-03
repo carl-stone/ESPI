@@ -96,7 +96,8 @@ splot_hvg_scatter <- function(sobj, n_top = 10) {
       points = top_features,
       repel = TRUE,
       xnudge = 0,
-      ynudge = 0
+      ynudge = 0,
+      max.overlaps = Inf
     )
   }
 
@@ -142,19 +143,20 @@ splot_dim_heatmap <- function(sobj) {
     cells = 500,
     balanced = TRUE,
     fast = FALSE,
-    combine = TRUE
+    combine = TRUE,
+    ncol = 2
   )
   ggplot2::ggsave(
     file.path(out_dir, sprintf("dim_heatmap_%s.png", branch_tag)),
     plot,
     width = 8,
-    height = 8
+    height = 12
   )
   ggplot2::ggsave(
     file.path(out_dir, sprintf("dim_heatmap_%s.pdf", branch_tag)),
     plot,
     width = 8,
-    height = 8
+    height = 12
   )
 
   invisible(NULL)

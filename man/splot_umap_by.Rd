@@ -17,5 +17,5 @@ splot_umap_by(sobj, umap, color_by)
 \code{invisible(NULL)}.
 }
 \description{
-Filename encodes the UMAP reduction and coloring column.
+Filename combines the UMAP reduction and coloring column.
 }

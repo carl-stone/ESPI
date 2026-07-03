@@ -1,4 +1,4 @@
-# AGENTS.md - R/
+# AGENTS.md --- R/
 
 Keep helper functions narrow, but do not wrap a few commands in a new function unless the helper is called repeatedly or names a real analysis concept.
 

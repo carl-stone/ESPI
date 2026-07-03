@@ -3,8 +3,8 @@
 # Inputs: preprocessed `.rds` at `--input <path>` (required); `--elbow-n <N>`
 # (required; integer chosen from the elbow plot); optional `--extra-dims <csv>`
 # (default "30,50"); optional `--resolutions <csv>` (default "0.3,0.5,0.8").
-# Outputs: clustered object saved to `CURRENT_OBJECT_DIR/cluster_<norm>_elbow<N>.rds`;
-# candidate-clustering UMAP overlays and clustree plots.
+# Outputs: clustered object saved to
+# `CURRENT_OBJECT_DIR/cluster_<normalization>_<cc-tag>_elbow<N>.rds`;
 # Terms: see CONTEXT.md (normalization branch, candidate clustering, chosen clustering,
 # pseudobulk sample, focused test).
 
@@ -58,6 +58,20 @@ suppressPackageStartupMessages({
 
 sobj <- readRDS(cli_args$input)
 norm <- sobj@misc$preprocessing$normalization
+cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
+  "filter-cc"
+} else {
+  "no-filter-cc"
+}
+branch_tag <- sprintf("%s_%s", norm, cc_tag)
+emit_tripwire_checkpoint(
+  "cluster_input_available",
+  input = cli_args$input,
+  normalization = norm,
+  filtered_cell_cycle = cc_tag,
+  n_cells = ncol(sobj),
+  n_features = nrow(sobj)
+)
 
 dims_grid <- sort(unique(c(cli_args$elbow_n, cli_args$extra_dims)))
 candidate_names <- character()
@@ -66,7 +80,7 @@ for (d in dims_grid) {
   old_idents <- SeuratObject::Idents(sobj)
   sobj <- Seurat::FindNeighbors(sobj, reduction = "pca", dims = 1:d)
   for (r in cli_args$resolutions) {
-    name <- sprintf("cluster_%s_dims%d_res%s", norm, d, res_tag(r))
+    name <- sprintf("cluster_%s_dims%d_res%s", branch_tag, d, res_tag(r))
     sobj <- Seurat::FindClusters(
       sobj,
       algorithm = 4,
@@ -81,7 +95,7 @@ for (d in dims_grid) {
 }
 
 for (d in dims_grid) {
-  reduction_name <- sprintf("umap_%s_dims%d", norm, d)
+  reduction_name <- sprintf("umap_%s_dims%d", branch_tag, d)
   sobj <- Seurat::RunUMAP(
     sobj,
     reduction = "pca",
@@ -96,8 +110,8 @@ for (d in dims_grid) {
   for (r in cli_args$resolutions) {
     splot_umap_by(
       sobj,
-      umap = sprintf("umap_%s_dims%d", norm, d),
-      color_by = sprintf("cluster_%s_dims%d_res%s", norm, d, res_tag(r))
+      umap = sprintf("umap_%s_dims%d", branch_tag, d),
+      color_by = sprintf("cluster_%s_dims%d_res%s", branch_tag, d, res_tag(r))
     )
   }
 }
@@ -105,13 +119,15 @@ for (d in dims_grid) {
 for (d in dims_grid) {
   splot_clustree(
     sobj,
-    prefix = sprintf("cluster_%s_dims%d_res", norm, d),
-    out_tag = sprintf("%s_dims%d", norm, d)
+    prefix = sprintf("cluster_%s_dims%d_res", branch_tag, d),
+    out_tag = sprintf("%s_dims%d", branch_tag, d)
   )
 }
 
 sobj@misc$clustering <- list(
   algorithm = "leiden",
+  filtered_cell_cycle = isTRUE(sobj@misc$preprocessing$filtered_cell_cycle),
+  branch_tag = branch_tag,
   resolutions = cli_args$resolutions,
   dims_grid = dims_grid,
   elbow_n = cli_args$elbow_n,
@@ -121,7 +137,13 @@ sobj@misc$clustering <- list(
 dir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
 out_path <- file.path(
   CURRENT_OBJECT_DIR,
-  sprintf("cluster_%s_elbow%d.rds", norm, cli_args$elbow_n)
+  sprintf("cluster_%s_elbow%d.rds", branch_tag, cli_args$elbow_n)
 )
 saveRDS(sobj, out_path)
+emit_tripwire_checkpoint(
+  "cluster_artifacts_written",
+  output = out_path,
+  branch_tag = branch_tag,
+  n_candidates = length(candidate_names)
+)
 message("Saved ", out_path)
