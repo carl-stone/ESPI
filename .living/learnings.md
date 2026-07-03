@@ -81,3 +81,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: code
 
 **structural_mitigation_candidate**: Keep plotting helpers narrow: pass only the columns a plotting package needs when the source object has large heterogeneous metadata.
+
+### [2026-07-03] Use ASCII keys plus labels for marker sets
+
+**Tags**: marker-genes, unicode, plotting, r-package
+
+**Category**: Data object design
+
+**What happened**: The marker set includes Müller glia, whose display name contains a non-ASCII character and a space.
+
+**Why it matters**: R can store quoted Unicode list names, but those names become awkward when reused as column names, file tags, factor keys, or programmatic accessors.
+
+**Resolution**: Store marker lists under ASCII keys such as `muller_glia`, and store plot/report names separately in `cell_type_marker_labels`.
+
+**mitigation_type**: data-design
+
+**structural_mitigation_candidate**: Validate that marker-list keys and label-vector names match whenever marker data is regenerated.
