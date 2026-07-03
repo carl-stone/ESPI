@@ -117,8 +117,11 @@ The supplemental grid summary table is written to `/Users/carlstone/Library/Clou
 
 Low resolution gives fewer clusters, while high resolution gives more clusters. The same numeric resolution is useful for controlled branch comparisons, but it is not an absolute biological scale because each preprocessing branch changes the neighbor graph. The clustree grid below shows all normalization\ ×\ cell-cycle-HVG\ ×\ PC combinations; each panel contains the 0.3, 0.5, and 0.8 resolution sweep. Within a clustree panel, node position is a graph-layout aid; the edge structure, node size, and split pattern are the interpretable parts.
 
-![Clustree grid across normalization, cell-cycle-HVG policy, and PC count. Each panel shows the resolution sweep for one branch.](figures/cluster_grid_clustree_12_panel.png){#fig-clustree-grid}
+![Clustree grid across normalization, cell-cycle-HVG policy, and PC count. Each panel shows the resolution sweep for one branch, from top to bottom resolution 0.3 (red), 0.5 (green), and 0.8 (blue)](figures/cluster_grid_clustree_12_panel.png){#fig-clustree-grid}
 
-The representative UMAP sweep below uses the current ARI reference branch: PFlog normalization, cell-cycle HVGs filtered, 50 PCs. It shows how increasing Leiden resolution subdivides the same UMAP geometry.
+Here's an example of one of the UMAP resolution sweeps. This uses PFlog normalization, cell-cycle HVG filtering, and 50 PCs. Resolution 0.3 has the most stable clusters, but increasing to 0.5 or 0.8 can show substructure within the larger clusters.
 
 ![Representative UMAP resolution sweep for PFlog, cell-cycle-HVG filtered, 50 PCs.](figures/umap_resolution_sweep_pflog_filter_cc_dims50.png){#fig-umap-resolution-sweep}
+
+**Choice 2**: Based off the clustree and UMAP resolution sweeps, it looks like the best combination of normalization, number of PCs, and resolution is PFlog normalization, 50 PCs, and resolution 0.3. I'll use this for most downstream analyses, using the same settings for the cell-cycle filtered and non-filtered HVGs. We can use a higher resolution like 0.8 for subclustering later.
+
