@@ -3,8 +3,8 @@
 # Inputs: preprocessed `.rds` at `--input <path>` (required); `--elbow-n <N>`
 # (required; integer chosen from the elbow plot); optional `--extra-dims <csv>`
 # (default "30,50"); optional `--resolutions <csv>` (default "0.3,0.5,0.8").
-# Outputs: clustered object saved to
-# `CURRENT_OBJECT_DIR/cluster_<normalization>_<cc-tag>_elbow<N>.rds`;
+# Outputs: clustered object saved to a Seurat-safe branch-tagged path:
+# `CURRENT_OBJECT_DIR/cluster_<normalization>_<cc_tag>_elbow<N>.rds`;
 # Terms: see CONTEXT.md (normalization branch, candidate clustering, chosen clustering,
 # pseudobulk sample, focused test).
 
@@ -47,7 +47,11 @@ cli_args <- list(
 stopifnot(
   !is.null(cli_args$input),
   length(cli_args$elbow_n) == 1,
-  is.finite(cli_args$elbow_n)
+  is.finite(cli_args$elbow_n),
+  all(is.finite(cli_args$extra_dims)),
+  all(cli_args$extra_dims > 0),
+  all(is.finite(cli_args$resolutions)),
+  all(cli_args$resolutions > 0)
 )
 
 suppressPackageStartupMessages({
@@ -58,12 +62,22 @@ suppressPackageStartupMessages({
 
 sobj <- readRDS(cli_args$input)
 norm <- sobj@misc$preprocessing$normalization
+if (
+  !is.character(norm) ||
+    length(norm) != 1 ||
+    !norm %in% c("log1p", "pflog")
+) {
+  stop("Missing or invalid preprocessing normalization: ", norm, call. = FALSE)
+}
 cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
-  "filter-cc"
+  "filter_cc"
 } else {
-  "no-filter-cc"
+  "no_filter_cc"
 }
 branch_tag <- sprintf("%s_%s", norm, cc_tag)
+if (!grepl("^[A-Za-z0-9_]+$", branch_tag)) {
+  stop("Unsafe clustering branch tag: ", branch_tag, call. = FALSE)
+}
 emit_tripwire_checkpoint(
   "cluster_input_available",
   input = cli_args$input,
@@ -116,11 +130,20 @@ for (d in dims_grid) {
   }
 }
 
-for (d in dims_grid) {
-  splot_clustree(
-    sobj,
-    prefix = sprintf("cluster_%s_dims%d_res", branch_tag, d),
-    out_tag = sprintf("%s_dims%d", branch_tag, d)
+min_clustree_resolutions <- 2L
+clustree_plotted <- length(unique(cli_args$resolutions)) >=
+  min_clustree_resolutions
+if (clustree_plotted) {
+  for (d in dims_grid) {
+    splot_clustree(
+      sobj,
+      prefix = sprintf("cluster_%s_dims%d_res", branch_tag, d),
+      out_tag = sprintf("%s_dims%d", branch_tag, d)
+    )
+  }
+} else {
+  message(
+    "Skipping clustree output because fewer than two resolutions were requested."
   )
 }
 
@@ -131,7 +154,8 @@ sobj@misc$clustering <- list(
   resolutions = cli_args$resolutions,
   dims_grid = dims_grid,
   elbow_n = cli_args$elbow_n,
-  candidate_names = candidate_names
+  candidate_names = candidate_names,
+  clustree_plotted = clustree_plotted
 )
 
 dir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)

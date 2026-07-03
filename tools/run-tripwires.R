@@ -50,13 +50,20 @@ read_text <- function(path) {
 squash <- function(x) {
   paste(x, collapse = " ")
 }
+MAX_LINE_REFS <- 6L
+YAML_LIST_CAPTURE_LENGTH <- 2L
+YAML_LIST_CAPTURE_VALUE <- 2L
 
-line_refs <- function(lines, idx, max_n = 6) {
+
+line_refs <- function(lines, idx, max_n = MAX_LINE_REFS) {
   if (length(idx) == 0) {
     return("")
   }
-  idx <- idx[seq_len(min(length(idx), max_n))]
-  paste(sprintf("L%d: %s", idx, trimws(lines[idx])), collapse = "; ")
+  selected_idx <- utils::head(idx, max_n)
+  paste(
+    sprintf("L%d: %s", selected_idx, trimws(lines[selected_idx])),
+    collapse = "; "
+  )
 }
 
 strip_inline_comment <- function(line) {
@@ -85,8 +92,8 @@ extract_yaml_list <- function(lines, key) {
     }
     m <- regexec("^[[:space:]]*-[[:space:]]*\"?([^\"]+?)\"?[[:space:]]*$", line)
     hit <- regmatches(line, m)[[1]]
-    if (length(hit) == 2) {
-      out <- c(out, hit[[2]])
+    if (length(hit) == YAML_LIST_CAPTURE_LENGTH) {
+      out <- c(out, hit[[YAML_LIST_CAPTURE_VALUE]])
     }
     i <- i + 1L
   }
@@ -108,6 +115,8 @@ extract_yaml_scalar <- function(lines, key) {
   if (identical(value, "")) NA_character_ else value
 }
 
+# ANALYSIS_OK[file-freshness-tripwire]: mtime is the explicit freshness signal;
+# report-values-freshness fails when rendered HTML predates source or figure targets.
 mtime <- function(path) {
   info <- file.info(path)
   info$mtime[[1]]
@@ -126,40 +135,79 @@ resolve_figure_target <- function(path) {
 
 tripwire_branch_artifact_collision <- function(root) {
   # Scientific boundary: normalization and cell-cycle-filter branches must never
-  # overwrite, share, or masquerade as the same clustering artifact.
+  # overwrite, share, or masquerade as the same clustering artifact. Persistent
+  # Seurat artifact names must also avoid hyphens that Seurat rejects for
+  # reduction names.
   slug <- "branch-artifact-collision"
   path <- file.path(root, "scripts", "cluster-sobj.R")
   if (!file.exists(path)) {
     return(fail(slug, "scripts/cluster-sobj.R is missing."))
   }
   lines <- read_text(path)
-  code <- squash(strip_inline_comment(lines))
+  code_lines <- strip_inline_comment(lines)
+  code <- squash(code_lines)
 
-  has_cc_tag <- grepl(
-    "cc_tag[[:space:]]*<-.*filtered_cell_cycle",
-    code,
-    perl = TRUE
-  )
-  has_branch_tag <- grepl(
-    "branch_tag[[:space:]]*<-[[:space:]]*sprintf\\([[:space:]]*\"%s_%s\"[[:space:]]*,[[:space:]]*norm[[:space:]]*,[[:space:]]*cc_tag",
-    code,
-    perl = TRUE
-  )
+  cc_start <- grep("\\bcc_tag[[:space:]]*<-", code_lines, perl = TRUE)
+  cc_block <- integer()
+  if (length(cc_start) > 0) {
+    depth <- 0L
+    for (i in seq.int(cc_start[[1]], length(code_lines))) {
+      cc_block <- c(cc_block, i)
+      chars <- strsplit(code_lines[[i]], "", fixed = TRUE)[[1]]
+      depth <- depth +
+        sum(chars %in% c("(", "{", "[")) -
+        sum(chars %in% c(")", "}", "]"))
+      if (i > cc_start[[1]] && depth <= 0L) {
+        break
+      }
+    }
+  }
+
+  has_cc_tag <- length(cc_block) > 0 &&
+    grepl("filtered_cell_cycle", squash(code_lines[cc_block]), fixed = TRUE)
+  has_branch_tag <- grepl("\\bbranch_tag[[:space:]]*<-", code, perl = TRUE) &&
+    grepl(
+      "\\bbranch_tag[[:space:]]*<-.*\\bnorm\\b.*\\bcc_tag\\b|\\bbranch_tag[[:space:]]*<-.*\\bcc_tag\\b.*\\bnorm\\b",
+      code,
+      perl = TRUE
+    )
+  hyphenated_cc_tag <- cc_block[
+    grepl(
+      "\"(no-)?filter-cc\"|'(no-)?filter-cc'",
+      code_lines[cc_block],
+      perl = TRUE
+    )
+  ]
+  has_branch_tag_guard <- grepl("\\bbranch_tag\\b", code, perl = TRUE) &&
+    grepl("A-Za-z0-9_", code, fixed = TRUE) &&
+    (grepl("^[A-Za-z0-9_]+$", code, fixed = TRUE) ||
+      grepl("[^A-Za-z0-9_]", code, fixed = TRUE)) &&
+    grepl("\\bgrepl[[:space:]]*\\(", code, perl = TRUE) &&
+    grepl("\\bstop(ifnot)?[[:space:]]*\\(", code, perl = TRUE)
 
   persistent_name_line <- grepl(
     "sprintf\\([[:space:]]*\"(cluster_|umap_|%s_dims|.*\\.rds)",
-    lines,
+    code_lines,
     perl = TRUE
   ) |
     grepl(
       "(prefix|out_tag|reduction_name|color_by)[[:space:]]*=",
-      lines,
+      code_lines,
       perl = TRUE
     )
   norm_only <- which(
     persistent_name_line &
-      grepl("\\bnorm\\b", lines) &
-      !grepl("\\b(branch_tag|cc_tag)\\b", lines)
+      grepl("\\bnorm\\b", code_lines, perl = TRUE) &
+      !grepl("\\b(branch_tag|cc_tag)\\b", code_lines, perl = TRUE)
+  )
+  direct_branch_parts <- which(
+    persistent_name_line &
+      grepl("\\b(norm|cc_tag)\\b", code_lines, perl = TRUE) &
+      !grepl("\\bbranch_tag\\b", code_lines, perl = TRUE)
+  )
+  literal_hyphen_persistent <- which(
+    persistent_name_line &
+      grepl("\"(no-)?filter-cc\"|'(no-)?filter-cc'", code_lines, perl = TRUE)
   )
 
   problems <- character()
@@ -172,7 +220,22 @@ tripwire_branch_artifact_collision <- function(root) {
   if (!has_branch_tag) {
     problems <- c(
       problems,
-      "missing branch_tag <- sprintf(\"%s_%s\", norm, cc_tag)"
+      "missing branch_tag that combines normalization and cell-cycle state"
+    )
+  }
+  if (length(hyphenated_cc_tag) > 0) {
+    problems <- c(
+      problems,
+      paste0(
+        "cc_tag values feeding branch_tag are hyphenated; use Seurat-safe underscores: ",
+        line_refs(lines, hyphenated_cc_tag)
+      )
+    )
+  }
+  if (!has_branch_tag_guard) {
+    problems <- c(
+      problems,
+      "missing explicit branch_tag guard for allowed characters [A-Za-z0-9_]"
     )
   }
   if (length(norm_only) > 0) {
@@ -184,13 +247,140 @@ tripwire_branch_artifact_collision <- function(root) {
       )
     )
   }
+  if (length(direct_branch_parts) > 0) {
+    problems <- c(
+      problems,
+      paste0(
+        "persistent names should use the validated branch_tag instead of raw norm/cc_tag parts: ",
+        line_refs(lines, direct_branch_parts)
+      )
+    )
+  }
+  if (length(literal_hyphen_persistent) > 0) {
+    problems <- c(
+      problems,
+      paste0(
+        "persistent Seurat names contain hyphenated cell-cycle tags: ",
+        line_refs(lines, literal_hyphen_persistent)
+      )
+    )
+  }
 
   if (length(problems) > 0) {
     return(fail(slug, paste(problems, collapse = " | ")))
   }
   pass(
     slug,
-    "cluster columns, UMAP reductions, clustree tags, and clustered RDS names use the normalization + cell-cycle branch tag contract."
+    "cluster columns, UMAP reductions, clustree tags, and clustered RDS names use a validated normalization + cell-cycle branch_tag with Seurat-safe characters."
+  )
+}
+
+tripwire_cluster_wrapper_contract <- function(root) {
+  # Operational boundary: the all-branch cluster wrapper must be an R
+  # orchestrator with a non-executing preview path, not a shell loop depending
+  # on exported state.
+  slug <- "cluster-wrapper-contract"
+  path <- file.path(root, "scripts", "cluster-all.R")
+  if (!file.exists(path)) {
+    return(fail(slug, "scripts/cluster-all.R is missing."))
+  }
+  lines <- read_text(path)
+  code_lines <- strip_inline_comment(lines)
+  code <- squash(code_lines)
+
+  shell_loop <- grep(
+    "\\bfor[[:space:]]+inp[[:space:]]+in\\b",
+    code_lines,
+    perl = TRUE
+  )
+  exported_current_dir <- grep(
+    "(export[[:space:]]+CURRENT_OBJECT_DIR|\\$\\{?CURRENT_OBJECT_DIR\\}?)",
+    code_lines,
+    perl = TRUE
+  )
+  loads_package_constants <- grepl(
+    "\\bdevtools::load_all[[:space:]]*\\(",
+    code,
+    perl = TRUE
+  ) ||
+    grepl(
+      "\\blibrary[[:space:]]*\\([[:space:]]*ESPI[[:space:]]*\\)",
+      code,
+      perl = TRUE
+    ) ||
+    grepl(
+      "\\brequireNamespace[[:space:]]*\\([[:space:]]*[\"']ESPI[\"']",
+      code,
+      perl = TRUE
+    )
+  uses_current_dir_in_r <- grepl(
+    "\\bCURRENT_OBJECT_DIR\\b",
+    code,
+    perl = TRUE
+  ) &&
+    grepl("\\blist\\.files[[:space:]]*\\(", code, perl = TRUE) &&
+    grepl("preprocess_.*\\.rds", code, perl = TRUE)
+  has_preview_arg <- grepl(
+    "--dry-run|dry[_\\.]run|preview",
+    code,
+    ignore.case = TRUE,
+    perl = TRUE
+  )
+  prints_commands <- grepl(
+    "\\b(writeLines|cat|message|print)[[:space:]]*\\(",
+    code,
+    perl = TRUE
+  )
+  builds_rscript_commands <- grepl("cluster-sobj.R", code, fixed = TRUE) &&
+    grepl("\\b(Rscript|system2)[[:space:]]*\\(?", code, perl = TRUE)
+  has_nonexecuting_preview <- has_preview_arg &&
+    prints_commands &&
+    builds_rscript_commands
+
+  problems <- character()
+  if (length(shell_loop) > 0) {
+    problems <- c(
+      problems,
+      paste0(
+        "cluster-all.R still contains a shell for-inp loop: ",
+        line_refs(lines, shell_loop)
+      )
+    )
+  }
+  if (length(exported_current_dir) > 0) {
+    problems <- c(
+      problems,
+      paste0(
+        "cluster-all.R still references exported CURRENT_OBJECT_DIR shell text: ",
+        line_refs(lines, exported_current_dir)
+      )
+    )
+  }
+  if (!loads_package_constants) {
+    problems <- c(
+      problems,
+      "cluster-all.R does not load ESPI package constants in R"
+    )
+  }
+  if (!uses_current_dir_in_r) {
+    problems <- c(
+      problems,
+      "cluster-all.R does not discover preprocess_*.rds inputs from CURRENT_OBJECT_DIR in R"
+    )
+  }
+  if (!has_nonexecuting_preview) {
+    problems <- c(
+      problems,
+      "cluster-all.R lacks a dry-run/preview path that prints cluster-sobj.R commands without executing them"
+    )
+  }
+
+  if (length(problems) > 0) {
+    return(fail(slug, paste(problems, collapse = " | ")))
+  }
+  pass(
+    slug,
+    "cluster-all.R loads package constants in R, discovers preprocess inputs without a shell loop, and exposes a non-executing command preview."
   )
 }
 
@@ -219,7 +409,8 @@ tripwire_report_values_freshness <- function(root) {
     gregexpr("figures/[^)\"'{}[:space:]]+\\.png", qmd_text, perl = TRUE)
   )))
   figure_paths <- file.path(dirname(qmd), figure_refs)
-  missing_figures <- figure_paths[!file.exists(figure_paths)]
+  missing_figure_refs <- figure_refs[!file.exists(figure_paths)]
+  missing_figures <- file.path(dirname(qmd), missing_figure_refs)
 
   problems <- character()
   if (length(missing_figures) > 0) {
@@ -227,10 +418,7 @@ tripwire_report_values_freshness <- function(root) {
       problems,
       paste(
         "missing QMD figure reference(s):",
-        paste(
-          file.path("notebook", figure_refs[!file.exists(figure_paths)]),
-          collapse = ", "
-        )
+        paste(file.path("notebook", missing_figure_refs), collapse = ", ")
       )
     )
   }
@@ -633,7 +821,7 @@ tripwire_toy_contrast_direction <- function(root) {
     ),
     list.files(file.path(root, "R"), pattern = "\\.[Rr]$", full.names = TRUE)
   )
-  code_paths <- code_paths[file.exists(code_paths)]
+  existing_code_paths <- code_paths[file.exists(code_paths)]
   de_entry_pattern <- paste(
     "\\b(FindMarkers|FindAllMarkers|DESeq2|edgeR|limma)\\b",
     "\\bdifferential[ -]?expression\\b",
@@ -641,8 +829,8 @@ tripwire_toy_contrast_direction <- function(root) {
     sep = "|"
   )
   has_de_entry <- FALSE
-  if (length(code_paths) > 0) {
-    for (path in code_paths) {
+  if (length(existing_code_paths) > 0) {
+    for (path in existing_code_paths) {
       txt <- squash(read_text(path))
       if (grepl(de_entry_pattern, txt, ignore.case = TRUE, perl = TRUE)) {
         has_de_entry <- TRUE
@@ -716,6 +904,7 @@ main <- function() {
   setwd(root)
 
   checks <- list(
+    tripwire_cluster_wrapper_contract,
     tripwire_branch_artifact_collision,
     tripwire_report_values_freshness,
     tripwire_missing_counts_file,

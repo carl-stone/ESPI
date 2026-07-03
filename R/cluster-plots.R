@@ -51,7 +51,19 @@ splot_umap_by <- function(sobj, umap, color_by) {
 splot_clustree <- function(sobj, prefix, out_tag) {
   out_dir <- file.path(FIGURE_DIR, "cluster")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
-  plot <- clustree::clustree(sobj, prefix = prefix) +
+  matching_cols <- colnames(sobj@meta.data)[startsWith(
+    colnames(sobj@meta.data),
+    prefix
+  )]
+  if (length(matching_cols) < MIN_CLUSTREE_RESOLUTION_COLUMNS) {
+    stop(
+      "Need at least two resolution columns for clustree prefix: ",
+      prefix,
+      call. = FALSE
+    )
+  }
+  cluster_data <- sobj@meta.data[, matching_cols, drop = FALSE]
+  plot <- clustree::clustree(cluster_data, prefix = prefix) +
     ggplot2::guides(edge_colour = "none")
   ggplot2::ggsave(
     file.path(out_dir, sprintf("clustree_%s.png", out_tag)),
