@@ -73,11 +73,7 @@ heuristic is the elbow plot: pick a number of PCs that's safely past the elbow.
 
 :::
 
-PFlog normalization has a steeper elbow in these plots. That pattern is 
-consistent with stronger variance stabilization, but the elbow plot alone does
-not identify the cause. I'm doing downstream analyses with both at
-$\mathrm{PC} = \{20, 30, 50\}$ to see how normalization affects clustering and
-marker segregation. Those will be supplemental figures.
+PFlog normalization has a steeper elbow in these plots. That pattern is  consistent with stronger variance stabilization, but the elbow plot alone does not identify the cause. I'm doing downstream analyses with both at $\mathrm{PC} = \{20, 30, 50\}$ to see how normalization affects clustering and marker segregation. Those will be supplemental figures.
 
 :::: {#fig-hvg-heatmap layout-nrow=2}
 
@@ -112,16 +108,17 @@ These plots label the top 20 retained HVGs in each branch.
 
 ## Clustering
 
-1. Clustering: Construct a KNN graph, and use Leiden clustering on that graph.
-2. Visualize clusters with UMAP.
+Clustering uses a KNN graph followed by Leiden community detection. I am sweeping the parameter grid across normalization method, cell-cycle-HVG policy, PC count, and resolution so the chosen clustering is not tied to one hidden parameter choice.
+
+The supplemental grid summary table is written to `/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data/tables/cluster/cluster_grid_summary.tsv`. It contains one row per clustering configuration, including cluster counts, cluster-size summaries, ARI, and best-overlap Jaccard summaries against the current reference clustering:
+`cluster_pflog_filter_cc_dims50_res0.3`.
 
 ### Clustering resolution
 
-Low resolution = fewer clusters, high resolution = more clusters. 
+Low resolution gives fewer clusters, while high resolution gives more clusters. The same numeric resolution is useful for controlled branch comparisons, but it is not an absolute biological scale because each preprocessing branch changes the neighbor graph. The clustree grid below shows all normalization\ ×\ cell-cycle-HVG\ ×\ PC combinations; each panel contains the 0.3, 0.5, and 0.8 resolution sweep. Within a clustree panel, node position is a graph-layout aid; the edge structure, node size, and split pattern are the interpretable parts.
 
-Plots:
-- clustree
-- UMAP by cluster for each resolution
-- Next to each UMAP, another UMAP with Ascl1 and Otx2 colored.
-- Heatmap of our marker genes plotted in each cluster. Take the genes from manuscript figure 5C.
-- 
+![Clustree grid across normalization, cell-cycle-HVG policy, and PC count. Each panel shows the resolution sweep for one branch.](figures/cluster_grid_clustree_12_panel.png){#fig-clustree-grid}
+
+The representative UMAP sweep below uses the current ARI reference branch: PFlog normalization, cell-cycle HVGs filtered, 50 PCs. It shows how increasing Leiden resolution subdivides the same UMAP geometry.
+
+![Representative UMAP resolution sweep for PFlog, cell-cycle-HVG filtered, 50 PCs.](figures/umap_resolution_sweep_pflog_filter_cc_dims50.png){#fig-umap-resolution-sweep}
