@@ -5,9 +5,10 @@ ESPI's executable analysis pipeline currently lives in `scripts/` and `notebook/
 | Entry | Location | Type | Status | Notes |
 |-------|----------|------|--------|-------|
 | Preprocess Seurat object branches | `scripts/preprocess-sobj.R`, `scripts/preprocess-all.R` | R pipeline | active | Produces normalization and cell-cycle-filter branches plus QC/HVG/PCA diagnostics. |
-| Candidate clustering | `scripts/cluster-sobj.R`, `scripts/cluster-all.R` | R pipeline | active | Produces UMAP/clustree candidate clustering outputs from preprocessed objects. |
+| Candidate clustering | `scripts/cluster-sobj.R`, `scripts/cluster-all.R`, `scripts/summarize-cluster-grid.R` | R pipeline | active | Produces UMAP/clustree candidate clustering outputs, a 36-row supplemental grid summary table, a 12-panel clustree grid, and a representative UMAP resolution sweep from preprocessed objects. |
+| Clustering criteria ideation | `analysis/ideas/2026-07-03-clustering-criteria-brainstorm/` | Mycelium ideation session | active | Persona-generated criteria ideas for label-blind selection of normalization, PC count, and Leiden resolution. |
 | Single-cell analysis notebook | `notebook/sc_analysis.qmd` | Quarto notebook | active | Uses notebook-relative figure paths; rerender after source figure updates. |
-| Tripwire checks | `tools/run-tripwires.R`, `analysis_labels.yml` | R QA runner | active | Checks branch artifact separation, report freshness, missing-input failure, metadata contract, label firewall, and future contrast direction. |
+| Tripwire checks | `tools/run-tripwires.R`, `analysis_labels.yml` | R QA runner | active | Checks cluster wrapper execution, branch artifact separation, report freshness, missing-input failure, metadata contract, label firewall, and future contrast direction. |
 
 ## For Future Mycelium Analyses
 

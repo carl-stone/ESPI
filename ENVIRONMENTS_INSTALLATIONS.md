@@ -24,6 +24,31 @@ air format R/<file>.R scripts/<script>.R
 quarto render notebook/sc_analysis.qmd
 ```
 
+## Clustering Pipeline
+
+Preview all current clustering commands without running clustering:
+
+```sh
+Rscript scripts/cluster-all.R --dry-run --elbow-n 20
+```
+
+Run the all-branch clustering wrapper from the repo root:
+
+```sh
+Rscript scripts/cluster-all.R --elbow-n 20
+```
+
+Generate the supplemental cluster grid table, 12-panel clustree grid, and
+representative UMAP resolution sweep after clustered objects exist:
+
+```sh
+Rscript scripts/summarize-cluster-grid.R
+```
+
+The wrapper loads ESPI path constants in R; do not rely on a shell-exported
+`CURRENT_OBJECT_DIR`. Clustered outputs use underscore branch tags such as
+`pflog_no_filter_cc` because Seurat rewrites hyphens in reduction names.
+
 ## Tripwire Checks
 
 Run the lightweight scientific-boundary checks from the repo root:
@@ -46,6 +71,8 @@ Declared in `DESCRIPTION`:
 - `ggraph`
 - `here`
 - `igraph`
+- `mclust`
+- `patchwork`
 - `scclrR` from `cleartools/scclrR`
 - `Seurat`
 - `SeuratObject`

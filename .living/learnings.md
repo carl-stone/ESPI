@@ -49,3 +49,35 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: documentation
 
 **structural_mitigation_candidate**: Update the Mycelium plugin's skillpack template if a corrected `Autonomous-Science` URL becomes available.
+
+### [2026-07-03] Seurat rewrites hyphens in reduction names
+
+**Tags**: seurat, clustering, reductions, naming
+
+**Category**: Pipeline robustness
+
+**What happened**: `RunUMAP(reduction.name = "umap_pflog_no-filter-cc_dims20")` stored the reduction as `umap_pflog_no.filter.cc_dims20`, so a later lookup for the original hyphenated name failed.
+
+**Why it matters**: Cluster artifact names that look valid as file names may not be valid as stable Seurat object keys.
+
+**Resolution**: Use underscore-only branch tags for Seurat reductions and metadata columns, and keep a tripwire that requires branch tags to match `[A-Za-z0-9_]+`.
+
+**mitigation_type**: code-and-tripwire
+
+**structural_mitigation_candidate**: Centralize branch-tag construction if more scripts start creating Seurat object keys.
+
+### [2026-07-03] Pass clustree only cluster columns for large Seurat metadata
+
+**Tags**: clustree, seurat, plotting, warnings
+
+**Category**: Plotting robustness
+
+**What happened**: Passing the full Seurat object into `clustree()` emitted repeated warnings about unrelated metadata column name sanitization.
+
+**Why it matters**: Those warnings obscure real plotting problems and repeat once per panel in multi-panel clustree figures.
+
+**Resolution**: Build clustree plots from a metadata data frame containing only the cluster columns matching the requested prefix.
+
+**mitigation_type**: code
+
+**structural_mitigation_candidate**: Keep plotting helpers narrow: pass only the columns a plotting package needs when the source object has large heterogeneous metadata.
