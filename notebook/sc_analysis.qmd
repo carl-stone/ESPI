@@ -125,3 +125,13 @@ Here's an example of one of the UMAP resolution sweeps. This uses PFlog normaliz
 
 **Choice 2**: Based off the clustree and UMAP resolution sweeps, it looks like the best combination of normalization, number of PCs, and resolution is PFlog normalization, 50 PCs, and resolution 0.3. I'll use this for most downstream analyses, using the same settings for the cell-cycle filtered and non-filtered HVGs. We can use a higher resolution like 0.8 for subclustering later.
 
+### Marker heatmap
+
+The marker heatmap below shows the selected PFlog, non-filtered clustering
+(`cluster_pflog_no_filter_cc_dims50_res0.3`). Columns are cells split by Leiden
+cluster, with cluster blocks hierarchically ordered by their marker-expression
+profiles. Rows are marker genes grouped by their expected cell-type labels.
+Colors show each gene's row z-score across cells, clipped to $\pm 2$.
+
+![Per-cell marker-gene heatmap for the selected PFlog, non-filtered clustering. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims50_res0.3.png){#fig-cell-type-marker-heatmap}
+
