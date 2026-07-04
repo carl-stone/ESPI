@@ -145,3 +145,51 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: structural
 
 **structural_mitigation_candidate**: For future analysis scripts with configurable inputs and canonical output paths, add an explicit overwrite gate and write run-provenance fields beside the main results.
+
+### [2026-07-04] Completed LOG_REGISTRY rows still need semantic fields
+
+**Tags**: mycelium, session-logs, hooks, reproducibility
+
+**Category**: Tooling setup
+
+**What happened**: `.living/log/LOG_REGISTRY.md` had a completed `2026-07-04-001` row with empty Summary and Key Outputs after the deterministic stop-hook path finalized the row without log-scribe enhancement.
+
+**Why it matters**: The registry is the quick cross-session map, so filename stubs or empty semantic fields make it harder to resume work and audit what a session accomplished.
+
+**Resolution**: Treat `LOG_REGISTRY.md` as a per-session registry, manually enhance completed rows when automatic log-scribe output is missing, and add a matching `## Session Summary` section to the linked log.
+
+**mitigation_type**: ambient-awareness
+
+**structural_mitigation_candidate**: Add a validation check that flags completed registry rows with empty Summary or Key Outputs.
+
+### [2026-07-04] Clear stale Mycelium reminder files after false-positive stop blocks
+
+**Tags**: mycelium, hooks, session-state, reproducibility
+
+**Category**: Tooling setup
+
+**What happened**: The stop hook repeatedly reported `.living/ not updated` even after the review session was triaged and logged. The remaining `.claude/mycelium-reminded.tmp` timestamp was newer than `.living/learnings.md`, while later updates touched only `.living/log/` and `.claude/last-session.md`, which the stop hook does not count as satisfying triage.
+
+**Why it matters**: A stale reminder sentinel can create a false-positive stop block loop and push agents toward padding `.living/` with unnecessary entries.
+
+**Resolution**: Confirm the requested triage is complete, then remove the stale `.claude/mycelium-reminded.tmp` sentinel instead of adding duplicate decisions or learnings. Prevent recurrence by keeping Mycelium maintenance commands from being forwarded from the OMP adapter to the synced post-action hook.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Keep the OMP adapter guard that skips post-action forwarding for `skills/core/scripts/{generate_index,validate_structure,recall_lessons,...}.py` and `tools/sync-mycelium-skills-core.py`, or move the same exclusion upstream into Mycelium.
+
+### [2026-07-04] OMP hook adapters must return modified tool content
+
+**Tags**: mycelium, hooks, omp, data-lineage, r
+
+**Category**: Tooling setup
+
+**What happened**: The Mycelium OMP adapter invoked the post-action wrapper but dropped the wrapper's JSON `additionalContext`, so real analysis commands could create sentinels without surfacing the mandatory Mycelium post-action protocol. The synced data-lineage extractor also detected `Rscript` commands but only scanned Python-style I/O calls.
+
+**Why it matters**: Silent hooks make the framework look wired while key user-visible behavior is missing. In ESPI, Python-only lineage regexes make R pipeline lineage effectively empty.
+
+**Resolution**: Return appended tool content from the OMP `tool_result` handler, call the data tracker and lineage stop hook from OMP, and use a repo-owned data-tracker wrapper with R I/O expression detection instead of editing synced `skills/core/` files.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Keep Mycelium customizations in repo-owned adapters or wrappers, then verify them with synthetic hook JSON after any OMP or Mycelium plugin update.

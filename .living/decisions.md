@@ -155,3 +155,59 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Thirty PCs is safely past the elbow, and resolution 0.3 preserves broad MG-selected structure for manuscript-scale figures.
 
 **Consequences**: Higher resolutions remain available for later subclustering, but not as the current manuscript-level branch.
+
+### [2026-07-04] Keep repo-local Mycelium skills synced from OMP
+
+**Tags**: mycelium, hooks, skills, reproducibility
+
+**Context**: The Mycelium command protocols refer to repo-relative paths such as `skills/core/scripts/validate_structure.py`, but the installed OMP plugin stores those files under a machine-local plugin cache. A symlink would work locally but would break for other clones.
+
+**Decision**: Keep a real repo-local copy of `skills/core/`, add `tools/sync-mycelium-skills-core.py`, and run it quietly at session start before local Mycelium hooks run.
+
+**Alternatives considered**: Using only the OMP cache avoids duplication but breaks repo-relative protocol paths. A symlink is simpler but points at a machine-local cache path. Running the sync before every hook would stay fresher but add unnecessary hook overhead and context noise.
+
+**Rationale**: A session-start sync keeps `skills/core/` current when the OMP plugin changes while preserving portable repo-relative paths for scripts and hooks.
+
+**Consequences**: Local hooks now call `skills/core/hooks/...`; if the OMP plugin updates, the next session start refreshes `skills/core/` excluding nuisance files such as `.DS_Store`, `__pycache__`, `.pytest_cache`, and Python bytecode.
+
+### [2026-07-04] Bridge Mycelium hooks through OMP extensions
+
+**Tags**: mycelium, hooks, omp, session-state
+
+**Context**: The repo's `.claude/settings.local.json` configures Claude Code shell hooks, but OMP does not run those hooks directly. That left Mycelium read-access logging and `.claude/last-session.md` updates inactive in OMP sessions.
+
+**Decision**: Add a project-local OMP extension that mirrors the relevant Mycelium hook events: session start runs the repo-local skill sync and health hook, read tool results log `.living/` access, write/edit tool results record session activity, bash tool results invoke the Mycelium post-action hook, and session stop invokes the stop hook plus a deterministic five-section `last-session.md` fallback.
+
+**Alternatives considered**: Rewriting `.claude/settings.local.json` is insufficient because OMP ignores Claude Code hook config. Editing the synced `skills/core/hooks/` files would be overwritten by the next skill sync. A repo-local extension preserves the OMP-specific adapter outside synced Mycelium source.
+
+**Rationale**: OMP extensions are the native event surface, and the existing generated-file guard already uses the same adapter pattern.
+
+**Consequences**: OMP sessions now get Mycelium read tracking and session-resume state without depending on Claude Code hook execution.
+
+### [2026-07-04] Filter Mycelium maintenance commands before post-action hooks
+
+**Tags**: mycelium, hooks, omp, session-state
+
+**Context**: The OMP Mycelium adapter and Claude hook settings could forward Bash commands to `skills/core/hooks/mycelium-post-action.sh`. That synced hook treats Python script execution as significant work, so maintenance commands such as `python3 skills/core/scripts/generate_index.py` and `python3 skills/core/scripts/validate_structure.py` could recreate `.claude/mycelium-reminded.tmp` after triage was already complete.
+
+**Decision**: Add a repo-owned post-action wrapper at `.agents/hooks/adapters/mycelium-post-action-wrapper.sh` that skips only Mycelium maintenance commands under `skills/core/scripts/` and `tools/sync-mycelium-skills-core.py`, then delegates all other Bash payloads to the synced hook. Point both `.claude/settings.local.json` and the OMP adapter at the wrapper.
+
+**Alternatives considered**: Editing `skills/core/hooks/mycelium-post-action.sh` would fix the source hook but would be overwritten by the repo-local skill sync. Clearing `.claude/mycelium-reminded.tmp` manually fixes one session but does not prevent recurrence. Suppressing all Python or Bash post-action forwarding would hide real analysis work. An adapter-only guard did not cover all live hook paths in this session.
+
+**Rationale**: The wrapper and adapter are repo-owned and survive skill sync. A narrow path-based guard prevents Mycelium bookkeeping from starting a new post-action cycle while preserving reminders for legitimate R and analysis scripts.
+
+**Consequences**: Future OMP or Claude-hook sessions should no longer get false-positive stop blocks after running Mycelium maintenance commands. The wrapper was directly verified to skip `validate_structure.py` and pass through an `Rscript` analysis command; the running OMP session may still need a reload to pick up adapter changes.
+
+### [2026-07-04] Mirror complete Mycelium hook behavior in OMP
+
+**Tags**: mycelium, hooks, omp, data-lineage, r
+
+**Context**: A behavioral check showed the OMP adapter ran the post-action wrapper but discarded its `additionalContext`, did not call the data-lineage hook bundle, and the synced lineage extractor detected `Rscript` commands without recognizing ESPI's R I/O calls.
+
+**Decision**: Return post-action wrapper context from the OMP `tool_result` handler, run the data tracker and data-lineage stop hook from the OMP adapter, and route data tracking through a repo-owned wrapper that adds R I/O regexes while leaving synced `skills/core/` files untouched.
+
+**Alternatives considered**: Reporting the gap only would leave Mycelium reminders and lineage incomplete under OMP. Editing `skills/core/` directly would be overwritten by the next sync from the plugin cache.
+
+**Rationale**: Repo-owned adapters survive skill sync and are already the project-local seam between OMP and Mycelium.
+
+**Consequences**: OMP and Claude-hook sessions now share the same wrapper path for data tracking. R lineage records include source-level I/O expressions such as `input` and `out_path`; they do not resolve every runtime path computed from CLI arguments.
