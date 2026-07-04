@@ -16,6 +16,7 @@ Project-specific rules here override generic Mycelium convention packs.
 - Run `devtools::document()` after editing files in `R/`.
 - Never edit generated `.Rd` files directly.
 - Edit `README.Rmd`; regenerate `README.md` with `devtools::build_readme()`.
+- Keep executable scripts in `scripts/` top-to-bottom and RStudio-step-friendly: purpose/usage docs, package loading, `# ---- parameters ----`, validation/work sections, and side effects at the end. Avoid wrapping simple scripts in `main()`.
 
 ## Data and Figures
 

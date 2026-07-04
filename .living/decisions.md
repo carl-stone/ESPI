@@ -113,3 +113,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Keeping the code in a script preserves locality for figure-specific choices while avoiding a shallow package module. Using the PFlog layer keeps the marker visualization on the same normalization scale used for the selected PCA/UMAP/clustering branch.
 
 **Consequences**: If the same heatmap workflow gets reused in multiple scripts or reports, promote the repeated logic into `R/`.
+
+### [2026-07-03] Use top-to-bottom executable script style
+
+**Tags**: scripts, r, interactivity, reproducibility
+
+**Context**: The analysis scripts need to be callable from Bash while staying easy to step through interactively in RStudio.
+
+**Decision**: Structure scripts as purpose/usage docs, package loading, parameter defaults and CLI overrides near the top, validation/work sections, and output side effects at the end. Avoid wrapping simple scripts in `main()`.
+
+**Alternatives considered**: `main()` wrappers are cleaner for software packages, but they make interactive line-by-line execution worse for this analysis workflow.
+
+**Rationale**: Top-to-bottom scripts preserve shell reproducibility without hiding inspectable intermediate objects from RStudio.
+
+**Consequences**: Promote repeated logic to `R/` only when it hides a real conceptual operation or removes substantial repetition.

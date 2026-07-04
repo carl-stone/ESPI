@@ -5,7 +5,7 @@ Last audit: 2026-07-03
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 4 sections | 2026-07-03 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit |
-| decisions.md | 8 entries | 2026-07-03 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
+| decisions.md | 9 entries | 2026-07-03 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
 | learnings.md | 7 entries | 2026-07-03 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
 
 ## Local skills
@@ -48,7 +48,10 @@ Last summarized: 2026-07-03 (heuristic)
 - `conventions`: D-2, D-4
 - `figures`: L-2, L-7
 - `notebook`: L-2, L-7
+- `r`: L-7, D-9
 - `repo-structure`: D-1, D-3
+- `reproducibility`: D-5, D-9
+- `scripts`: D-5, D-9
 - `setup`: L-1, L-3
 - `single-cell`: D-2, D-7
 - `skillpacks`: L-3, D-4
@@ -60,15 +63,13 @@ Last summarized: 2026-07-03 (heuristic)
 - `github`: L-3
 - `heatmap`: D-8
 - `hooks`: L-1
+- `interactivity`: D-9
 - `naming`: L-4
 - `package-data`: D-7
 - `portability`: L-1
 - `quarto`: L-2
-- `r`: L-7
 - `reductions`: L-4
 - `reporting`: D-6
-- `reproducibility`: D-5
-- `scripts`: D-5
 - `sensitivity`: D-6
 - `skill-bridge`: D-4
 - `supplemental-figures`: D-6
