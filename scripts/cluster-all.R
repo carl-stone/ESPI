@@ -28,50 +28,61 @@
 # Outputs:
 #   Delegates to scripts/cluster-sobj.R for every preprocess_*.rds input.
 
-args <- commandArgs(trailingOnly = FALSE)
-file_arg <- grep("^--file=", args, value = TRUE)
-repo_root <- if (length(file_arg) == 1) {
-  dirname(dirname(normalizePath(
-    sub("^--file=", "", file_arg),
-    mustWork = TRUE
-  )))
-} else {
-  normalizePath(getwd(), mustWork = TRUE)
-}
-setwd(repo_root)
+suppressPackageStartupMessages({
+  library(here)
+})
+here::i_am("scripts/cluster-all.R")
+suppressPackageStartupMessages({
+  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
+})
 
-trailing_args <- commandArgs(trailingOnly = TRUE)
+# ---- parameters ----
+
+args <- commandArgs(trailingOnly = TRUE)
 arg <- function(name) {
-  i <- match(name, trailing_args)
+  i <- match(name, args)
   if (is.na(i)) {
     return(NULL)
   }
-  if (i == length(trailing_args) || startsWith(trailing_args[[i + 1]], "--")) {
+  if (i == length(args) || startsWith(args[[i + 1]], "--")) {
     return(TRUE)
   }
-  trailing_args[[i + 1]]
+  args[[i + 1]]
+}
+arg_value <- function(name, default = NULL, required = FALSE) {
+  value <- arg(name)
+  if (identical(value, TRUE)) {
+    stop("Missing value for ", name, call. = FALSE)
+  }
+  if (is.null(value)) {
+    if (required) {
+      stop("Missing required argument ", name, call. = FALSE)
+    }
+    return(default)
+  }
+  value
 }
 arg_flag <- function(name) {
   identical(arg(name), TRUE)
 }
 
-elbow_n <- arg("--elbow-n")
-if (is.null(elbow_n)) {
-  elbow_n <- "20"
-}
+elbow_n <- arg_value("--elbow-n", default = "20")
+input_dir <- arg_value("--input-dir", default = CURRENT_OBJECT_DIR)
+extra_dims <- arg_value("--extra-dims", default = NULL)
+resolutions <- arg_value("--resolutions", default = NULL)
+dry_run <- arg_flag("--dry-run")
 
-suppressPackageStartupMessages({
-  devtools::load_all(repo_root, export_all = FALSE, quiet = TRUE)
-})
-
-input_dir <- arg("--input-dir")
-if (is.null(input_dir)) {
-  input_dir <- CURRENT_OBJECT_DIR
-}
 input_dir <- normalizePath(input_dir, winslash = "/", mustWork = FALSE)
+cluster_script <- here::here("scripts", "cluster-sobj.R")
+rscript <- file.path(R.home("bin"), "Rscript")
+
+# ---- validation ----
+
 if (!dir.exists(input_dir)) {
   stop("Input directory does not exist: ", input_dir, call. = FALSE)
 }
+
+# ---- work ----
 
 inputs <- list.files(
   input_dir,
@@ -82,12 +93,7 @@ if (length(inputs) == 0) {
   stop("No preprocessed objects found in: ", input_dir, call. = FALSE)
 }
 
-cluster_script <- file.path(repo_root, "scripts", "cluster-sobj.R")
-rscript <- file.path(R.home("bin"), "Rscript")
-dry_run <- arg_flag("--dry-run")
-
-extra_dims <- arg("--extra-dims")
-resolutions <- arg("--resolutions")
+# ---- output ----
 
 for (input in inputs) {
   command_args <- c(
@@ -97,10 +103,10 @@ for (input in inputs) {
     "--elbow-n",
     elbow_n
   )
-  if (!is.null(extra_dims) && !identical(extra_dims, TRUE)) {
+  if (!is.null(extra_dims)) {
     command_args <- c(command_args, "--extra-dims", extra_dims)
   }
-  if (!is.null(resolutions) && !identical(resolutions, TRUE)) {
+  if (!is.null(resolutions)) {
     command_args <- c(command_args, "--resolutions", resolutions)
   }
 

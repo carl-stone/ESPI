@@ -24,8 +24,23 @@
 #   --out-dir
 #     Directory for PNG/PDF outputs. Defaults to FIGURE_DIR/annotation.
 #
+# Outputs:
+#   Writes PNG and PDF files under --out-dir, named
+#   cell_type_marker_heatmap_<layer>_cells_dims<dims>_res<resolution>.(png|pdf).
+#   Creates or replaces notebook/figures/<png filename> as a symlink to the PNG.
+#
 # The cluster metadata column is constructed as
 # cluster_pflog_filter_cc_dims<dims>_res<resolution>.
+
+suppressPackageStartupMessages({
+  library(here)
+})
+here::i_am("scripts/big-heatmap-plot.R")
+suppressPackageStartupMessages({
+  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
+})
+
+# ---- parameters ----
 
 get_arg <- function(args, flag, default) {
   match_index <- match(flag, args)
@@ -51,15 +66,6 @@ if (length(unknown_flags) > 0) {
   )
 }
 
-suppressPackageStartupMessages({
-  library(here)
-})
-
-here::i_am("scripts/big-heatmap-plot.R")
-
-suppressPackageStartupMessages({
-  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
-})
 
 required_packages <- c("ComplexHeatmap", "circlize", "Matrix", "SeuratObject")
 missing_packages <- required_packages[
@@ -100,6 +106,8 @@ out_tag <- sprintf(
   resolution
 )
 
+# ---- validation ----
+
 if (!file.exists(input_path)) {
   stop("Input Seurat object does not exist: ", input_path, call. = FALSE)
 }
@@ -110,6 +118,8 @@ if (!identical(names(cell_type_marker_genes), names(cell_type_marker_labels))) {
     call. = FALSE
   )
 }
+
+# ---- work ----
 
 sobj <- readRDS(input_path)
 if (!cluster_column %in% colnames(sobj@meta.data)) {
@@ -231,6 +241,8 @@ heatmap <- ComplexHeatmap::Heatmap(
   row_title = NULL,
   use_raster = TRUE
 )
+
+# ---- output ----
 
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 png_path <- file.path(out_dir, paste0(out_tag, ".png"))

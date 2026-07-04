@@ -26,6 +26,17 @@
 # Notes:
 #   Cluster, UMAP, clustree, and RDS artifact tags use Seurat-safe underscores.
 
+suppressPackageStartupMessages({
+  library(Seurat)
+  library(here)
+})
+here::i_am("scripts/cluster-sobj.R")
+suppressPackageStartupMessages({
+  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
+})
+
+# ---- parameters ----
+
 args <- commandArgs(trailingOnly = TRUE)
 arg <- function(name) {
   i <- match(name, args)
@@ -36,6 +47,22 @@ arg <- function(name) {
     return(TRUE)
   }
   args[[i + 1]]
+}
+arg_value <- function(name, default = NULL, required = FALSE) {
+  value <- arg(name)
+  if (identical(value, TRUE)) {
+    stop("Missing value for ", name, call. = FALSE)
+  }
+  if (is.null(value)) {
+    if (required) {
+      stop("Missing required argument ", name, call. = FALSE)
+    }
+    return(default)
+  }
+  value
+}
+arg_flag <- function(name) {
+  identical(arg(name), TRUE)
 }
 parse_csv_int <- function(x, default) {
   if (is.null(x)) {
@@ -53,32 +80,46 @@ res_tag <- function(x) {
   format(x, trim = TRUE, scientific = FALSE)
 }
 
-elbow_n <- arg("--elbow-n")
-stopifnot(!is.null(elbow_n), !identical(elbow_n, TRUE))
-
-cli_args <- list(
-  input = arg("--input"),
-  elbow_n = as.integer(elbow_n),
-  extra_dims = parse_csv_int(arg("--extra-dims"), default = c(30, 50)),
-  resolutions = parse_csv_num(arg("--resolutions"), default = c(0.3, 0.5, 0.8))
+input <- arg_value("--input", required = TRUE)
+elbow_n <- as.integer(arg_value("--elbow-n", required = TRUE))
+extra_dims <- parse_csv_int(
+  arg_value("--extra-dims", default = NULL),
+  default = c(30, 50)
 )
-stopifnot(
-  !is.null(cli_args$input),
-  length(cli_args$elbow_n) == 1,
-  is.finite(cli_args$elbow_n),
-  all(is.finite(cli_args$extra_dims)),
-  all(cli_args$extra_dims > 0),
-  all(is.finite(cli_args$resolutions)),
-  all(cli_args$resolutions > 0)
+resolutions <- parse_csv_num(
+  arg_value("--resolutions", default = NULL),
+  default = c(0.3, 0.5, 0.8)
 )
 
-suppressPackageStartupMessages({
-  library(Seurat)
-  library(here)
-  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
-})
+# ---- validation ----
 
-sobj <- readRDS(cli_args$input)
+if (!file.exists(input)) {
+  stop("Input Seurat object does not exist: ", input, call. = FALSE)
+}
+if (
+  length(elbow_n) != 1 ||
+    is.na(elbow_n) ||
+    !is.finite(elbow_n) ||
+    elbow_n <= 0
+) {
+  stop("--elbow-n must be a positive integer.", call. = FALSE)
+}
+if (
+  any(is.na(extra_dims)) || any(!is.finite(extra_dims)) || any(extra_dims <= 0)
+) {
+  stop("--extra-dims must contain positive integers.", call. = FALSE)
+}
+if (
+  any(is.na(resolutions)) ||
+    any(!is.finite(resolutions)) ||
+    any(resolutions <= 0)
+) {
+  stop("--resolutions must contain positive numbers.", call. = FALSE)
+}
+
+# ---- work ----
+
+sobj <- readRDS(input)
 norm <- sobj@misc$preprocessing$normalization
 if (
   !is.character(norm) ||
@@ -98,20 +139,20 @@ if (!grepl("^[A-Za-z0-9_]+$", branch_tag)) {
 }
 emit_tripwire_checkpoint(
   "cluster_input_available",
-  input = cli_args$input,
+  input = input,
   normalization = norm,
   filtered_cell_cycle = cc_tag,
   n_cells = ncol(sobj),
   n_features = nrow(sobj)
 )
 
-dims_grid <- sort(unique(c(cli_args$elbow_n, cli_args$extra_dims)))
+dims_grid <- sort(unique(c(elbow_n, extra_dims)))
 candidate_names <- character()
 
 for (d in dims_grid) {
   old_idents <- SeuratObject::Idents(sobj)
   sobj <- Seurat::FindNeighbors(sobj, reduction = "pca", dims = 1:d)
-  for (r in cli_args$resolutions) {
+  for (r in resolutions) {
     name <- sprintf("cluster_%s_dims%d_res%s", branch_tag, d, res_tag(r))
     sobj <- Seurat::FindClusters(
       sobj,
@@ -139,7 +180,7 @@ for (d in dims_grid) {
 }
 
 for (d in dims_grid) {
-  for (r in cli_args$resolutions) {
+  for (r in resolutions) {
     splot_umap_by(
       sobj,
       umap = sprintf("umap_%s_dims%d", branch_tag, d),
@@ -149,8 +190,7 @@ for (d in dims_grid) {
 }
 
 min_clustree_resolutions <- 2L
-clustree_plotted <- length(unique(cli_args$resolutions)) >=
-  min_clustree_resolutions
+clustree_plotted <- length(unique(resolutions)) >= min_clustree_resolutions
 if (clustree_plotted) {
   for (d in dims_grid) {
     splot_clustree(
@@ -169,18 +209,21 @@ sobj@misc$clustering <- list(
   algorithm = "leiden",
   filtered_cell_cycle = isTRUE(sobj@misc$preprocessing$filtered_cell_cycle),
   branch_tag = branch_tag,
-  resolutions = cli_args$resolutions,
+  resolutions = resolutions,
   dims_grid = dims_grid,
-  elbow_n = cli_args$elbow_n,
+  elbow_n = elbow_n,
   candidate_names = candidate_names,
   clustree_plotted = clustree_plotted
 )
 
-dir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
+# ---- output ----
+
 out_path <- file.path(
   CURRENT_OBJECT_DIR,
-  sprintf("cluster_%s_elbow%d.rds", branch_tag, cli_args$elbow_n)
+  sprintf("cluster_%s_elbow%d.rds", branch_tag, elbow_n)
 )
+
+dir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
 saveRDS(sobj, out_path)
 emit_tripwire_checkpoint(
   "cluster_artifacts_written",

@@ -18,11 +18,35 @@
 #   Delegates to scripts/preprocess-sobj.R, which writes preprocessed Seurat
 #   objects to CURRENT_OBJECT_DIR and preprocessing figures to FIGURE_DIR.
 
-system("Rscript scripts/preprocess-sobj.R --normalization log1p")
-system(
-  "Rscript scripts/preprocess-sobj.R --normalization log1p --filter-cell-cycle"
+suppressPackageStartupMessages({
+  library(here)
+})
+here::i_am("scripts/preprocess-all.R")
+suppressPackageStartupMessages({
+  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
+})
+
+# ---- parameters ----
+
+preprocess_script <- here::here("scripts", "preprocess-sobj.R")
+rscript <- file.path(R.home("bin"), "Rscript")
+
+commands <- list(
+  c(preprocess_script, "--normalization", "log1p"),
+  c(preprocess_script, "--normalization", "log1p", "--filter-cell-cycle"),
+  c(preprocess_script, "--normalization", "pflog"),
+  c(preprocess_script, "--normalization", "pflog", "--filter-cell-cycle")
 )
-system("Rscript scripts/preprocess-sobj.R --normalization pflog")
-system(
-  "Rscript scripts/preprocess-sobj.R --normalization pflog --filter-cell-cycle"
-)
+
+# ---- work ----
+
+for (command in commands) {
+  status <- system2(rscript, command)
+  if (!identical(as.integer(status), 0L)) {
+    stop(
+      "Preprocess command failed: ",
+      paste(shQuote(c(rscript, command)), collapse = " "),
+      call. = FALSE
+    )
+  }
+}

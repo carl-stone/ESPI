@@ -20,13 +20,27 @@
 
 suppressPackageStartupMessages({
   library(here)
+})
+here::i_am("scripts/summarize-cluster-grid.R")
+suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
+
+# ---- parameters ----
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) > 0) {
+  stop("This script does not take command-line arguments.", call. = FALSE)
+}
+
+# ---- work ----
 
 summary <- write_cluster_grid_summary()
 stability <- write_cluster_grid_stability_tables()
 splot_cluster_grid_clustree()
 splot_umap_resolution_sweep()
+
+# ---- output ----
 
 message(
   "Wrote cluster grid summary with ",

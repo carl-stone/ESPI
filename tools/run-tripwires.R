@@ -384,6 +384,122 @@ tripwire_cluster_wrapper_contract <- function(root) {
   )
 }
 
+tripwire_cli_value_boundaries <- function(root) {
+  # Operational boundary: value-bearing CLI flags must distinguish an absent
+  # flag from a present flag with no value before any analysis artifacts are
+  # regenerated.
+  slug <- "cli-value-boundaries"
+  rscript <- Sys.which("Rscript")
+  if (identical(unname(rscript), "")) {
+    return(fail(
+      slug,
+      "Rscript is unavailable, so CLI value-boundary behavior cannot be executed."
+    ))
+  }
+
+  current_object_dir <- file.path(
+    path.expand("~/Library/CloudStorage/Box-Box"),
+    "megan_sc_data",
+    "seurat_objects",
+    "current"
+  )
+  preprocess_input <- file.path(
+    current_object_dir,
+    "preprocess_pflog_filter-cc.rds"
+  )
+
+  commands <- list(
+    list(
+      label = "cluster-all.R --dry-run --elbow-n",
+      script = file.path(root, "scripts", "cluster-all.R"),
+      args = c("--dry-run", "--elbow-n"),
+      expected = "Missing value for --elbow-n"
+    ),
+    list(
+      label = "preprocess-sobj.R --input --normalization pflog",
+      script = file.path(root, "scripts", "preprocess-sobj.R"),
+      args = c("--input", "--normalization", "pflog"),
+      expected = "Missing value for --input"
+    )
+  )
+  skipped <- character()
+  if (file.exists(preprocess_input)) {
+    commands <- c(
+      commands,
+      list(list(
+        label = "cluster-sobj.R --input <valid-preprocess-object.rds> --elbow-n",
+        script = file.path(root, "scripts", "cluster-sobj.R"),
+        args = c("--input", preprocess_input, "--elbow-n"),
+        expected = "Missing value for --elbow-n"
+      ))
+    )
+  } else {
+    skipped <- c(
+      skipped,
+      paste(
+        "cluster-sobj.R valueless --elbow-n subcase skipped because",
+        preprocess_input,
+        "does not exist"
+      )
+    )
+  }
+
+  failures <- character()
+  for (command in commands) {
+    if (!file.exists(command$script)) {
+      failures <- c(failures, paste(command$script, "is missing"))
+      next
+    }
+    # ANALYSIS_OK[warning-suppression]: nonzero exits are the expected signal
+    # in this malformed-CLI tripwire; captured output is checked below.
+    output <- tryCatch(
+      suppressWarnings(system2(
+        rscript,
+        c(command$script, command$args),
+        stdout = TRUE,
+        stderr = TRUE
+      )),
+      error = function(e) structure(conditionMessage(e), status = 1L)
+    )
+    status <- attr(output, "status")
+    if (is.null(status)) {
+      status <- 0L
+    }
+    text <- paste(output, collapse = "\n")
+
+    if (identical(as.integer(status), 0L)) {
+      failures <- c(
+        failures,
+        paste("unexpected success for", command$label)
+      )
+    } else if (!grepl(command$expected, text, fixed = TRUE)) {
+      failures <- c(
+        failures,
+        paste(
+          "missing expected error for",
+          command$label,
+          ":",
+          command$expected
+        )
+      )
+    }
+  }
+
+  if (length(failures) > 0) {
+    message <- paste(failures, collapse = " | ")
+    if (length(skipped) > 0) {
+      message <- paste(message, paste(skipped, collapse = " | "))
+    }
+    return(fail(slug, message))
+  }
+
+  message <- "Value-bearing CLI flags fail when present without values."
+  if (length(skipped) > 0) {
+    message <- paste(message, paste(skipped, collapse = " | "))
+  }
+  pass(slug, message)
+}
+
 tripwire_report_values_freshness <- function(root) {
   # Scientific boundary: the rendered report must not be older than the source
   # prose or figures that define the claimed HVG and DimHeatmap parameters.
@@ -905,6 +1021,7 @@ main <- function() {
 
   checks <- list(
     tripwire_cluster_wrapper_contract,
+    tripwire_cli_value_boundaries,
     tripwire_branch_artifact_collision,
     tripwire_report_values_freshness,
     tripwire_missing_counts_file,

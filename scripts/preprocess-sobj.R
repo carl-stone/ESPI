@@ -25,6 +25,18 @@
 # Next step:
 #   Run scripts/cluster-sobj.R with --input <preprocess output> and --elbow-n.
 
+suppressPackageStartupMessages({
+  library(Seurat)
+  library(here)
+  library(scclrR)
+})
+here::i_am("scripts/preprocess-sobj.R")
+suppressPackageStartupMessages({
+  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
+})
+
+# ---- parameters ----
+
 args <- commandArgs(trailingOnly = TRUE)
 arg <- function(name) {
   i <- match(name, args)
@@ -36,43 +48,54 @@ arg <- function(name) {
   }
   args[[i + 1]]
 }
-normalization <- arg("--normalization")
-if (is.null(normalization)) {
-  normalization <- "log1p"
+arg_value <- function(name, default = NULL, required = FALSE) {
+  value <- arg(name)
+  if (identical(value, TRUE)) {
+    stop("Missing value for ", name, call. = FALSE)
+  }
+  if (is.null(value)) {
+    if (required) {
+      stop("Missing required argument ", name, call. = FALSE)
+    }
+    return(default)
+  }
+  value
 }
-filter_cc_arg <- arg("--filter-cell-cycle")
-filter_cc <- identical(filter_cc_arg, TRUE) ||
-  (!is.null(filter_cc_arg) && tolower(filter_cc_arg) == "true")
-cli_args <- list(
-  input = arg("--input"),
-  normalization = normalization,
-  filter_cc = filter_cc
-)
-stopifnot(
-  normalization %in% c("log1p", "pflog"),
-  is.logical(cli_args$filter_cc)
-)
-
-suppressPackageStartupMessages({
-  library(Seurat)
-  library(here)
-  library(scclrR)
-  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
-})
-
-in_path <- if (is.null(cli_args$input)) {
-  file.path(INPUT_OBJECT_DIR, "pipseq_processed_matrix_with_egfp.rds")
-} else {
-  cli_args$input
+arg_flag <- function(name) {
+  identical(arg(name), TRUE)
 }
-sobj <- readRDS(in_path)
+
+input <- arg_value(
+  "--input",
+  default = file.path(INPUT_OBJECT_DIR, "pipseq_processed_matrix_with_egfp.rds")
+)
+normalization <- arg_value("--normalization", default = "log1p")
+filter_cc <- arg_flag("--filter-cell-cycle") ||
+  identical(
+    tolower(arg_value("--filter-cell-cycle", default = "false")),
+    "true"
+  )
+
+# ---- validation ----
+
+if (!normalization %in% c("log1p", "pflog")) {
+  stop("Unknown normalization: ", normalization, call. = FALSE)
+}
+if (!file.exists(input)) {
+  stop("Input Seurat object does not exist: ", input, call. = FALSE)
+}
+
+# ---- work ----
+
+sobj <- readRDS(input)
 emit_tripwire_checkpoint(
   "raw_data_available",
-  input = in_path,
+  input = input,
   n_cells = ncol(sobj),
   n_features = nrow(sobj)
 )
 validate_required_metadata(sobj@meta.data, c("Mouse", "Condition"))
+
 # Drop any pre-existing reductions from upstream Trailmaker export.
 sobj@reductions <- list()
 sobj[["RNA"]] <- as(sobj[["RNA"]], Class = "Assay5")
@@ -89,15 +112,15 @@ sobj[["percent.ribo"]] <- Seurat::PercentageFeatureSet(
   pattern = "^Rp[sl]"
 )
 
-sobj@misc$preprocessing$normalization <- cli_args$normalization
-sobj@misc$preprocessing$filtered_cell_cycle <- cli_args$filter_cc
+sobj@misc$preprocessing$normalization <- normalization
+sobj@misc$preprocessing$filtered_cell_cycle <- filter_cc
 
 # Plot QC diagnostics.
 splot_qc_metrics_violin(sobj)
 
 sobj <- FindVariableFeatures(sobj, nfeatures = 2000)
 
-if (cli_args$filter_cc) {
+if (filter_cc) {
   utils::data("mouse_cell_cycle_genes", package = "ESPI", envir = environment())
   VariableFeatures(sobj) <- setdiff(
     VariableFeatures(sobj),
@@ -106,8 +129,8 @@ if (cli_args$filter_cc) {
 }
 emit_tripwire_checkpoint(
   "variable_features_selected",
-  normalization = cli_args$normalization,
-  filtered_cell_cycle = cli_args$filter_cc,
+  normalization = normalization,
+  filtered_cell_cycle = filter_cc,
   n_variable_features = length(VariableFeatures(sobj))
 )
 
@@ -115,33 +138,34 @@ emit_tripwire_checkpoint(
 splot_hvg_scatter(sobj, n_top = 20)
 
 sobj <- switch(
-  cli_args$normalization,
+  normalization,
   log1p = run_log1p_pca(sobj, n_pcs = 50),
-  pflog = run_pflog_pca(sobj, n_pcs = 50),
-  stop("Unknown normalization: ", cli_args$normalization, call. = FALSE)
+  pflog = run_pflog_pca(sobj, n_pcs = 50)
 )
 emit_tripwire_checkpoint(
   "pca_ready",
-  normalization = cli_args$normalization,
-  filtered_cell_cycle = cli_args$filter_cc,
+  normalization = normalization,
+  filtered_cell_cycle = filter_cc,
   n_pcs = ncol(SeuratObject::Embeddings(sobj, reduction = "pca"))
 )
 
 splot_dim_heatmap(sobj)
 splot_elbow(sobj, n_pcs = 50)
 
-cc_tag <- if (cli_args$filter_cc) "filter-cc" else "no-filter-cc"
+# ---- output ----
 
-dir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
+cc_tag <- if (filter_cc) "filter-cc" else "no-filter-cc"
 out_path <- file.path(
   CURRENT_OBJECT_DIR,
-  sprintf("preprocess_%s_%s.rds", cli_args$normalization, cc_tag)
+  sprintf("preprocess_%s_%s.rds", normalization, cc_tag)
 )
+
+dir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
 saveRDS(sobj, out_path)
 emit_tripwire_checkpoint(
   "preprocess_object_written",
   output = out_path,
-  normalization = cli_args$normalization,
+  normalization = normalization,
   filtered_cell_cycle = cc_tag
 )
 
