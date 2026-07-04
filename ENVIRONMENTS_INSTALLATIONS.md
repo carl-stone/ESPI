@@ -49,6 +49,19 @@ The wrapper loads ESPI path constants in R; do not rely on a shell-exported
 `CURRENT_OBJECT_DIR`. Clustered outputs use underscore branch tags such as
 `pflog_no_filter_cc` because Seurat rewrites hyphens in reduction names.
 
+## Marker Annotation Figures
+
+Generate the per-cell cell type marker heatmap from the repo root:
+
+```sh
+Rscript scripts/big-heatmap-plot.R
+```
+
+The script defaults to `cluster_pflog_filter_cc_dims50_res0.3` and the PFlog
+expression layer, writes per-cell PNG/PDF outputs under `figures/annotation/`
+in the Box data root, and symlinks the PNG into `notebook/figures/`.
+
+
 ## Tripwire Checks
 
 Run the lightweight scientific-boundary checks from the repo root:

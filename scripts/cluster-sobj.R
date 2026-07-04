@@ -1,12 +1,30 @@
+#!/usr/bin/env Rscript
+
 # Cluster one preprocessed normalization branch across a candidate grid.
-# CJS 2026-07-02
-# Inputs: preprocessed `.rds` at `--input <path>` (required); `--elbow-n <N>`
-# (required; integer chosen from the elbow plot); optional `--extra-dims <csv>`
-# (default "30,50"); optional `--resolutions <csv>` (default "0.3,0.5,0.8").
-# Outputs: clustered object saved to a Seurat-safe branch-tagged path:
-# `CURRENT_OBJECT_DIR/cluster_<normalization>_<cc_tag>_elbow<N>.rds`;
-# Terms: see CONTEXT.md (normalization branch, candidate clustering, chosen clustering,
-# pseudobulk sample, focused test).
+#
+# Usage:
+#   Rscript scripts/cluster-sobj.R \
+#     --input <preprocessed-seurat-object.rds> \
+#     --elbow-n <positive integer> \
+#     --extra-dims <comma-separated integers> \
+#     --resolutions <comma-separated numbers>
+#
+# Arguments:
+#   --input
+#     Preprocessed Seurat object. Required.
+#   --elbow-n
+#     Primary PC count selected from the elbow plot. Required.
+#   --extra-dims
+#     Additional PC counts to cluster. Defaults to 30,50.
+#   --resolutions
+#     Leiden resolutions to cluster. Defaults to 0.3,0.5,0.8.
+#
+# Outputs:
+#   CURRENT_OBJECT_DIR/cluster_<normalization>_<cc_tag>_elbow<N>.rds
+#   UMAP overlays and clustree figures under FIGURE_DIR/cluster.
+#
+# Notes:
+#   Cluster, UMAP, clustree, and RDS artifact tags use Seurat-safe underscores.
 
 args <- commandArgs(trailingOnly = TRUE)
 arg <- function(name) {

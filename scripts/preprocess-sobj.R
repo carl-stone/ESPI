@@ -1,14 +1,29 @@
-# Preprocess a Trailmaker Seurat object into one normalization branch.
-# CJS 2026-06-30
-# Inputs: raw `.rds` at `INPUT_OBJECT_DIR` or `--input <path>`.
-# Outputs: preprocessed object saved to `CURRENT_OBJECT_DIR/preprocess_<norm>.rds`
-# where `<norm>` is `log1p` or `pflog`; QC/HVG/PCA-diagnostic plots saved by
-# `splot_*` helpers.
-# Branch note: this script produces one normalization branch per run; rerun with
-# `--normalization pflog` for the other branch.
-# Next step: `scripts/cluster-sobj.R` consumes this output with `--elbow-n <N>`
-# after visual inspection of the elbow plot.
-# Terms: see CONTEXT.md (normalization branch, candidate clustering, chosen clustering, pseudobulk sample, focused test).
+#!/usr/bin/env Rscript
+
+# Preprocess one Seurat object into one normalization branch.
+#
+# Usage:
+#   Rscript scripts/preprocess-sobj.R \
+#     --input <raw-seurat-object.rds> \
+#     --normalization <log1p|pflog> \
+#     --filter-cell-cycle <true|false>
+#
+# Arguments:
+#   --input
+#     Raw Seurat object to preprocess. Defaults to
+#     INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds.
+#   --normalization
+#     Normalization branch to run. Must be log1p or pflog. Defaults to log1p.
+#   --filter-cell-cycle
+#     If true, removes mouse_cell_cycle_genes from the HVG set before PCA.
+#     Defaults to false.
+#
+# Outputs:
+#   CURRENT_OBJECT_DIR/preprocess_<normalization>_<filter-cc|no-filter-cc>.rds
+#   QC, HVG, DimHeatmap, and elbow figures under FIGURE_DIR/preprocess.
+#
+# Next step:
+#   Run scripts/cluster-sobj.R with --input <preprocess output> and --elbow-n.
 
 args <- commandArgs(trailingOnly = TRUE)
 arg <- function(name) {

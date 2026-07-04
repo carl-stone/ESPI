@@ -1,8 +1,32 @@
 #!/usr/bin/env Rscript
 
-# Cluster every preprocessed branch in CURRENT_OBJECT_DIR.
-# Run from a shell with:
-#   Rscript scripts/cluster-all.R --elbow-n 20
+# Cluster every preprocessed branch in an input directory.
+#
+# Usage:
+#   Rscript scripts/cluster-all.R \
+#     --elbow-n <positive integer> \
+#     --input-dir <directory> \
+#     --extra-dims <comma-separated integers> \
+#     --resolutions <comma-separated numbers> \
+#     --dry-run
+#
+# Arguments:
+#   --elbow-n
+#     Primary PC count selected from elbow diagnostics. Defaults to 20.
+#   --input-dir
+#     Directory containing preprocess_*.rds inputs. Defaults to
+#     CURRENT_OBJECT_DIR.
+#   --extra-dims
+#     Additional PC counts to cluster. Forwarded to cluster-sobj.R. Defaults
+#     there to 30,50.
+#   --resolutions
+#     Leiden resolutions to cluster. Forwarded to cluster-sobj.R. Defaults
+#     there to 0.3,0.5,0.8.
+#   --dry-run
+#     Print the Rscript commands that would run, without executing them.
+#
+# Outputs:
+#   Delegates to scripts/cluster-sobj.R for every preprocess_*.rds input.
 
 args <- commandArgs(trailingOnly = FALSE)
 file_arg <- grep("^--file=", args, value = TRUE)

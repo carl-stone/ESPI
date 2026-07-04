@@ -97,3 +97,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: data-design
 
 **structural_mitigation_candidate**: Validate that marker-list keys and label-vector names match whenever marker data is regenerated.
+
+### [2026-07-03] Use unlink for notebook figure symlink replacement
+
+**Tags**: r, symlink, notebook, figures
+
+**Category**: Figure output workflow
+
+**What happened**: Replacing an existing notebook figure symlink with `file.remove()` produced a warning when the path was a broken symlink.
+
+**Why it matters**: Figure scripts should be rerunnable without noisy warnings or stale notebook figure links.
+
+**Resolution**: Detect either an existing file or symlink with `file.exists(path) || nzchar(Sys.readlink(path))`, then remove the path with `unlink(path)` before recreating the symlink.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Use this symlink replacement idiom in future scripts that link Box figures into `notebook/figures/`.

@@ -1,6 +1,22 @@
 #!/usr/bin/env Rscript
 
 # Generate supplemental clustering grid summaries and figures.
+#
+# Usage:
+#   Rscript scripts/summarize-cluster-grid.R
+#
+# Arguments:
+#   None.
+#
+# Inputs:
+#   Current clustered objects in CURRENT_OBJECT_DIR for the full clustering grid.
+#
+# Outputs:
+#   TABLE_DIR/cluster/cluster_grid_summary.tsv
+#   TABLE_DIR/cluster/cluster_grid_stability_summary.tsv
+#   TABLE_DIR/cluster/cluster_grid_pairwise_stability.tsv
+#   FIGURE_DIR/cluster/cluster_grid_clustree_12_panel.{png,pdf}
+#   FIGURE_DIR/cluster/umap_resolution_sweep_pflog_filter_cc_dims50.{png,pdf}
 
 suppressPackageStartupMessages({
   library(here)

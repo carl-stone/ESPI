@@ -99,3 +99,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: ASCII marker-list keys are stable for code, while labels preserve human-readable names for plots. Package data loads naturally through `devtools::load_all()` and mirrors the existing `mouse_cell_cycle_genes` pattern.
 
 **Consequences**: Marker provenance is documented as Ed and Megan's domain/literature curation, but marker-by-marker rationale is not recorded in the repo.
+
+### [2026-07-03] Keep manuscript marker heatmap as a script
+
+**Tags**: marker-genes, heatmap, plotting, r-package
+
+**Context**: The manuscript needs one per-cell marker heatmap using the curated marker gene lists and the selected PFlog filtered clustering.
+
+**Decision**: Implement the per-cell heatmap as `scripts/big-heatmap-plot.R` instead of adding a new `R/` helper file, and default its expression layer to PFlog to match the selected clustering branch.
+
+**Alternatives considered**: A package helper would make sense if marker heatmaps become reusable across analyses, but this figure is currently one standard manuscript plot.
+
+**Rationale**: Keeping the code in a script preserves locality for figure-specific choices while avoiding a shallow package module. Using the PFlog layer keeps the marker visualization on the same normalization scale used for the selected PCA/UMAP/clustering branch.
+
+**Consequences**: If the same heatmap workflow gets reused in multiple scripts or reports, promote the repeated logic into `R/`.

@@ -9,6 +9,7 @@ ESPI's executable analysis pipeline currently lives in `scripts/` and `notebook/
 | Clustering criteria ideation | `analysis/ideas/2026-07-03-clustering-criteria-brainstorm/` | Mycelium ideation session | active | Persona-generated criteria ideas for label-blind selection of normalization, PC count, and Leiden resolution. |
 | Single-cell analysis notebook | `notebook/sc_analysis.qmd` | Quarto notebook | active | Uses notebook-relative figure paths; rerender after source figure updates. |
 | Cell type marker references | `data-raw/cell-type-marker-genes.R`, `data/cell_type_marker_genes.rda`, `data/cell_type_marker_labels.rda` | R package data | active | Curated broad retinal cell type marker lists and display labels for downstream single-cell annotation. |
+| Cell type marker heatmap | `scripts/big-heatmap-plot.R` | R figure script | active | Generates per-cell PFlog marker heatmap PNG/PDF outputs from the current PFlog filtered clustering and symlinks the PNG into `notebook/figures/`. |
 | Tripwire checks | `tools/run-tripwires.R`, `analysis_labels.yml` | R QA runner | active | Checks cluster wrapper execution, branch artifact separation, report freshness, missing-input failure, metadata contract, label firewall, and future contrast direction. |
 
 ## For Future Mycelium Analyses
