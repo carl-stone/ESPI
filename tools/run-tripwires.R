@@ -962,6 +962,38 @@ tripwire_toy_contrast_direction <- function(root) {
     ))
   }
 
+  de_path <- file.path(root, "scripts", "run-mg-selected-de.R")
+  if (file.exists(de_path)) {
+    de_txt <- squash(read_text(de_path))
+    required_patterns <- c(
+      'CONTROL_LEVEL <- "control"',
+      'ESTIM_LEVEL <- "estim"',
+      'CONTRAST_DIRECTION <- "estim_vs_control"',
+      'levels = c(CONTROL_LEVEL, ESTIM_LEVEL)',
+      'contrast = c("condition", ESTIM_LEVEL, CONTROL_LEVEL)'
+    )
+    missing_patterns <- required_patterns[
+      !vapply(
+        required_patterns,
+        function(pattern) grepl(pattern, de_txt, fixed = TRUE),
+        logical(1)
+      )
+    ]
+    if (length(missing_patterns) == 0) {
+      return(pass(
+        slug,
+        "run-mg-selected-de.R encodes estim/control factor order and DESeq2 contrast direction."
+      ))
+    }
+    return(fail(
+      slug,
+      paste(
+        "run-mg-selected-de.R is missing contrast-direction guard(s):",
+        paste(missing_patterns, collapse = "; ")
+      )
+    ))
+  }
+
   fail(
     slug,
     "A differential-expression entry point appears to exist, but this runner has no toy known-answer execution hook for it yet."
