@@ -257,3 +257,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: report-freshness
 
 **structural_mitigation_candidate**: Extend `tools/run-tripwires.R` so report-number/artifact freshness checks compare notebook claims directly against generated outputs and `numbers.json`, without hard-coding expected biological counts in the runner.
+
+### [2026-07-04] Seurat FoldChange defaults are invalid for PFlog marker ranking
+
+**Tags**: seurat, findallmarkers, pflog, marker-analysis, mg-selected
+
+**Category**: Analysis robustness
+
+**What happened**: Running `Seurat::FindAllMarkers()` directly on the PFlog layer produced sign-incoherent positive markers: several top-ranked genes had `pct.1 < pct.2`, and the dot plot showed those genes lower in their assigned cluster than in other clusters.
+
+**Why it matters**: Seurat's default fold-change calculation assumes log-normalized expression and can silently turn PFlog-scale anti-markers into positive `avg_log2FC` markers. That would mislabel clusters and overstate cluster identity evidence.
+
+**Resolution**: Run the marker workflow on Seurat's standard `data` layer for fold-change ranking while keeping the PFlog-derived clustering, and enforce `pct.1 > pct.2` for every retained positive marker row. The marker script now drops identities with no positive detection-enriched markers instead of forcing anti-markers into the top table.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Keep the `pct_diff > --min-diff-pct` assertion in `scripts/find-markers-mg-selected.R` and add the same invariant to any future `FindAllMarkers()` workflow that uses non-standard assay layers.

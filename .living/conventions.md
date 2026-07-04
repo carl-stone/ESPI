@@ -6,7 +6,7 @@ Project-specific rules here override generic Mycelium convention packs.
 
 - Keep ESPI as a minimal R package plus executable `scripts/` pipeline.
 - Do not move existing `R/`, `scripts/`, or `notebook/` code into generic Mycelium `analysis/` or `algorithms/` directories unless the user explicitly asks.
-- Keep helper functions only when they remove real repetition or clarify a deep operation. Do not create one-off helpers for a few commands.
+- Keep helper functions only when they remove real repetition, enforce an invariant, or clarify a deep operation. Do not create one-off helpers for a few commands, and do not wrap one- or two-line R expressions in helper functions; inline those at the call site.
 
 ## R and Documentation Workflow
 

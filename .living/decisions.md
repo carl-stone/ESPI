@@ -257,3 +257,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The muscat DD workflow uses an internal 90%-detection filter and CDR normalization offset (`log(nc * of)`) with edgeR QL robust dispersion, which is the published answer to the per-cell depth confound and preserves the Mouse × Condition statistical unit.
 
 **Consequences**: DD outputs at `DEG_DIR/mg_selected/detection_*` use edgeR result columns (`logFC`, `logCPM`, `F`, `p_val`, `p_adj.loc` mapped to `pvalue`, `padj`). The DD tested-gene universe is set by muscat's internal 90% detection filter, not the DE gene set (supersedes "Match differential-detection and DE gene universes"). Verification showed this muscat-native universe is larger than the DE universe for this sparse PipSeq dataset: primary DD tested 36,468 genes with 0 FDR-significant hits, and paired-sensitivity DD tested 34,880 genes with 40 FDR-significant hits. The prior limma paired-sensitivity DD hit count was 108, so the hit set changed materially. `numbers.json` records `dd_method` and per-analysis DD tested-gene counts.
+
+### [2026-07-04] Run MG-selected cluster markers on data layer with positive detection filter
+
+**Tags**: marker-analysis, findallmarkers, mg-selected, seurat
+
+**Context**: The MG-selected chosen clustering is PFlog-derived, but `FindAllMarkers()` on the PFlog layer produced sign-incoherent positive markers because Seurat's default fold-change math assumes log-normalized expression.
+
+**Decision**: Use the retained PFlog-derived Leiden labels as the marker identities, run `Seurat::FindAllMarkers()` on the RNA `data` layer, and keep only rows with `pct.1 > pct.2` for descriptive positive marker ranking.
+
+**Alternatives considered**: Running `FindAllMarkers()` directly on PFlog would keep the visualization and clustering scale aligned but was empirically invalid. Supplying a PFlog-specific mean function fixed some ranking behavior but still left clusters without clean positive detection markers. Manually merging cluster 2 before marker ranking lacked a specific supported merge partner.
+
+**Rationale**: The clustering choice and marker expression scale answer different questions. The PFlog branch defines the graph structure; the log-normalized `data` layer gives Seurat-compatible marker fold changes. The positive detection filter prevents anti-markers from entering manuscript-facing marker tables.
+
+**Consequences**: Cluster 2 has no retained positive detection-enriched marker genes and should not be treated as a marker-defined interpreted identity. Cluster 8 has only 15 cells, so its many retained markers are descriptive and potentially unstable. Marker p-values remain cell-level descriptive ranks, not Mouse × Condition condition-effect evidence.

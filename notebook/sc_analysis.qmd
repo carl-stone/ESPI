@@ -165,26 +165,61 @@ and the same pink high-expression endpoint as the marker heatmap.
 
 ### Cluster marker genes
 
-TODO before this: hand-combine clusters if they look the same before FindAllMarkers().
+Before running `FindAllMarkers()`, I inspected the chosen clustering on the UMAP
+and curated marker heatmap for clusters that should be merged. I kept the
+resolution-0.3 Leiden labels unchanged because no cluster pair had both
+overlapping UMAP position and indistinguishable curated marker profiles. The
+marker workflow records that decision with `--confirm-no-merge`; the cluster 2
+null marker result below is new evidence against treating cluster 2 as its own
+defensible interpreted identity, but it still does not identify a specific merge
+partner. If later marker review supports a merge, rerun the workflow with an
+explicit cluster map.
 
-Next, moving forward with the PFlog, 30-PC, resolution-0.3 dataset, I used FindAllMarkers() to identify uniquely differentially expressed genes in each cluster. 
+I used `Seurat::FindAllMarkers()` as a descriptive ranking of genes enriched in
+each retained Leiden cluster relative to the other cells in this chosen
+clustering. The clustering was built from the PFlog branch, but marker testing
+uses Seurat's standard log-normalized `data` layer because Seurat's default
+fold-change calculation is not valid for the PFlog layer. The script also keeps
+only positive detection-enriched marker rows (`pct.1 > pct.2`), so marker
+rankings do not report anti-markers as positive markers.
+
+The result supports several clear programs: cluster 3 is enriched for
+neurogenic-progenitor genes (`Ascl1`, `Hes6`, `Dll1`), cluster 7 is enriched for
+cell-cycle genes (`Dscc1`, `Chaf1b`, `Pimreg`), and cluster 8 is a small 15-cell
+outlier with strong `Cnmd`, `Cldn10`, `Scrg1`, `Htr1b`, and `Flt4` signal.
+Cluster 1 has broad Müller/glial enriched genes including `Ugt1a1`, `Agt`, and
+`Nherf1`. Cluster 5 has neuronal marker candidates including `Ttc9b`, `St8sia3`,
+`Iqsec3`, `Lactbl1`, and `Cplx1`. Cluster 4 has only weak positive marker
+separation, and cluster 6 includes mitochondrial/ribosomal markers (`mt-Rnr1`,
+`mt-Rnr2`, `Rn18s-rs5`), so I treat those clusters cautiously as possible state
+or technical/QC structure rather than clean interpreted identities. Cluster 2
+has no genes detected more often than in the rest of cells under the positive
+marker filter; that argues against treating cluster 2 as a marker-defined
+identity, but it also does not identify a specific merge partner.
+
+![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color shows average scaled expression from the Seurat data layer. Marker rankings are descriptive because cells, not mice, are the units in FindAllMarkers.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims30_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
 
 ### Differential expression
 
 I ran pseudobulk differential expression on the `mg-selected` object using
-Mouse × Condition samples as the statistical unit. The primary DESeq2 design is
-`~ condition`, so it keeps all six Mouse × Condition pseudobulk samples. A
-paired `~ mouse + condition` analysis on mice 10 and 3 is saved as a sensitivity
-check because mouse 30 is E-Stim only and mouse 33 is control only.
+Mouse × Condition samples as the statistical unit. The primary DESeq2 design
+`~ condition` is the main condition-level analysis and keeps all six Mouse ×
+Condition pseudobulk samples. The paired `~ mouse + condition` analysis on mice
+10 and 3 is a sensitivity check only, because mouse 30 is E-Stim only and mouse
+33 is control only.
 
 Primary DESeq2 tested 24,514 genes and found 453 FDR-significant genes for
-`p27CKO +EStim` versus `p27CKO`. Seven curated marker-list genes were
-significant: `Glul` (Müller glia), `Ccn1` (activated Müller glia), `Hes6`
-(neurogenic progenitor), `Mcm2`, `Mcm6`, and `Pcna` (proliferative), and `Grm6`
-(rod bipolar). `Glul`, `Ccn1`, `Hes6`, and `Grm6` increased with E-Stim, while
-the proliferative markers decreased. In the paired two-mouse sensitivity,
-`Glul`, `Ccn1`, `Mcm2`, and `Mcm6` remain FDR-significant; `Hes6`, `Pcna`, and
-`Grm6` do not.
+E-Stim versus `p27CKO`. Seven curated marker-list genes were significant:
+`Glul` (Müller glia), `Ccn1` (activated Müller glia), `Hes6` (neurogenic
+progenitor), `Mcm2`, `Mcm6`, and `Pcna` (proliferative), and `Grm6` (rod
+bipolar). `Glul`, `Ccn1`, `Hes6`, and `Grm6` increased with E-Stim, while the
+proliferative markers decreased. The strongest design-robust curated marker
+signals are concordant in the primary and paired-sensitivity analyses:
+increased `Glul` and `Ccn1` and decreased `Mcm2` and `Mcm6`. `Hes6`, `Pcna`,
+and `Grm6` are primary-model hits but do not remain FDR-significant in the
+paired sensitivity. `Serpina3n` is significant only in the paired sensitivity,
+so I treat it as paired-subset support for activated Müller glia rather than a
+primary all-sample marker hit.
 
 The differential-detection (DD) analysis uses the pseudobulk `edgeR_NB_optim`
 workflow (Gilis et al., BMC Genomics 26:886, 2025) via `muscat::pbDS(method =
@@ -198,13 +233,12 @@ variation. Primary DD uses `~ condition` across all six pseudobulk samples;
 paired sensitivity uses `~ mouse + condition` on mice 10 and 3.
 
 Primary muscat DD tested 36,468 genes and found no FDR-significant genes or
-marker-list hits. The paired sensitivity DD tested 34,880 genes and found 40
-FDR-significant genes, with no marker-list hits.
-
-I interpret genes with concordant primary and paired-sensitivity effects as the
-strongest design-robust signals. Paired-only DE or DD hits are within-paired-mice
-sensitivity results, not evidence that the paired model is globally more
-accurate than the all-sample primary condition model.
+marker-list hits, so the primary evidence does not support condition-level
+changes in the fraction of cells detecting curated marker genes. The paired
+sensitivity DD tested 34,880 genes and found 40 FDR-significant genes, with no
+marker-list hits. Because this result uses only mice 10 and 3 and is not
+supported by primary DD, I treat it as a within-paired-mice sensitivity signal,
+not a general all-sample DD conclusion.
 
 DE tables and marker-overlap files are saved under `degs/mg_selected/`. GO ORA
 and preranked GSEA follow-ups are saved under `enrichment/mg_selected/`.
