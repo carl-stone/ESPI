@@ -125,13 +125,70 @@ Here's an example of one of the UMAP resolution sweeps. This uses PFlog normaliz
 
 **Choice 2**: Based off the clustree and UMAP resolution sweeps, it looks like the best combination of normalization, number of PCs, and resolution is PFlog normalization, 50 PCs, and resolution 0.3. I'll use this for most downstream analyses, using the same settings for the cell-cycle filtered and non-filtered HVGs. We can use a higher resolution like 0.8 for subclustering later.
 
-### Marker heatmap
+### MG-selected clustering
 
-The marker heatmap below shows the selected PFlog, non-filtered clustering
-(`cluster_pflog_no_filter_cc_dims50_res0.3`). Columns are cells split by Leiden
-cluster, with cluster blocks hierarchically ordered by their marker-expression
-profiles. Rows are marker genes grouped by their expected cell-type labels.
-Colors show each gene's row z-score across cells, clipped to $\pm 2$.
+I scored the selected PFlog, non-filtered 50-PC, resolution-0.3 clusters with
+`Seurat::AddModuleScore()` using `cell_type_marker_genes`, then handled
+`Cdkn1b` (p27) as a separate expression/detection signal. The marker rule removes
+microglia or photoreceptor calls only when the top module score is at least 0.5
+and exceeds the runner-up score by at least 0.25. The `Cdkn1b` rule removes
+clusters with expression and detection BH-adjusted Wilcoxon $q < 0.05$ and at
+least 20% detected cells. In this run, cluster 4 met both microglia and `Cdkn1b`
+rules, cluster 7 met the microglia rule, and clusters 9 and 10 met the `Cdkn1b`
+rule, leaving 4,713 cells for the `mg-selected` dataset. Because `Cdkn1b`
+filtering conditions the branch on p27 biology, interpret the downstream results
+as the p27-low/negative MG-enriched branch requested here.
 
-![Per-cell marker-gene heatmap for the selected PFlog, non-filtered clustering. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims50_res0.3.png){#fig-cell-type-marker-heatmap}
+I reselected HVGs on `mg-selected`, reran PFlog PCA, and swept 20, 30, and 50
+PCs with Leiden resolutions 0.3, 0.5, and 0.8, with and without cell-cycle HVG
+filtering. The elbow plot is already flat by 20 PCs, so 30 PCs is safely past
+the elbow without carrying as much tail variance as 50 PCs. Resolution 0.3 keeps
+the major structure without the extra splitting seen at 0.5 and 0.8. I use the
+PFlog, no-cell-cycle-filtered, 30-PC, resolution-0.3 clustering for downstream
+figures and differential analysis.
+
+![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization, cell-cycle HVGs retained, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-umap}
+
+The marker heatmap below shows the same `mg-selected` clustering
+(`cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3`). Columns are cells split
+by Leiden cluster, with cluster blocks hierarchically ordered by their
+marker-expression profiles. Rows are marker genes grouped by their expected
+cell-type labels. Colors show each gene's row z-score across cells, clipped to
+$\pm 2$.
+
+![Per-cell marker-gene heatmap for the MG-selected PFlog clustering. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims30_res0.3.png){#fig-mg-selected-cell-type-marker-heatmap}
+
+The feature UMAP grid uses the marker feature list in `data/umap_feature_list.rda`
+and the same pink high-expression endpoint as the marker heatmap.
+
+![MG-selected 3 × 3 PFlog feature UMAP grid.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-feature-umap-grid}
+
+### MG-selected differential expression
+
+I ran pseudobulk differential expression on the `mg-selected` object using
+Mouse × Condition samples as the statistical unit. The primary DESeq2 design is
+`~ condition`, so it keeps all six Mouse × Condition pseudobulk samples. A
+paired `~ mouse + condition` analysis on mice 10 and 3 is saved as a sensitivity
+check because mouse 30 is E-Stim only and mouse 33 is control only.
+
+Primary DESeq2 tested 24,514 genes and found 453 FDR-significant genes for
+`p27CKO +EStim` versus `p27CKO`. Seven curated marker-list genes were
+significant: `Glul` (Müller glia), `Ccn1` (activated Müller glia), `Hes6`
+(neurogenic progenitor), `Mcm2`, `Mcm6`, and `Pcna` (proliferative), and `Grm6`
+(rod bipolar). `Glul`, `Ccn1`, `Hes6`, and `Grm6` increased with E-Stim, while
+the proliferative markers decreased. In the paired two-mouse sensitivity,
+`Glul`, `Ccn1`, `Mcm2`, and `Mcm6` remain FDR-significant; `Hes6`, `Pcna`, and
+`Grm6` do not.
+
+The differential-detection analysis tested expression-detection fractions per
+Mouse × Condition sample. It found no FDR-significant genes and no significant
+marker-list hits, so the current evidence for marker changes comes from
+pseudobulk abundance rather than binary detection.
+
+DE tables and marker-overlap files are saved under `degs/mg_selected/`. GO ORA
+and preranked GSEA follow-ups are saved under `enrichment/mg_selected/`.
+Upregulated DEGs are enriched for stress/growth and apoptotic-signaling terms,
+while downregulated DEGs and preranked GSEA are dominated by cell-cycle,
+chromosome-segregation, and DNA-replication terms. Treat the GO/GSEA results as
+follow-up summaries of this selected branch, not as independent validation.
 
