@@ -60,7 +60,7 @@ For analysis, data, or method changes:
 3. Append `.living/learnings.md` for gotchas, bugs, or reusable workflow lessons.
 4. Append `.living/findings/<topic>.md` only for scientific findings with evidence.
 5. Update `.living/INDEX.md` with Mycelium's index generator.
-6. Update `.claude/last-session.md` locally if using Claude Code.
+6. Update `.claude/last-session.md` locally even if not using Claude Code.
 
 Do not let Mycelium bookkeeping override the direct ESPI workflow. Keep entries concise and evidence-based.
 
