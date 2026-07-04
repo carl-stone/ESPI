@@ -22,7 +22,9 @@ Imports:
     SeuratObject
 Suggests:
     biomaRt,
-    devtools
+    devtools,
+    muscat,
+    SingleCellExperiment
 Remotes:
     cleartools/scclrR
 Roxygen: list(markdown = TRUE)

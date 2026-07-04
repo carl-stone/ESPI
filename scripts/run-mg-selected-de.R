@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-# Run mg-selected pseudobulk differential expression, differential detection,
-# and enrichment follow-up analyses.
+# Run mg-selected pseudobulk differential expression, muscat edgeR_NB_optim
+# differential detection, and enrichment follow-up analyses.
 #
 # Usage:
 #   Rscript scripts/run-mg-selected-de.R \
@@ -15,6 +15,10 @@
 #   CURRENT_OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds
 #   cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3
 #
+#
+# Differential detection uses `muscat::pbDS(method = "DD")`, equivalent to
+# `muscat::pbDD()`, on pseudobulk detected-cell counts with the published
+# edgeR_NB_optim workflow.
 # Outputs:
 #   DEG_DIR/mg_selected/pseudobulk_sample_summary.tsv
 #   DEG_DIR/mg_selected/design_summary.tsv
@@ -86,7 +90,9 @@ if (length(unknown_flags) > 0) {
 
 required_packages <- c(
   "DESeq2",
-  "limma",
+  "muscat",
+  "SingleCellExperiment",
+  "SummarizedExperiment",
   "clusterProfiler",
   "org.Mm.eg.db",
   "Matrix",
@@ -508,46 +514,99 @@ run_deseq2 <- function(
   )
 }
 
-run_detection_limma <- function(
-  logit_detection,
-  detection_fraction,
+run_detection_muscat_dd <- function(
+  counts,
+  cell_metadata,
   sample_table,
+  detection_fraction,
   design_formula,
   design_label
 ) {
+  # counts: raw gene x cell dgCMatrix / Matrix, colnames match rownames(cell_metadata).
+  # cell_metadata: data.frame with rownames = cell barcodes; must carry the columns
+  #   `pseudobulk_sample_id` (character; identifies the Mouse x Condition sample) and
+  #   `condition` (factor with levels c(CONTROL_LEVEL, ESTIM_LEVEL)); may carry `mouse`.
+  # sample_table: rownames = pseudobulk sample IDs used as columns of DD outputs;
+  #   columns must include `condition` (factor), and for the paired design `mouse`.
+  # detection_fraction: gene x sample matrix used to fill mean detected fractions.
+  # design_formula: RHS-only formula, e.g. ~condition or ~mouse + condition.
+  # design_label: character label written into the output `design` column.
+
+  sample_ids <- rownames(sample_table)
+  keep_cells <- cell_metadata$pseudobulk_sample_id %in% sample_ids
+  cell_metadata <- cell_metadata[keep_cells, , drop = FALSE]
+  counts <- counts[, keep_cells, drop = FALSE]
+
+  cluster_id <- factor(rep("mg_selected", ncol(counts)))
+  sample_id <- factor(cell_metadata$pseudobulk_sample_id, levels = sample_ids)
+  group_id <- factor(
+    as.character(cell_metadata$condition),
+    levels = c(CONTROL_LEVEL, ESTIM_LEVEL)
+  )
+
+  col_data <- S4Vectors::DataFrame(
+    cluster_id = cluster_id,
+    sample_id = sample_id,
+    group_id = group_id
+  )
+  rownames(col_data) <- colnames(counts)
+
+  sce <- SingleCellExperiment::SingleCellExperiment(
+    assays = list(counts = counts),
+    colData = col_data
+  )
+
+  sce <- muscat::prepSCE(
+    sce,
+    kid = "cluster_id",
+    sid = "sample_id",
+    gid = "group_id",
+    drop = FALSE
+  )
+
+  pb <- muscat::aggregateData(
+    sce,
+    assay = "counts",
+    fun = "num.detected",
+    by = c("cluster_id", "sample_id")
+  )
+
   design <- stats::model.matrix(design_formula, data = sample_table)
-  assert_full_rank(design, paste("limma detection", design_label))
-  coef_name <- "conditionestim"
-  if (!coef_name %in% colnames(design)) {
+  assert_full_rank(design, paste("muscat DD", design_label))
+  coef_name <- tail(colnames(design), 1L)
+  if (!identical(coef_name, "conditionestim")) {
     stop(
-      "Expected limma coefficient not found for estim vs control: ",
+      "Expected muscat DD coefficient 'conditionestim' as the last design column; got: ",
       coef_name,
-      ". Available coefficient(s): ",
-      paste(colnames(design), collapse = ", "),
       call. = FALSE
     )
   }
-  fit <- limma::lmFit(logit_detection, design)
-  fit <- limma::eBayes(fit)
-  top <- limma::topTable(
-    fit,
-    coef = coef_name,
-    number = Inf,
-    sort.by = "none"
+  contrast <- limma::makeContrasts(contrasts = coef_name, levels = design)
+
+  res <- muscat::pbDS(
+    pb,
+    method = "DD",
+    design = design,
+    contrast = contrast,
+    min_cells = 0L,
+    filter = "none",
+    verbose = FALSE
   )
-  genes <- rownames(top)
+
+  tbl <- res$table[[coef_name]][["mg_selected"]]
+  genes <- tbl$gene
   control_samples <- rownames(sample_table)[
     sample_table$condition == CONTROL_LEVEL
   ]
   estim_samples <- rownames(sample_table)[sample_table$condition == ESTIM_LEVEL]
+
   data.frame(
     gene = genes,
-    logit_fraction_logFC = top$logFC,
-    AveExpr = top$AveExpr,
-    t = top$t,
-    pvalue = top$P.Value,
-    padj = top$adj.P.Val,
-    B = top$B,
+    logFC = tbl$logFC,
+    logCPM = tbl$logCPM,
+    F = tbl[["F"]],
+    pvalue = tbl$p_val,
+    padj = tbl$p_adj.loc,
     mean_detected_fraction_control = rowMeans(
       as.matrix(detection_fraction[genes, control_samples, drop = FALSE])
     ),
@@ -556,6 +615,7 @@ run_detection_limma <- function(
     ),
     contrast = CONTRAST_DIRECTION,
     design = design_label,
+    method = "muscat_edgeR_NB_optim",
     stringsAsFactors = FALSE
   )
 }
@@ -994,27 +1054,24 @@ detected_counts <- do.call(
 rownames(detected_counts) <- rownames(counts)
 colnames(detected_counts) <- sample_ids
 detection_fraction <- sweep(detected_counts, 2, sample_table$n_cells, "/")
-undetected_counts <- sweep(
-  detected_counts,
-  2,
-  sample_table$n_cells,
-  FUN = function(detected, total) total - detected
-)
-logit_detection <- log((detected_counts + 0.5) / (undetected_counts + 0.5))
-rownames(logit_detection) <- rownames(counts)
-colnames(logit_detection) <- sample_ids
 
-full_detection <- run_detection_limma(
-  logit_detection = logit_detection,
-  detection_fraction = detection_fraction,
+cell_metadata <- meta
+cell_metadata$pseudobulk_sample_id <- pseudobulk_sample_id
+cell_metadata$condition <- condition
+cell_metadata$mouse <- factor(mouse)
+
+full_detection <- run_detection_muscat_dd(
+  counts = counts,
+  cell_metadata = cell_metadata,
   sample_table = sample_table,
+  detection_fraction = detection_fraction,
   design_formula = ~condition,
   design_label = "primary_unpaired_condition"
 )
 write_tsv(full_detection, file.path(deg_dir, "detection_full_results.tsv"))
 detection_marker_overlap <- write_marker_overlap(
   full_detection,
-  rownames(logit_detection),
+  full_detection$gene,
   file.path(deg_dir, "detection_marker_overlap.tsv"),
   padj_column = "padj"
 )
@@ -1025,6 +1082,7 @@ paired_status <- "skipped"
 paired_reason <- "fewer than two mice have both control and estim samples"
 paired_de_n_degs <- NA_integer_
 paired_detection_n_hits <- NA_integer_
+paired_detection_n_tested <- NA_integer_
 
 if (length(paired_mice) >= 2L) {
   paired_sample_table <- sample_table[
@@ -1035,14 +1093,6 @@ if (length(paired_mice) >= 2L) {
   paired_sample_table$mouse <- droplevels(factor(paired_sample_table$Mouse))
   paired_sample_table$condition <- droplevels(paired_sample_table$condition)
   paired_counts <- pseudobulk_counts[,
-    rownames(paired_sample_table),
-    drop = FALSE
-  ]
-  paired_logit_detection <- logit_detection[,
-    rownames(paired_sample_table),
-    drop = FALSE
-  ]
-  paired_detection_fraction <- detection_fraction[,
     rownames(paired_sample_table),
     drop = FALSE
   ]
@@ -1079,10 +1129,21 @@ if (length(paired_mice) >= 2L) {
       padj_column = "padj"
     )
 
-    paired_full_detection <- run_detection_limma(
-      logit_detection = paired_logit_detection,
-      detection_fraction = paired_detection_fraction,
+    paired_cell_metadata <- cell_metadata[
+      cell_metadata$mouse %in% paired_mice,
+      ,
+      drop = FALSE
+    ]
+    paired_detection_fraction <- detection_fraction[,
+      rownames(paired_sample_table),
+      drop = FALSE
+    ]
+
+    paired_full_detection <- run_detection_muscat_dd(
+      counts = counts[, rownames(paired_cell_metadata), drop = FALSE],
+      cell_metadata = paired_cell_metadata,
       sample_table = paired_sample_table,
+      detection_fraction = paired_detection_fraction,
       design_formula = ~ mouse + condition,
       design_label = "paired_mouse_condition_sensitivity"
     )
@@ -1092,13 +1153,14 @@ if (length(paired_mice) >= 2L) {
     )
     write_marker_overlap(
       paired_full_detection,
-      rownames(paired_logit_detection),
+      paired_full_detection$gene,
       file.path(deg_dir, "detection_paired_sensitivity_marker_overlap.tsv"),
       padj_column = "padj"
     )
     paired_status <- "run"
     paired_reason <- "paired sensitivity used mice with both control and estim samples"
     paired_de_n_degs <- nrow(paired_sig_de)
+    paired_detection_n_tested <- nrow(paired_full_detection)
     paired_detection_n_hits <- sum(
       !is.na(paired_full_detection$padj) & paired_full_detection$padj < 0.05
     )
@@ -1135,14 +1197,14 @@ if (!identical(paired_status, "run")) {
   write_reason_tsv(
     file.path(deg_dir, "detection_paired_sensitivity_full_results.tsv"),
     paired_reason,
-    n_input_genes = nrow(logit_detection),
+    n_input_genes = nrow(counts),
     n_mapped_genes = 0L,
     min_required = 0L
   )
   write_reason_tsv(
     file.path(deg_dir, "detection_paired_sensitivity_marker_overlap.tsv"),
     paired_reason,
-    n_input_genes = nrow(logit_detection),
+    n_input_genes = nrow(counts),
     n_mapped_genes = 0L,
     min_required = 0L
   )
@@ -1161,11 +1223,17 @@ design_summary <- data.frame(
     "~ mouse + condition",
     "~ mouse + condition"
   ),
+  method = c(
+    "deseq2_wald",
+    "muscat_edgeR_NB_optim",
+    "deseq2_wald",
+    "muscat_edgeR_NB_optim"
+  ),
   status = c("run", "run", paired_status, paired_status),
   contrast = CONTRAST_DIRECTION,
   limitation = c(
     "uses all Mouse × Condition samples; mouse pairing is not modeled",
-    "uses all Mouse × Condition samples; mouse pairing is not modeled",
+    "muscat edgeR_NB_optim: internal 90% detection filter and CDR-style offset applied per Mouse x Condition sample",
     paired_reason,
     paired_reason
   ),
@@ -1234,6 +1302,7 @@ reportable_values <- list(
   n_samples = nrow(sample_table),
   n_cells = ncol(counts),
   n_tested_genes = length(primary_de$tested_genes),
+  n_detection_tested_genes = nrow(full_detection),
   n_degs = nrow(sig_de),
   n_marker_degs = sum(de_marker_overlap$significant, na.rm = TRUE),
   n_detection_marker_hits = sum(
@@ -1246,9 +1315,13 @@ reportable_values <- list(
   counts_layer = counts_layer,
   gsea_seed = GSEA_SEED,
   lfc_shrink_type = primary_de$shrink_type,
+  dd_method = "muscat_edgeR_NB_optim",
   primary_design = "~ condition",
+  paired_sensitivity_design = "~ mouse + condition",
+  paired_sensitivity_included_mice = paste(paired_mice, collapse = ","),
   paired_sensitivity_status = paired_status,
   paired_sensitivity_n_degs = paired_de_n_degs,
+  paired_sensitivity_detection_tested_genes = paired_detection_n_tested,
   paired_sensitivity_detection_hits = paired_detection_n_hits
 )
 register_or_write_numbers(reportable_values, deg_dir)

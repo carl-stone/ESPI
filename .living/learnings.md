@@ -209,3 +209,51 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: structural
 
 **structural_mitigation_candidate**: Keep `test_stop_hook.sh` cases 14b/14c and `test_hooks_stress.sh` case 27 as regression coverage for cross-session sentinel bleed.
+
+### [2026-07-04] Differential-detection gene filters can change empirical-Bayes behavior
+
+**Tags**: differential-detection, limma, filtering, mg-selected
+
+**Category**: Analysis robustness
+
+**What happened**: Filtering MG-selected differential detection to the same gene universe as DE left primary DD with zero FDR-significant genes, but changed paired-sensitivity DD from zero to 108 FDR-significant genes.
+
+**Why it matters**: limma's empirical-Bayes moderation depends on the tested gene set. In the paired sensitivity model, only four samples and one residual degree of freedom remain, so changes in the gene universe can strongly affect moderated detection p-values.
+
+**Resolution**: Keep the matched DE/DD gene universe for comparability, but treat paired-sensitivity DD hits as exploratory unless they survive an additional sample-level DD method or a larger paired design. Marker-list overlap remained zero after the filter change.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Keep DD tested-gene counts and primary/paired DD hit counts in `numbers.json`, and add a targeted DD sensitivity using a sample-level count model before making strong detection-fraction claims.
+
+### [2026-07-04] Muscat DD changes the paired-sensitivity hit set
+
+**Tags**: differential-detection, muscat, filtering, mg-selected
+
+**Category**: Analysis robustness
+
+**What happened**: Replacing limma empirical-logit DD with muscat `edgeR_NB_optim` kept primary DD at zero FDR-significant genes but changed paired-sensitivity DD from the prior limma 108 hits to 40 hits. The muscat-native tested-gene universe also changed from the prior matched-DE 22,663 paired genes to 34,880 paired DD genes.
+
+**Why it matters**: The approved no-extra-prefilter muscat workflow lets the internal 90%-detection filter define the DD universe. In sparse PipSeq data, that filter can keep more genes than the DE count floor, so plan expectations that DD tested genes must be fewer than DE tested genes can be false.
+
+**Resolution**: Keep the muscat-native DD universe unless the analysis plan explicitly chooses an additional prefilter. Report primary and paired DD tested-gene counts and hit counts from `numbers.json`; treat paired-sensitivity DD as exploratory because it still uses only four samples.
+
+**mitigation_type**: analysis-provenance
+
+**structural_mitigation_candidate**: Record the DD method, tested-gene counts, and hit counts in `numbers.json` and `design_summary.tsv` whenever the DD method or gene universe changes.
+
+### [2026-07-04] Do not report planned marker analyses as completed
+
+**Tags**: reporting, marker-analysis, notebook, review
+
+**Category**: Reproducible reporting
+
+**What happened**: Static review found that `notebook/sc_analysis.qmd` introduced a `FindAllMarkers()` cluster-marker section saying the analysis was used, while `scripts/find-markers-mg-selected.R` was still only an untracked comment scaffold with no marker table or dot-plot outputs.
+
+**Why it matters**: In ESPI, notebook prose is treated as the scientific narrative. Claiming an ungenerated marker analysis can make planned exploratory work look like completed evidence, and `FindAllMarkers()` p-values would also need explicit descriptive/non-confirmatory framing because the same cells define the clusters and the marker tests.
+
+**Resolution**: Remove or mark planned marker prose until the executable script and output artifacts exist. When adding cluster markers, describe `FindAllMarkers()` as descriptive marker ranking unless a sample-aware or held-out validation is added.
+
+**mitigation_type**: report-freshness
+
+**structural_mitigation_candidate**: Extend `tools/run-tripwires.R` so report-number/artifact freshness checks compare notebook claims directly against generated outputs and `numbers.json`, without hard-coding expected biological counts in the runner.

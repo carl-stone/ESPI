@@ -163,7 +163,13 @@ and the same pink high-expression endpoint as the marker heatmap.
 
 ![MG-selected 3 × 3 PFlog feature UMAP grid.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-feature-umap-grid}
 
-### MG-selected differential expression
+### Cluster marker genes
+
+TODO before this: hand-combine clusters if they look the same before FindAllMarkers().
+
+Next, moving forward with the PFlog, 30-PC, resolution-0.3 dataset, I used FindAllMarkers() to identify uniquely differentially expressed genes in each cluster. 
+
+### Differential expression
 
 I ran pseudobulk differential expression on the `mg-selected` object using
 Mouse × Condition samples as the statistical unit. The primary DESeq2 design is
@@ -180,10 +186,25 @@ the proliferative markers decreased. In the paired two-mouse sensitivity,
 `Glul`, `Ccn1`, `Mcm2`, and `Mcm6` remain FDR-significant; `Hes6`, `Pcna`, and
 `Grm6` do not.
 
-The differential-detection analysis tested expression-detection fractions per
-Mouse × Condition sample. It found no FDR-significant genes and no significant
-marker-list hits, so the current evidence for marker changes comes from
-pseudobulk abundance rather than binary detection.
+The differential-detection (DD) analysis uses the pseudobulk `edgeR_NB_optim`
+workflow (Gilis et al., BMC Genomics 26:886, 2025) via `muscat::pbDS(method =
+"DD")`. Per gene and Mouse × Condition sample we count cells with non-zero
+expression, apply the workflow's internal filter that drops genes detected in
+>= 90% of cells across samples, add a cellular-detection-rate normalization
+offset, and fit edgeR quasi-likelihood models with robust dispersion. This
+adjusts for per-cell library depth and per-sample detection intensity so DD hits
+reflect changes in the fraction of expressing cells rather than PipSeq depth
+variation. Primary DD uses `~ condition` across all six pseudobulk samples;
+paired sensitivity uses `~ mouse + condition` on mice 10 and 3.
+
+Primary muscat DD tested 36,468 genes and found no FDR-significant genes or
+marker-list hits. The paired sensitivity DD tested 34,880 genes and found 40
+FDR-significant genes, with no marker-list hits.
+
+I interpret genes with concordant primary and paired-sensitivity effects as the
+strongest design-robust signals. Paired-only DE or DD hits are within-paired-mice
+sensitivity results, not evidence that the paired model is globally more
+accurate than the all-sample primary condition model.
 
 DE tables and marker-overlap files are saved under `degs/mg_selected/`. GO ORA
 and preranked GSEA follow-ups are saved under `enrichment/mg_selected/`.

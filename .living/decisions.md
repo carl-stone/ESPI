@@ -142,6 +142,8 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Consequences**: Report primary results with the design limitation. Use the paired sensitivity files to check whether headline marker directions depend on the unpaired mice.
 
+**Reporting addendum 2026-07-04**: For both DE and DD, treat concordant primary and paired-sensitivity effects as the strongest design-robust signals. Interpret paired-only hits as within-paired-mice sensitivity results, not as globally more accurate than the all-sample primary condition model.
+
 ### [2026-07-04] Keep MG-selected clustering at 30 PCs and resolution 0.3
 
 **Tags**: clustering, mg-selected, pFlog, parameters
@@ -225,3 +227,33 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The session-start timestamp is the boundary that distinguishes current work from prior-session leftovers. Comparing sentinel timestamps to that boundary fixes the false positive without weakening enforcement for real current-session work.
 
 **Consequences**: Back-to-back OMP sessions should no longer block immediately from stale reminder/activity files. The stop hook still blocks current-session work older than the debounce window when no `.living/` triage file was updated.
+
+### [2026-07-04] Match differential-detection and DE gene universes
+
+**Tags**: differential-expression, differential-detection, mg-selected, filtering
+
+**Context**: The MG-selected DESeq2 analysis filters genes to pseudobulk row sums >= 10 before DE testing, but the limma differential-detection analysis originally tested every gene in the Seurat counts matrix.
+
+**Decision**: Filter primary differential detection to the primary DESeq2 tested genes, and filter paired-sensitivity differential detection to the paired-sensitivity DESeq2 tested genes.
+
+**Alternatives considered**: Testing all detected/undetected gene rows would maximize the DD search space but use a different multiple-testing background from DE. Adding a separate detection-specific prevalence filter would be defensible but would make DE and DD less directly comparable.
+
+**Rationale**: The notebook compares DE and DD as paired summaries of the same MG-selected branch. Matching the tested gene universe keeps the multiple-testing background aligned and removes genes that failed the DE count floor.
+
+**Consequences**: Primary DD now tests 24,514 genes, matching primary DE. Paired-sensitivity DD now tests 22,663 genes, matching paired DE. `numbers.json` records both DD tested-gene counts and DD hit counts. The primary DD result remains negative, while paired-sensitivity DD becomes exploratory because it has only four samples and one residual degree of freedom.
+
+**Superseded 2026-07-04 by "Replace limma logit DD with muscat edgeR_NB_optim":** DD gene universe is now defined by muscat's internal 90% detection filter, not the DE tested-gene set. See the following decision entry.
+
+### [2026-07-04] Replace limma logit DD with muscat edgeR_NB_optim
+
+**Tags**: differential-detection, mg-selected, muscat, mycelium
+
+**Context**: The prior DD implementation used a limma empirical-logit model with a 0.5 pseudocount. It did not adjust for per-cell library depth or per-sample cellular detection rate, which is a known confound in low-depth PipSeq data.
+
+**Decision**: Replace primary and paired-sensitivity DD in `scripts/run-mg-selected-de.R` with `muscat::pbDS(method = "DD")` (equivalently `muscat::pbDD()`), the `edgeR_NB_optim` workflow from Gilis et al., BMC Genomics 26:886 (2025).
+
+**Alternatives considered**: MAST hurdle with `(1 | mouse)`; a hand-rolled edgeR QL on detected-cell counts with CDR offset. Both are cell-level or bespoke; muscat implements the published, benchmarked workflow directly at Mouse × Condition sample level.
+
+**Rationale**: The muscat DD workflow uses an internal 90%-detection filter and CDR normalization offset (`log(nc * of)`) with edgeR QL robust dispersion, which is the published answer to the per-cell depth confound and preserves the Mouse × Condition statistical unit.
+
+**Consequences**: DD outputs at `DEG_DIR/mg_selected/detection_*` use edgeR result columns (`logFC`, `logCPM`, `F`, `p_val`, `p_adj.loc` mapped to `pvalue`, `padj`). The DD tested-gene universe is set by muscat's internal 90% detection filter, not the DE gene set (supersedes "Match differential-detection and DE gene universes"). Verification showed this muscat-native universe is larger than the DE universe for this sparse PipSeq dataset: primary DD tested 36,468 genes with 0 FDR-significant hits, and paired-sensitivity DD tested 34,880 genes with 40 FDR-significant hits. The prior limma paired-sensitivity DD hit count was 108, so the hit set changed materially. `numbers.json` records `dd_method` and per-analysis DD tested-gene counts.
