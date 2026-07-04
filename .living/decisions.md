@@ -127,3 +127,31 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Top-to-bottom scripts preserve shell reproducibility without hiding inspectable intermediate objects from RStudio.
 
 **Consequences**: Promote repeated logic to `R/` only when it hides a real conceptual operation or removes substantial repetition.
+
+### [2026-07-04] Use all Mouse × Condition samples as primary DE unit
+
+**Tags**: differential-expression, pseudobulk, paired-design, mg-selected
+
+**Context**: The `mg-selected` dataset has six Mouse × Condition pseudobulk samples: paired mice 10 and 3, mouse 30 as E-Stim only, and mouse 33 as control only.
+
+**Decision**: Run primary DESeq2 and differential-detection models with `~ condition` across all six samples, and save `~ mouse + condition` results as a paired sensitivity analysis on mice 10 and 3 only.
+
+**Alternatives considered**: A paired-only primary model would model mouse blocking, but would discard one control-only and one E-Stim-only mouse.
+
+**Rationale**: The requested condition-level unit is Mouse × Condition pseudobulk. The unpaired primary design preserves all biological samples and documents the limitation that pairing is not modeled.
+
+**Consequences**: Report primary results with the design limitation. Use the paired sensitivity files to check whether headline marker directions depend on the unpaired mice.
+
+### [2026-07-04] Keep MG-selected clustering at 30 PCs and resolution 0.3
+
+**Tags**: clustering, mg-selected, pFlog, parameters
+
+**Context**: After removing selected-source clusters 4 (microglia score plus Cdkn1b-high), 7 (microglia score), and 9/10 (Cdkn1b-high), the MG-selected PFlog object was reclustered across 20, 30, and 50 PCs; Leiden resolutions 0.3, 0.5, and 0.8; and with or without cell-cycle HVG filtering. The marker exclusion rule required top class microglia/photoreceptor, top score ≥ 0.5, and score margin ≥ 0.25. The Cdkn1b rule required expression and detection BH-adjusted Wilcoxon q < 0.05 plus detection fraction ≥ 0.20.
+
+**Decision**: Use PFlog, cell-cycle HVGs retained, 30 PCs, and Leiden resolution 0.3 for downstream MG-selected figures and DE.
+
+**Alternatives considered**: 20 PCs is close to the elbow; 50 PCs carries more tail variance; 0.5 and 0.8 split major structures more aggressively.
+
+**Rationale**: Thirty PCs is safely past the elbow, and resolution 0.3 preserves broad MG-selected structure for manuscript-scale figures.
+
+**Consequences**: Higher resolutions remain available for later subclustering, but not as the current manuscript-level branch.

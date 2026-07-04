@@ -113,3 +113,35 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: structural
 
 **structural_mitigation_candidate**: Use this symlink replacement idiom in future scripts that link Box figures into `notebook/figures/`.
+
+### [2026-07-04] Read TSV row counts with a count tool when output looks truncated
+
+**Tags**: read-tool, tsv, validation
+
+**Category**: Tooling validation
+
+**What happened**: A line-selected read of `detection_full_results.tsv` appeared to show only 44 lines even though `wc -l` and R both showed 50,765 file lines.
+
+**Why it matters**: Large TSV previews can mislead downstream interpretation if the apparent displayed range is treated as a row count.
+
+**Resolution**: Use `wc -l` or R `nrow(readr::read_tsv(...))` for row-count verification when a preview seems inconsistent with the expected analysis scale.
+
+**mitigation_type**: validation
+
+**structural_mitigation_candidate**: Keep reportable output counts in `numbers.json` and re-read that file directly before summarizing final DE results.
+
+### [2026-07-04] Make DE output overwrites explicit
+
+**Tags**: differential-expression, reproducibility, output-provenance
+
+**Category**: Analysis output safety
+
+**What happened**: The MG-selected DE script wrote canonical output filenames while also accepting alternate inputs and cluster columns.
+
+**Why it matters**: Exploratory reruns can silently replace manuscript-facing DE, detection, enrichment, and reportable-value files if overwrite behavior is implicit.
+
+**Resolution**: Require `--overwrite` before replacing existing DE/enrichment outputs, record the input object, cluster column, counts layer, shrinkage method, and GSEA seed in `design_summary.tsv` and `numbers.json`, and keep a GSEA symbol-to-Entrez mapping ledger.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: For future analysis scripts with configurable inputs and canonical output paths, add an explicit overwrite gate and write run-provenance fields beside the main results.

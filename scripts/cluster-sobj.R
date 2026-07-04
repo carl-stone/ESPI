@@ -19,8 +19,8 @@
 #   --resolutions
 #     Leiden resolutions to cluster. Defaults to 0.3,0.5,0.8.
 #
-# Outputs:
 #   CURRENT_OBJECT_DIR/cluster_<normalization>_<cc_tag>_elbow<N>.rds
+#   CURRENT_OBJECT_DIR/cluster_<normalization>_<dataset_tag>_<cc_tag>_elbow<N>.rds
 #   UMAP overlays and clustree figures under FIGURE_DIR/cluster.
 #
 # Notes:
@@ -128,12 +128,28 @@ if (
 ) {
   stop("Missing or invalid preprocessing normalization: ", norm, call. = FALSE)
 }
+dataset_tag <- sobj@misc$preprocessing$dataset_tag
+if (is.null(dataset_tag) || identical(dataset_tag, "all_cells")) {
+  dataset_tag <- NULL
+} else if (
+  !is.character(dataset_tag) ||
+    length(dataset_tag) != 1 ||
+    is.na(dataset_tag) ||
+    !nzchar(dataset_tag) ||
+    !grepl("^[A-Za-z0-9_]+$", dataset_tag)
+) {
+  stop(
+    "Missing or invalid preprocessing dataset_tag: ",
+    paste(dataset_tag, collapse = ", "),
+    call. = FALSE
+  )
+}
 cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
   "filter_cc"
 } else {
   "no_filter_cc"
 }
-branch_tag <- sprintf("%s_%s", norm, cc_tag)
+branch_tag <- paste(c(norm, dataset_tag, cc_tag), collapse = "_")
 if (!grepl("^[A-Za-z0-9_]+$", branch_tag)) {
   stop("Unsafe clustering branch tag: ", branch_tag, call. = FALSE)
 }
