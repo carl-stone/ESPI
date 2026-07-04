@@ -193,3 +193,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: structural
 
 **structural_mitigation_candidate**: Keep Mycelium customizations in repo-owned adapters or wrappers, then verify them with synthetic hook JSON after any OMP or Mycelium plugin update.
+
+### [2026-07-04] Stop hooks need session-boundary sentinel checks
+
+**Tags**: mycelium, hooks, session-state, omp, tests
+
+**Category**: Tooling setup
+
+**What happened**: False-positive stop blocks occurred at the end of early turns because `mycelium-health.sh` only deleted stale reminder/activity files after one hour. A new OMP session that started within one hour of the previous session inherited the previous `.claude/mycelium-reminded.tmp`, and `mycelium-stop-check.sh` treated the old timestamp as current-session work.
+
+**Why it matters**: OMP can call session-stop behavior at turn boundaries, so cross-session sentinel bleed creates blocks before the agent has had a chance to do meaningful session-end triage.
+
+**Resolution**: Reset reminder/activity sentinels when they predate the current session-start timestamp, and add stop-hook regression tests for prior-session reminder and activity files that are less than one hour old.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Keep `test_stop_hook.sh` cases 14b/14c and `test_hooks_stress.sh` case 27 as regression coverage for cross-session sentinel bleed.

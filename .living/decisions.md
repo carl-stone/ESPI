@@ -211,3 +211,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Repo-owned adapters survive skill sync and are already the project-local seam between OMP and Mycelium.
 
 **Consequences**: OMP and Claude-hook sessions now share the same wrapper path for data tracking. R lineage records include source-level I/O expressions such as `input` and `out_path`; they do not resolve every runtime path computed from CLI arguments.
+
+### [2026-07-04] Reset prior-session Mycelium sentinels at SessionStart
+
+**Tags**: mycelium, hooks, omp, session-state
+
+**Context**: OMP can run the Mycelium stop hook at turn boundaries. A prior session's `.claude/mycelium-reminded.tmp` and `.claude/mycelium-session-activity.tmp` could survive when a new session started less than one hour later, so the first stop event of the new session inherited an already-old reminder and falsely blocked with `.living/ not updated`.
+
+**Decision**: Treat work sentinels older than the current `.claude/session-start-ts.tmp` as prior-session state. Clear those sentinels during `mycelium-health.sh` SessionStart and make `mycelium-stop-check.sh` self-heal by ignoring and removing older reminder/activity files if SessionStart cleanup did not run.
+
+**Alternatives considered**: Increasing the five-minute stop-hook debounce would mask the symptom but still allow cross-session state bleed. Clearing all sentinels unconditionally would risk erasing live primary-session work when a subagent or nested hook runs.
+
+**Rationale**: The session-start timestamp is the boundary that distinguishes current work from prior-session leftovers. Comparing sentinel timestamps to that boundary fixes the false positive without weakening enforcement for real current-session work.
+
+**Consequences**: Back-to-back OMP sessions should no longer block immediately from stale reminder/activity files. The stop hook still blocks current-session work older than the debounce window when no `.living/` triage file was updated.
