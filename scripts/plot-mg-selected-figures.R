@@ -257,16 +257,16 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
         color = .data[["expression"]]
       )
     ) +
-      ggplot2::geom_point(size = 0.15, stroke = 0) +
+      ggplot2::geom_point(stroke = 0) +
       ggplot2::scale_color_gradient(
-        low = "grey95",
+        low = "grey85",
         high = palette_dotplot_pair[[2L]],
         name = layer
       ) +
       ggplot2::coord_equal() +
       ggplot2::ggtitle(feature) +
       ggplot2::labs(x = "UMAP 1", y = "UMAP 2") +
-      ggplot2::theme_void() +
+      ggplot2::theme_classic() +
       ggplot2::theme(
         plot.title = ggplot2::element_text(size = 10, hjust = 0.5),
         legend.position = "right"
