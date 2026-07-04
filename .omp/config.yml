@@ -1,4 +1,5 @@
 # Project-local Oh My Pi config.
-# Loads the generated-file guard extension for this repository.
+# Loads project-local OMP extensions for this repository.
 extensions:
   - ./.omp/extensions/generated-file-guard.ts
+  - ./.omp/extensions/mycelium.ts

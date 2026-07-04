@@ -2,3 +2,6 @@
 .Rhistory
 config.local.R
 .claude/
+__pycache__/
+.DS_Store
+*.pyc
