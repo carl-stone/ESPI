@@ -346,3 +346,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The plot answers a descriptive cluster-composition question and should be visually available in the notebook, while the caveat prevents it from being presented as equivalent to pseudobulk condition-level inference.
 
 **Consequences**: The abundance figure is useful for cluster-level pattern review, but DE/DD remain the condition-level analyses with Mouse × Condition pseudobulk samples as the statistical unit.
+
+### [2026-07-05] Use Mouse × Condition cluster counts for future abundance inference
+
+**Tags**: mg-selected, abundance, paired-design, causal-inference, compositional-data
+
+**Context**: A targeted ideation panel reviewed how to test whether E-Stim changes MG-selected cluster proportions without using the existing pooled cell-level Fisher/CLR plot as condition-level evidence.
+
+**Decision**: Treat future inferential cluster-abundance analyses as Mouse × Condition sample-level analyses. Start from a sample × cluster count table, use paired mice 10 and 3 as the anchor, use mice 30 and 33 as unpaired context or sensitivity, and keep pooled Fisher/CLR as descriptive only.
+
+**Alternatives considered**: Reusing pooled Fisher tests would be simple but violates the biological replicate unit. Fully model-based multinomial or neighborhood differential-abundance approaches are better robustness layers but are heavier than the immediate paired/sample-level summaries.
+
+**Rationale**: The ESPI statistical unit is Mouse × Condition. Sample-level proportions or log-ratios align the abundance question with the DE/DD design, while explicit caveats about frozen/data-derived clusters address circularity from testing a clustering learned on the same dataset.
+
+**Consequences**: Any future manuscript-facing cluster-proportion claim should cite a mouse-level analysis, not the descriptive Fisher/CLR plot. Stronger causal or cell-state claims need frozen labels, cross-fit/alternative clustering sensitivity, or validation data.
