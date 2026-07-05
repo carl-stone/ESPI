@@ -321,3 +321,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: ambient-awareness
 
 **structural_mitigation_candidate**: Add a stop-hook invariant that rejects completed `LOG_REGISTRY.md` rows with blank Summary, blank Key Outputs, blank Tags, or file-list-only summaries.
+
+### [2026-07-05] Persist hook-provenance guard tests with the guard
+
+**Tags**: mycelium, hooks, provenance, tests, session-logs
+
+**Category**: Workflow provenance
+
+**What happened**: A throwaway eval fixture caught that the initial provenance guard misclassified sentence summaries ending in a period as file lists, and a later review caught missing persisted coverage for INDEX restoration.
+
+**Why it matters**: Hook-provenance fixes protect the audit trail itself. If their tests live only in scrollback, a future edit can silently reintroduce registry or INDEX clobbering.
+
+**Resolution**: Keep `tools/test_mycelium_provenance_guard.py` next to `tools/mycelium-provenance-guard.py` and run `python3 -m unittest tools/test_mycelium_provenance_guard.py` after changing the guard or wrappers.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Keep provenance guard behavior covered by persisted `tools/` tests whenever the guard learns a new clobbering pattern.

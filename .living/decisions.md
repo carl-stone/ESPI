@@ -416,3 +416,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Separating metadata values from display labels keeps computation stable while giving plots a single source of truth for manuscript-facing labels and colors.
 
 **Consequences**: Future plotting code should import display labels and palette values from the package namespace instead of hard-coding condition text or endpoint colors.
+
+### [2026-07-05] Protect Mycelium hook provenance with project-owned wrappers
+
+**Tags**: mycelium, hooks, provenance, session-logs, omp
+
+**Context**: Synced Mycelium hooks can regenerate `LOG_REGISTRY.md`, `.living/INDEX.md`, and `.claude/last-session.md` with generic placeholders after manual semantic records have been repaired.
+
+**Decision**: Keep synced `skills/core/*` untouched and route OMP hook execution through project-owned wrappers in `.agents/hooks/adapters/`. The wrappers snapshot provenance files, run the synced hook, then invoke `tools/mycelium-provenance-guard.py` to restore semantic registry rows, INDEX knowledge-summary ordering, and last-session content only when the hook output regresses them.
+
+**Alternatives considered**: Patching `skills/core/*` would be overwritten by `tools/sync-mycelium-skills-core.py`. Relying on manual post-hook inspection had already failed repeatedly. Committing `.claude/settings.local.json` would conflict with the repo rule that `.claude/` is machine-local.
+
+**Rationale**: A project-owned wrapper survives core syncs, keeps the synced plugin cache as the source for upstream hook behavior, and adds a narrow ESPI guard around provenance files without changing analysis code.
+
+**Consequences**: Future OMP hook changes should preserve wrapper routing. Claude Code `settings.local.json` routing remains local-only unless hook setup regenerates it on another clone.
