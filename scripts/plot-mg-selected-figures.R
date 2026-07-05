@@ -241,29 +241,59 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
     )
   }
 
+  umap_x_range <- range(embeddings[, 1L])
+  umap_y_range <- range(embeddings[, 2L])
+  umap_span <- max(diff(umap_x_range), diff(umap_y_range))
+  umap_x_center <- mean(umap_x_range)
+  umap_y_center <- mean(umap_y_range)
+  umap_x_limits <- umap_x_center + c(-0.5, 0.5) * umap_span
+  umap_y_limits <- umap_y_center + c(-0.5, 0.5) * umap_span
+
   plots <- lapply(features, function(feature) {
+    feature_expression <- as.numeric(expression[feature, ])
+    expression_range <- range(feature_expression, na.rm = TRUE)
+    if (!all(is.finite(expression_range))) {
+      stop(
+        "Expression values are not finite for feature: ",
+        feature,
+        call. = FALSE
+      )
+    }
+    if (expression_range[[2L]] > expression_range[[1L]]) {
+      scaled_expression <- (feature_expression - expression_range[[1L]]) /
+        (expression_range[[2L]] - expression_range[[1L]])
+    } else {
+      scaled_expression <- rep(0, length(feature_expression))
+    }
     plot_data <- data.frame(
       UMAP_1 = embeddings[, 1L],
       UMAP_2 = embeddings[, 2L],
-      expression = as.numeric(expression[feature, ]),
+      scaled_expression = scaled_expression,
       stringsAsFactors = FALSE
     )
-    plot_data <- plot_data[order(plot_data$expression), ]
+    plot_data <- plot_data[order(plot_data$scaled_expression), ]
     ggplot2::ggplot(
       plot_data,
       ggplot2::aes(
         x = .data[["UMAP_1"]],
         y = .data[["UMAP_2"]],
-        color = .data[["expression"]]
+        color = .data[["scaled_expression"]]
       )
     ) +
-      ggplot2::geom_point(stroke = 0) +
+      ggplot2::geom_point(size = 0.5, stroke = 0) +
       ggplot2::scale_color_gradient(
         low = "grey85",
         high = palette_dotplot_pair[[2L]],
-        name = layer
+        limits = c(0, 1),
+        breaks = c(0, 1),
+        labels = c("0", "1"),
+        name = "Scaled expression"
       ) +
-      ggplot2::coord_equal() +
+      ggplot2::coord_equal(
+        xlim = umap_x_limits,
+        ylim = umap_y_limits,
+        expand = FALSE
+      ) +
       ggplot2::ggtitle(feature) +
       ggplot2::labs(x = "UMAP 1", y = "UMAP 2") +
       ggplot2::theme_classic() +
@@ -272,7 +302,9 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
         legend.position = "right"
       )
   })
-  patchwork::wrap_plots(plots, ncol = 3L)
+  patchwork::wrap_plots(plots, ncol = 3L) +
+    patchwork::plot_layout(guides = "collect") &
+    ggplot2::theme(legend.position = "right")
 }
 
 # ---- validation ----
@@ -352,7 +384,8 @@ cluster_plot <- Seurat::DimPlot(
   sobj,
   reduction = reduction,
   group.by = cluster_column,
-  label = TRUE
+  label = TRUE,
+  pt.size = 0.5
 ) +
   ggplot2::ggtitle(sprintf(
     "MG-selected PFlog; %d PCs; res %s",

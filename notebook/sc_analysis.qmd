@@ -161,7 +161,15 @@ $\pm 2$.
 The feature UMAP grid uses the marker feature list in `data/umap_feature_list.rda`
 and the same pink high-expression endpoint as the marker heatmap.
 
-![MG-selected 3 × 3 PFlog feature UMAP grid.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-feature-umap-grid}
+![MG-selected 3 × 3 PFlog feature UMAP grid for the no-cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-feature-umap-grid}
+
+As a complementary check, I also reviewed the matching PFlog,
+cell-cycle-filtered 30-PC, resolution-0.3 branch. First, the UMAP shows the
+Leiden cluster IDs for that branch.
+
+![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization with cell-cycle HVGs filtered before PCA, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims30_res0.3.png){#fig-mg-selected-filter-cc-cluster-umap}
+
+![MG-selected 3 × 3 PFlog feature UMAP grid for the cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims30_res0.3.png){#fig-mg-selected-filter-cc-feature-umap-grid}
 
 ### Cluster marker genes
 
@@ -199,14 +207,13 @@ identity, but it also does not identify a specific merge partner.
 
 ![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color shows average scaled expression from the Seurat data layer. Marker rankings are descriptive because cells, not mice, are the units in FindAllMarkers.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims30_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
 
-### Differential expression
+## Differential expression
 
-I ran pseudobulk differential expression on the `mg-selected` object using
-Mouse × Condition samples as the statistical unit. The primary DESeq2 design
-`~ condition` is the main condition-level analysis and keeps all six Mouse ×
-Condition pseudobulk samples. The paired `~ mouse + condition` analysis on mice
-10 and 3 is a sensitivity check only, because mouse 30 is E-Stim only and mouse
-33 is control only.
+I tested condition-level changes in the `mg-selected` branch with Mouse ×
+Condition pseudobulk samples as the statistical unit. The primary DESeq2 design
+used `~ condition` across all six Mouse × Condition samples. The paired
+`~ mouse + condition` design used only mice 10 and 3, so I treat it as a
+sensitivity analysis rather than the primary result.
 
 Primary DESeq2 tested 24,514 genes and found 453 FDR-significant genes for
 E-Stim versus `p27CKO`. Seven curated marker-list genes were significant:
@@ -221,29 +228,25 @@ paired sensitivity. `Serpina3n` is significant only in the paired sensitivity,
 so I treat it as paired-subset support for activated Müller glia rather than a
 primary all-sample marker hit.
 
-The differential-detection (DD) analysis uses the pseudobulk `edgeR_NB_optim`
-workflow (Gilis et al., BMC Genomics 26:886, 2025) via `muscat::pbDS(method =
-"DD")`. Per gene and Mouse × Condition sample we count cells with non-zero
-expression, apply the workflow's internal filter that drops genes detected in
->= 90% of cells across samples, add a cellular-detection-rate normalization
-offset, and fit edgeR quasi-likelihood models with robust dispersion. This
-adjusts for per-cell library depth and per-sample detection intensity so DD hits
-reflect changes in the fraction of expressing cells rather than PipSeq depth
-variation. Primary DD uses `~ condition` across all six pseudobulk samples;
-paired sensitivity uses `~ mouse + condition` on mice 10 and 3.
+The differential-detection (DD) analysis tests changes in the fraction of cells
+with non-zero expression per gene, using the pseudobulk `edgeR_NB_optim`
+workflow through `muscat::pbDS(method = "DD")`. Primary DD tested 36,468 genes
+and found no FDR-significant genes or marker-list hits, so the primary evidence
+does not support condition-level changes in detection for curated marker genes.
+The paired sensitivity DD tested 34,880 genes and found 40 FDR-significant
+genes, with no marker-list hits. Because this result uses only mice 10 and 3 and
+is not supported by primary DD, I treat it as a within-paired-mice sensitivity
+signal, not a general all-sample DD conclusion.
 
-Primary muscat DD tested 36,468 genes and found no FDR-significant genes or
-marker-list hits, so the primary evidence does not support condition-level
-changes in the fraction of cells detecting curated marker genes. The paired
-sensitivity DD tested 34,880 genes and found 40 FDR-significant genes, with no
-marker-list hits. Because this result uses only mice 10 and 3 and is not
-supported by primary DD, I treat it as a within-paired-mice sensitivity signal,
-not a general all-sample DD conclusion.
+The DE/DD scatterplot compares condition effects for genes tested in both the DE
+and DD analyses for each design, because the two workflows test different gene
+universes. The x-axis shows the DE effect, the y-axis shows the DD effect, and
+color/shape mark FDR significance and curated marker-list membership.
 
-DE tables and marker-overlap files are saved under `degs/mg_selected/`. GO ORA
-and preranked GSEA follow-ups are saved under `enrichment/mg_selected/`.
-Upregulated DEGs are enriched for stress/growth and apoptotic-signaling terms,
-while downregulated DEGs and preranked GSEA are dominated by cell-cycle,
-chromosome-segregation, and DNA-replication terms. Treat the GO/GSEA results as
-follow-up summaries of this selected branch, not as independent validation.
+![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; x shows the DE effect, y shows the DD effect, and color/shape indicate FDR significance and curated marker-list membership.](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
+
+As follow-up summaries of this selected branch, upregulated DEGs are enriched
+for stress/growth and apoptotic-signaling terms, while downregulated DEGs and
+preranked GSEA are dominated by cell-cycle, chromosome-segregation, and
+DNA-replication terms.
 

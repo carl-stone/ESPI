@@ -271,3 +271,31 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The clustering choice and marker expression scale answer different questions. The PFlog branch defines the graph structure; the log-normalized `data` layer gives Seurat-compatible marker fold changes. The positive detection filter prevents anti-markers from entering manuscript-facing marker tables.
 
 **Consequences**: Cluster 2 has no retained positive detection-enriched marker genes and should not be treated as a marker-defined interpreted identity. Cluster 8 has only 15 cells, so its many retained markers are descriptive and potentially unstable. Marker p-values remain cell-level descriptive ranks, not Mouse × Condition condition-effect evidence.
+
+### [2026-07-04] Show MG-selected cell-cycle-filtered figures as complementary analysis
+
+**Tags**: mg-selected, plotting, notebook, differential-expression
+
+**Context**: The manuscript notebook used the PFlog, no-cell-cycle-filtered MG-selected branch for downstream clustering and DE, but the revised manuscript needs matching visual evidence from the cell-cycle-filtered MG-selected branch.
+
+**Decision**: Keep the no-cell-cycle-filtered branch as the primary downstream DE branch, show the cell-cycle-filtered cluster-identity UMAP and feature UMAP grid as complementary clustering figures, drop the redundant cell-cycle-filtered marker heatmap from the notebook, and summarize DE/DD jointly with an effect-size scatter plot that inner-joins genes tested in both workflows.
+
+**Alternatives considered**: Replacing the primary branch with the cell-cycle-filtered branch would change the DE input after downstream interpretation was already grounded. Plotting DE and DD in separate panels would hide whether expression-magnitude and detection-fraction effects agree for the same genes.
+
+**Rationale**: Complementary filtered UMAP figures show sensitivity to cell-cycle HVG handling without repeating a marker heatmap that did not add interpretive signal. The explicit inner join makes the DE/DD comparison honest because the muscat DD and DESeq2 gene universes differ.
+
+**Consequences**: `notebook/sc_analysis.qmd` now includes both MG-selected visual branches, while `scripts/run-mg-selected-de.R` writes `mg_selected_de_dd_effect_scatter.(png|pdf)` and a notebook symlink. Genes tested by only one workflow are not plotted in the DE/DD scatter.
+
+### [2026-07-04] Scale MG-selected feature UMAP panels per gene
+
+**Tags**: mg-selected, plotting, notebook, umap
+
+**Context**: The MG-selected feature UMAP grids compare spatial expression patterns across marker genes, but raw PFlog ranges differ by gene and gave each panel its own color scale.
+
+**Decision**: Min-max scale each feature UMAP panel to 0–1 within gene and branch, use identical color limits across panels, collect the patchwork guides into one shared legend labeled `Scaled expression`, and use square coordinate limits for every feature panel.
+
+**Alternatives considered**: Keeping raw PFlog color scales preserves absolute expression magnitude but makes the 3 × 3 grid harder to scan. Using a global range across all genes would be dominated by high-range genes and hide lower-range spatial patterns.
+
+**Rationale**: The grid is a pattern-visualization figure, not a quantitative expression-magnitude comparison. Per-gene scaling makes within-gene spatial localization comparable across panels, the shared 0–1 legend keeps the figure visually clean, and square coordinate limits prevent the panels from reading as tall rectangles.
+
+**Consequences**: The color intensity in the feature UMAP grids now represents relative expression within each gene, not absolute PFlog expression across genes. Constant-expression genes fall back to scaled value 0; the current nine plotted features are not constant in either MG-selected branch.

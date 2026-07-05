@@ -32,6 +32,8 @@
 #   ENRICHMENT_DIR/mg_selected/go_bp_ora_{up,down}.tsv
 #   ENRICHMENT_DIR/mg_selected/go_bp_gsea.tsv
 #   ENRICHMENT_DIR/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv
+#   FIGURE_DIR/mg_selected/mg_selected_de_dd_effect_scatter.(png|pdf)
+#   notebook/figures/mg_selected_de_dd_effect_scatter.png symlink
 
 suppressPackageStartupMessages({
   library(here)
@@ -58,9 +60,6 @@ get_arg <- function(args, flag, default = NULL) {
     stop("Missing value for ", flag, call. = FALSE)
   }
   args[[match_index + 1]]
-}
-has_flag <- function(args, flag) {
-  flag %in% args
 }
 
 
@@ -95,6 +94,7 @@ required_packages <- c(
   "SummarizedExperiment",
   "clusterProfiler",
   "org.Mm.eg.db",
+  "ggplot2",
   "Matrix",
   "SeuratObject"
 )
@@ -132,8 +132,22 @@ enrichment_dir <- get_arg(
   "--enrichment-dir",
   file.path(ENRICHMENT_DIR, "mg_selected")
 )
+figure_dir <- file.path(FIGURE_DIR, "mg_selected")
+de_dd_effect_scatter_png_path <- file.path(
+  figure_dir,
+  "mg_selected_de_dd_effect_scatter.png"
+)
+de_dd_effect_scatter_pdf_path <- file.path(
+  figure_dir,
+  "mg_selected_de_dd_effect_scatter.pdf"
+)
+de_dd_effect_scatter_notebook_png_path <- here::here(
+  "notebook",
+  "figures",
+  basename(de_dd_effect_scatter_png_path)
+)
 lfc_shrink_type <- get_arg(cli_args, "--lfc-shrink-type", "normal")
-overwrite_outputs <- has_flag(cli_args, "--overwrite")
+overwrite_outputs <- "--overwrite" %in% cli_args
 if (!lfc_shrink_type %in% c("normal", "apeglm")) {
   stop(
     "--lfc-shrink-type must be one of normal or apeglm; got ",
@@ -249,7 +263,10 @@ assert_full_rank <- function(design, label) {
 }
 
 assert_output_paths_clear <- function(paths, overwrite) {
-  existing_paths <- paths[file.exists(paths)]
+  link_targets <- Sys.readlink(paths)
+  existing_paths <- paths[
+    file.exists(paths) | (!is.na(link_targets) & nzchar(link_targets))
+  ]
   if (length(existing_paths) > 0L && !isTRUE(overwrite)) {
     stop(
       "Refusing to overwrite existing output file(s) without --overwrite: ",
@@ -397,6 +414,121 @@ write_marker_overlap <- function(
     overlap[[padj_column]] < 0.05
   write_tsv(overlap, path)
   invisible(overlap)
+}
+
+build_de_dd_effect_data <- function(de_table, detection_table, design_label) {
+  de_effects <- de_table[, c("gene", "log2FoldChange", "padj"), drop = FALSE]
+  colnames(de_effects) <- c("gene", "de_log2_fold_change", "de_padj")
+  detection_effects <- detection_table[,
+    c("gene", "logFC", "padj"),
+    drop = FALSE
+  ]
+  colnames(detection_effects) <- c("gene", "dd_log_fc", "dd_padj")
+
+  joined <- merge(
+    de_effects,
+    detection_effects,
+    by = "gene",
+    all = FALSE,
+    sort = FALSE
+  )
+  joined <- joined[
+    !is.na(joined$de_log2_fold_change) & !is.na(joined$dd_log_fc),
+    ,
+    drop = FALSE
+  ]
+
+  marker_table <- make_marker_table(joined$gene)
+  joined$curated_marker <- ifelse(
+    joined$gene %in% marker_table$gene,
+    "curated marker",
+    "not curated"
+  )
+  joined$curated_marker <- factor(
+    joined$curated_marker,
+    levels = c("not curated", "curated marker")
+  )
+
+  de_significant <- !is.na(joined$de_padj) & joined$de_padj < 0.05
+  dd_significant <- !is.na(joined$dd_padj) & joined$dd_padj < 0.05
+  joined$fdr_category <- ifelse(
+    de_significant & dd_significant,
+    "both",
+    ifelse(
+      de_significant,
+      "DE only",
+      ifelse(dd_significant, "DD only", "neither")
+    )
+  )
+  joined$fdr_category <- factor(
+    joined$fdr_category,
+    levels = c("neither", "DE only", "DD only", "both")
+  )
+  joined$design <- factor(
+    design_label,
+    levels = c("Primary all samples", "Paired sensitivity")
+  )
+  joined
+}
+
+plot_de_dd_effect_scatter <- function(plot_data) {
+  if (nrow(plot_data) == 0L) {
+    stop(
+      "No genes had both DESeq2 and muscat DD effects after joining on gene.",
+      call. = FALSE
+    )
+  }
+
+  plot <- ggplot2::ggplot(
+    plot_data,
+    ggplot2::aes(
+      x = .data[["de_log2_fold_change"]],
+      y = .data[["dd_log_fc"]]
+    )
+  ) +
+    ggplot2::geom_hline(yintercept = 0, linewidth = 0.25, color = "grey70") +
+    ggplot2::geom_vline(xintercept = 0, linewidth = 0.25, color = "grey70") +
+    ggplot2::geom_point(
+      ggplot2::aes(
+        color = .data[["fdr_category"]],
+        shape = .data[["curated_marker"]]
+      ),
+      alpha = 0.55,
+      size = 0.9,
+      stroke = 0.45
+    ) +
+    ggplot2::scale_color_manual(
+      values = c(
+        "neither" = "grey65",
+        "DE only" = "#2166ac",
+        "DD only" = "#e31a8c",
+        "both" = "#4daf4a"
+      ),
+      name = "FDR < 0.05",
+      drop = FALSE
+    ) +
+    ggplot2::scale_shape_manual(
+      values = c("not curated" = 16, "curated marker" = 21),
+      name = "Marker list",
+      drop = FALSE
+    ) +
+    ggplot2::labs(
+      title = "MG-selected DE and differential detection effects",
+      subtitle = "Inner join on gene; genes missing either effect are omitted.",
+      x = "DESeq2 log2 fold change (E-Stim vs control)",
+      y = "muscat DD logFC (E-Stim vs control)"
+    ) +
+    ggplot2::theme_bw(base_size = 10) +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right"
+    )
+
+  if (length(unique(plot_data$design)) > 1L) {
+    plot <- plot + ggplot2::facet_wrap(stats::as.formula("~ design"))
+  }
+
+  plot
 }
 
 results_to_table <- function(
@@ -999,7 +1131,10 @@ output_paths <- c(
   file.path(enrichment_dir, "go_bp_ora_up.tsv"),
   file.path(enrichment_dir, "go_bp_ora_down.tsv"),
   file.path(enrichment_dir, "go_bp_gsea.tsv"),
-  file.path(enrichment_dir, "go_bp_gsea_symbol_entrez_mapping.tsv")
+  file.path(enrichment_dir, "go_bp_gsea_symbol_entrez_mapping.tsv"),
+  de_dd_effect_scatter_png_path,
+  de_dd_effect_scatter_pdf_path,
+  de_dd_effect_scatter_notebook_png_path
 )
 assert_output_paths_clear(output_paths, overwrite_outputs)
 
@@ -1209,6 +1344,75 @@ if (!identical(paired_status, "run")) {
     min_required = 0L
   )
 }
+
+# ---- DE vs differential detection effect scatter ----
+
+de_dd_plot_data <- build_de_dd_effect_data(
+  full_de,
+  full_detection,
+  "Primary all samples"
+)
+if (identical(paired_status, "run")) {
+  paired_de_dd_plot_data <- build_de_dd_effect_data(
+    paired_full_de,
+    paired_full_detection,
+    "Paired sensitivity"
+  )
+  de_dd_plot_data <- rbind(de_dd_plot_data, paired_de_dd_plot_data)
+}
+
+de_dd_effect_scatter <- plot_de_dd_effect_scatter(de_dd_plot_data)
+de_dd_effect_scatter_width <- if (identical(paired_status, "run")) 9 else 5.5
+dir.create(
+  dirname(de_dd_effect_scatter_png_path),
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+ggplot2::ggsave(
+  filename = de_dd_effect_scatter_png_path,
+  plot = de_dd_effect_scatter,
+  width = de_dd_effect_scatter_width,
+  height = 4.8,
+  dpi = 300
+)
+ggplot2::ggsave(
+  filename = de_dd_effect_scatter_pdf_path,
+  plot = de_dd_effect_scatter,
+  width = de_dd_effect_scatter_width,
+  height = 4.8
+)
+
+dir.create(
+  dirname(de_dd_effect_scatter_notebook_png_path),
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+if (
+  file.exists(de_dd_effect_scatter_notebook_png_path) ||
+    nzchar(Sys.readlink(de_dd_effect_scatter_notebook_png_path))
+) {
+  unlink(de_dd_effect_scatter_notebook_png_path)
+}
+link_created <- file.symlink(
+  de_dd_effect_scatter_png_path,
+  de_dd_effect_scatter_notebook_png_path
+)
+if (!isTRUE(link_created)) {
+  stop(
+    "Failed to link notebook figure: ",
+    de_dd_effect_scatter_notebook_png_path,
+    call. = FALSE
+  )
+}
+message(
+  "Wrote MG-selected DE/DD effect scatter PNG: ",
+  de_dd_effect_scatter_png_path
+)
+message(
+  "Wrote MG-selected DE/DD effect scatter PDF: ",
+  de_dd_effect_scatter_pdf_path
+)
+message("Linked notebook figure: ", de_dd_effect_scatter_notebook_png_path)
 
 design_summary <- data.frame(
   analysis = c(

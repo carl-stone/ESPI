@@ -273,3 +273,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: structural
 
 **structural_mitigation_candidate**: Keep the `pct_diff > --min-diff-pct` assertion in `scripts/find-markers-mg-selected.R` and add the same invariant to any future `FindAllMarkers()` workflow that uses non-standard assay layers.
+
+### [2026-07-04] DE and DD effect plots need explicit gene joins
+
+**Tags**: differential-expression, differential-detection, plotting, mg-selected
+
+**Category**: Reproducible reporting
+
+**What happened**: The MG-selected DESeq2 and muscat DD workflows test different gene universes: primary DE tested 24,514 genes, while primary DD tested 36,468 genes. A DE-vs-DD effect-size scatter cannot assume row alignment or full overlap.
+
+**Why it matters**: Joining by row order would silently pair effects from different genes. Outer-joining without a clear policy would place genes missing one effect on an arbitrary or NA axis.
+
+**Resolution**: Build DE/DD scatter plot data with an explicit inner join on `gene` for each design, and state in the caption/prose that only genes tested in both workflows are plotted.
+
+**mitigation_type**: structural
+
+**structural_mitigation_candidate**: Keep the join policy in the plotting code and include a count of plotted shared genes in future `numbers.json` report fragments if this scatter becomes a manuscript figure.
