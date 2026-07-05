@@ -205,7 +205,7 @@ has no genes detected more often than in the rest of cells under the positive
 marker filter; that argues against treating cluster 2 as a marker-defined
 identity, but it also does not identify a specific merge partner.
 
-![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color shows average scaled expression from the Seurat data layer. Marker rankings are descriptive because cells, not mice, are the units in FindAllMarkers.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims30_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
+![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color bins show average scaled expression from the Seurat data layer as row z-score ranges, with the end bins marking $\leq -2$ and $\geq 2$. Marker rankings are descriptive because cells, not mice, are the units in FindAllMarkers.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims30_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
 
 ## Differential expression
 

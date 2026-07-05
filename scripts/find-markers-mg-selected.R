@@ -615,13 +615,17 @@ marker_dotplot <- function(plot_data, expression_layer) {
       limits = c(0, 100),
       name = "Detected cells (%)"
     ) +
-    ggplot2::scale_color_gradient2(
-      low = palette_dotplot_pair[[1L]],
-      mid = "white",
-      high = palette_dotplot_pair[[2L]],
-      midpoint = 0,
+    ggplot2::scale_color_stepsn(
+      colours = grDevices::colorRampPalette(c(
+        palette_dotplot_pair[[1L]],
+        "white",
+        palette_dotplot_pair[[2L]]
+      ))(6L),
+      breaks = c(-2, -1, 0, 1, 2),
+      labels = c("<= -2", "-1", "0", "1", ">= 2"),
       limits = c(-2, 2),
-      name = sprintf("Mean %s expression\n(row z-score)", expression_layer)
+      guide = ggplot2::guide_coloursteps(),
+      name = sprintf("Mean %s expression\n(row z-score bin)", expression_layer)
     ) +
     ggplot2::labs(
       title = "MG-selected cluster markers",

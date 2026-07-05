@@ -299,3 +299,18 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The grid is a pattern-visualization figure, not a quantitative expression-magnitude comparison. Per-gene scaling makes within-gene spatial localization comparable across panels, the shared 0–1 legend keeps the figure visually clean, and square coordinate limits prevent the panels from reading as tall rectangles.
 
 **Consequences**: The color intensity in the feature UMAP grids now represents relative expression within each gene, not absolute PFlog expression across genes. Constant-expression genes fall back to scaled value 0; the current nine plotted features are not constant in either MG-selected branch.
+
+
+### [2026-07-04] Use binned diverging guide for MG-selected marker dot plot
+
+**Tags**: mg-selected, plotting, notebook, marker-analysis
+
+**Context**: The MG-selected marker dot plot used continuous row z-score colors, which made it hard to read which expression range a dot occupied.
+
+**Decision**: Keep dot size as detected-cell percentage, map color to clipped mean expression row z-scores, and display the color scale with a binned diverging guide whose end labels are `<= -2` and `>= 2`.
+
+**Alternatives considered**: A discrete unordered palette would make bins easy to count but would lose low-to-high direction. A continuous gradient preserves direction but makes range lookup harder.
+
+**Rationale**: The dot plot is a descriptive marker-summary figure. Binned diverging colors preserve the low/high expression direction while making the z-score range visually explicit.
+
+**Consequences**: Figure 11 now communicates approximate z-score bins rather than continuous color values. Values outside ±2 remain clipped into the endpoint bins.
