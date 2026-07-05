@@ -430,3 +430,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: A project-owned wrapper survives core syncs, keeps the synced plugin cache as the source for upstream hook behavior, and adds a narrow ESPI guard around provenance files without changing analysis code.
 
 **Consequences**: Future OMP hook changes should preserve wrapper routing. Claude Code `settings.local.json` routing remains local-only unless hook setup regenerates it on another clone.
+
+### [2026-07-05] Use within-sample p27 permutation z-scores in cluster heatmaps
+
+**Tags**: mg-selected, plotting, heatmap, marker-analysis, randomization
+
+**Context**: The MG-selected notebook needed compact per-cluster heatmaps that show cell-type marker-module context and p27 status for both the full source clustering and the retained MG-selected clustering.
+
+**Decision**: Plot cluster-level `cell_type_marker_genes` module scores as row z-scores, and add a top strip for p27 enrichment computed by permuting cluster labels within each Mouse × Condition sample. Keep the permutation statistic in exported R helpers and keep ComplexHeatmap drawing and artifact writing in `scripts/plot-cluster-marker-heatmaps.R`.
+
+**Alternatives considered**: A pooled p27 mean or pooled between-cluster permutation would be simpler but would ignore sample composition. Putting all drawing and statistics in a single script would match the older marker heatmap, but the p27 permutation is reusable, testable analysis logic.
+
+**Rationale**: Within-sample label shuffling preserves each Mouse × Condition sample's p27 expression distribution and cluster-size composition while asking whether a cluster has more or less p27 expression than expected under sample-aware relabeling. The helper/script split keeps statistical code unit-testable without turning one-off figure layout into package API.
+
+**Consequences**: The notebook now has two per-cluster module/p27 heatmaps with p27 strip scales fitted per figure. Future shared-scale comparisons would need a coupled two-object script or an explicit shared z-limit option.

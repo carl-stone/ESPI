@@ -5,7 +5,7 @@
 | **Date** | 2026-07-05 |
 | **Author** | OMP agent |
 | **Priority** | medium |
-| **Status** | open |
+| **Status** | complete |
 | **Category** | analysis |
 | **Related analyses** | `notebook/sc_analysis.qmd` section 2.2, `### MG-selected clustering` |
 | **Related data** | MG-selected clustering outputs |
@@ -27,11 +27,11 @@ The MG-selected clustering section currently describes how clusters were selecte
 
 ## Acceptance Criteria
 
-- [ ] A full-dataset heatmap appears immediately after the first paragraph of section 2.2, `### MG-selected clustering` (currently lines 130-140), and before the `I reselected HVGs...` paragraph.
-- [ ] A matching MG-selected heatmap appears immediately after the MG-selected UMAP figure `#fig-mg-selected-cluster-umap`, currently around line 150.
-- [ ] Both heatmaps include module scores for `cell_type_marker_genes`.
-- [ ] Both heatmaps include a sample-aware cluster-permuted p27 enrichment score.
-- [ ] Notebook prose briefly explains what the heatmaps show without treating them as a replacement for the existing clustering or abundance analyses.
+- [x] A full-dataset heatmap appears immediately after the first paragraph of section 2.2, `### MG-selected clustering` (currently lines 130-140), and before the `I reselected HVGs...` paragraph.
+- [x] A matching MG-selected heatmap appears immediately after the MG-selected UMAP figure `#fig-mg-selected-cluster-umap`, currently around line 150.
+- [x] Both heatmaps include module scores for `cell_type_marker_genes`.
+- [x] Both heatmaps include a sample-aware cluster-permuted p27 enrichment score.
+- [x] Notebook prose briefly explains what the heatmaps show without treating them as a replacement for the existing clustering or abundance analyses.
 
 ## Notes
 

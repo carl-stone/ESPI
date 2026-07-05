@@ -50,6 +50,135 @@ read_text <- function(path) {
 squash <- function(x) {
   paste(x, collapse = " ")
 }
+
+compact_problem_list <- function(problems, max_n = 8L) {
+  if (length(problems) <= max_n) {
+    return(paste(problems, collapse = " | "))
+  }
+  paste(
+    c(
+      utils::head(problems, max_n),
+      sprintf("... and %d more", length(problems) - max_n)
+    ),
+    collapse = " | "
+  )
+}
+
+parse_markdown_table_row <- function(line) {
+  line <- sub("^\\|", "", line)
+  line <- sub("\\|[[:space:]]*$", "", line)
+  fields <- trimws(strsplit(line, "\\|", fixed = FALSE)[[1]])
+  if (length(fields) == 0L) {
+    return(character())
+  }
+  fields
+}
+
+extract_markdown_link_target <- function(text) {
+  match <- regexec("\\[[^]]+\\]\\(([^)]+)\\)", text, perl = TRUE)
+  hit <- regmatches(text, match)[[1]]
+  if (length(hit) < 2L) {
+    return(NA_character_)
+  }
+  hit[[2L]]
+}
+
+frontmatter_scalar <- function(lines, key) {
+  if (length(lines) < 3L || !identical(lines[[1L]], "---")) {
+    return(NA_character_)
+  }
+  end <- which(lines[-1L] == "---")
+  if (length(end) == 0L) {
+    return(NA_character_)
+  }
+  frontmatter <- lines[seq.int(2L, end[[1L]])]
+  extract_yaml_scalar(frontmatter, key)
+}
+
+is_file_list_only_summary <- function(summary) {
+  summary <- trimws(gsub("`", "", summary, fixed = TRUE))
+  if (!nzchar(summary)) {
+    return(FALSE)
+  }
+  summary <- trimws(sub("\\s*\\(\\+[0-9]+ more\\)\\s*$", "", summary))
+  parts <- trimws(strsplit(summary, ",", fixed = TRUE)[[1]])
+  if (length(parts) == 0L || any(!nzchar(parts))) {
+    return(FALSE)
+  }
+  all(
+    grepl("^[A-Za-z0-9_./ -]+$", parts) &
+      grepl("\\.[A-Za-z0-9]+$", basename(parts))
+  )
+}
+
+make_tripwire_p27_sobj <- function() {
+  cells <- paste0("cell", seq_len(12L))
+  counts <- matrix(
+    c(
+      11,
+      10,
+      2,
+      1,
+      12,
+      9,
+      1,
+      2,
+      10,
+      11,
+      1,
+      2,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ),
+    nrow = 2L,
+    byrow = TRUE,
+    dimnames = list(c("Cdkn1b", "Gapdh"), cells)
+  )
+  meta <- data.frame(
+    Mouse = rep(c("M1", "M2", "M3"), each = 4L),
+    Condition = rep(c("control", "estim", "control"), each = 4L),
+    cluster = rep(c("1", "1", "2", "2"), times = 3L),
+    row.names = cells,
+    stringsAsFactors = FALSE
+  )
+  sobj <- suppressWarnings(Seurat::CreateSeuratObject(
+    counts = counts,
+    assay = "RNA",
+    meta.data = meta
+  ))
+  sobj[["RNA"]] <- as(sobj[["RNA"]], Class = "Assay5")
+  assay <- sobj[["RNA"]]
+  SeuratObject::LayerData(assay, layer = "data") <- counts
+  SeuratObject::LayerData(assay, layer = "pflog") <- counts
+  sobj[["RNA"]] <- assay
+  sobj
+}
+
+restore_random_seed <- function(seed_state, existed) {
+  if (existed) {
+    assign(".Random.seed", seed_state, envir = .GlobalEnv)
+  } else if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE)) {
+    rm(".Random.seed", envir = .GlobalEnv)
+  }
+}
+
+analysis_table_annotation_dir <- function(root) {
+  paths_env <- new.env(parent = .GlobalEnv)
+  sys.source(file.path(root, "R", "paths.R"), envir = paths_env)
+  file.path(get("TABLE_DIR", envir = paths_env, inherits = FALSE), "annotation")
+}
+
+
 MAX_LINE_REFS <- 6L
 YAML_LIST_CAPTURE_LENGTH <- 2L
 YAML_LIST_CAPTURE_VALUE <- 2L
@@ -681,6 +810,438 @@ tripwire_missing_counts_file <- function(root) {
   )
 }
 
+tripwire_heatmap_missing_input <- function(root) {
+  # Operational boundary: heatmap plotting must fail at the explicit missing
+  # input instead of falling back to a default Seurat object or writing partial
+  # figure/table/notebook artifacts.
+  slug <- "heatmap-missing-input"
+  script <- file.path(root, "scripts", "plot-cluster-marker-heatmaps.R")
+  if (!file.exists(script)) {
+    return(fail(slug, "scripts/plot-cluster-marker-heatmaps.R is missing."))
+  }
+  rscript <- Sys.which("Rscript")
+  if (identical(unname(rscript), "")) {
+    return(fail(
+      slug,
+      "Rscript is unavailable, so the heatmap missing-input behavior cannot be executed."
+    ))
+  }
+
+  snapshot_dir_state <- function(dir) {
+    if (!dir.exists(dir)) {
+      return(character())
+    }
+    files <- list.files(
+      dir,
+      all.files = TRUE,
+      no.. = TRUE,
+      recursive = TRUE,
+      full.names = TRUE
+    )
+    files <- sort(normalizePath(files, winslash = "/", mustWork = FALSE))
+    if (length(files) == 0L) {
+      return(character())
+    }
+    info <- file.info(files)
+    state <- paste(info$size, as.numeric(info$mtime), sep = ":")
+    names(state) <- files
+    state
+  }
+
+  scratch_root <- tempfile("espi-heatmap-missing-")
+  scratch_out_dir <- file.path(scratch_root, "figures")
+  dir.create(scratch_root, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(scratch_root, recursive = TRUE, force = TRUE), add = TRUE)
+  missing_input <- file.path(scratch_root, "missing-cluster-object.rds")
+  table_dir <- analysis_table_annotation_dir(root)
+  notebook_figure_dir <- file.path(root, "notebook", "figures")
+  before_tables <- snapshot_dir_state(table_dir)
+  before_notebook <- snapshot_dir_state(notebook_figure_dir)
+
+  output <- tryCatch(
+    suppressWarnings(system2(
+      rscript,
+      c(
+        script,
+        "--input",
+        missing_input,
+        "--dims",
+        "999",
+        "--resolution",
+        "tripwire_missing_input",
+        "--n-perm",
+        "1",
+        "--out-dir",
+        scratch_out_dir
+      ),
+      stdout = TRUE,
+      stderr = TRUE
+    )),
+    error = function(e) structure(conditionMessage(e), status = 1L)
+  )
+  status <- attr(output, "status")
+  if (is.null(status)) {
+    status <- 0L
+  }
+  text <- paste(output, collapse = "\n")
+
+  after_tables <- snapshot_dir_state(table_dir)
+  after_notebook <- snapshot_dir_state(notebook_figure_dir)
+  scratch_files <- if (dir.exists(scratch_out_dir)) {
+    list.files(
+      scratch_out_dir,
+      all.files = TRUE,
+      no.. = TRUE,
+      recursive = TRUE,
+      full.names = TRUE
+    )
+  } else {
+    character()
+  }
+  table_changes <- union(
+    setdiff(names(after_tables), names(before_tables)),
+    names(after_tables)[
+      names(after_tables) %in%
+        names(before_tables) &
+        after_tables != before_tables[names(after_tables)]
+    ]
+  )
+  notebook_changes <- union(
+    setdiff(names(after_notebook), names(before_notebook)),
+    names(after_notebook)[
+      names(after_notebook) %in%
+        names(before_notebook) &
+        after_notebook != before_notebook[names(after_notebook)]
+    ]
+  )
+  notebook_links <- list.files(
+    notebook_figure_dir,
+    all.files = TRUE,
+    no.. = TRUE,
+    full.names = TRUE
+  )
+  link_targets <- Sys.readlink(notebook_links)
+  resolved_link_targets <- ifelse(
+    grepl("^/", link_targets),
+    link_targets,
+    file.path(dirname(notebook_links), link_targets)
+  )
+  scratch_links <- notebook_links[
+    nzchar(link_targets) &
+      grepl(
+        scratch_root,
+        normalizePath(
+          resolved_link_targets,
+          winslash = "/",
+          mustWork = FALSE
+        ),
+        fixed = TRUE
+      )
+  ]
+
+  problems <- character()
+  if (identical(as.integer(status), 0L)) {
+    problems <- c(
+      problems,
+      "plot-cluster-marker-heatmaps.R exited 0 for a deliberately missing --input path"
+    )
+  }
+  if (!grepl("Input Seurat object does not exist", text, fixed = TRUE)) {
+    problems <- c(
+      problems,
+      paste(
+        "missing expected heatmap input error. First output:",
+        substr(gsub("[\r\n]+", " ", text), 1, 240)
+      )
+    )
+  }
+  if (length(scratch_files) > 0L) {
+    problems <- c(
+      problems,
+      paste(
+        "scratch heatmap output(s) were created:",
+        paste(basename(scratch_files), collapse = ", ")
+      )
+    )
+  }
+  if (length(table_changes) > 0L) {
+    problems <- c(
+      problems,
+      paste(
+        "TABLE_DIR/annotation changed during missing-input run:",
+        paste(basename(table_changes), collapse = ", ")
+      )
+    )
+  }
+  if (length(notebook_changes) > 0L) {
+    problems <- c(
+      problems,
+      paste(
+        "notebook figure link(s) changed during missing-input run:",
+        paste(basename(notebook_changes), collapse = ", ")
+      )
+    )
+  }
+  if (length(scratch_links) > 0L) {
+    problems <- c(
+      problems,
+      paste(
+        "notebook figure symlink(s) point into scratch output:",
+        paste(basename(scratch_links), collapse = ", ")
+      )
+    )
+  }
+
+  if (length(problems) > 0L) {
+    return(fail(slug, compact_problem_list(problems)))
+  }
+
+  pass(
+    slug,
+    "plot-cluster-marker-heatmaps.R fails non-zero at the missing --input boundary and leaves scratch figures, fixed annotation tables, and notebook figure links unchanged."
+  )
+}
+
+tripwire_p27_rng_state_preservation <- function(root) {
+  # Statistical helper boundary: p27 enrichment permutations may be seeded for
+  # determinism, but must not advance or replace the caller's RNG state.
+  slug <- "rng-state-preservation"
+  required_packages <- c("devtools", "Seurat", "SeuratObject")
+  missing_packages <- required_packages[
+    !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
+  ]
+  if (length(missing_packages) > 0L) {
+    return(fail(
+      slug,
+      paste(
+        "Missing required package(s) for RNG tripwire:",
+        paste(missing_packages, collapse = ", ")
+      )
+    ))
+  }
+
+  random_seed_existed <- exists(
+    ".Random.seed",
+    envir = .GlobalEnv,
+    inherits = FALSE
+  )
+  original_random_seed <- if (random_seed_existed) {
+    get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  } else {
+    NULL
+  }
+  on.exit(
+    restore_random_seed(original_random_seed, random_seed_existed),
+    add = TRUE
+  )
+
+  devtools::load_all(root, export_all = FALSE, quiet = TRUE)
+  compute_cluster_p27_enrichment <- get(
+    "compute_cluster_p27_enrichment",
+    envir = asNamespace("ESPI"),
+    inherits = FALSE
+  )
+  sobj <- make_tripwire_p27_sobj()
+
+  set.seed(20260705)
+  expected_seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  result_one <- compute_cluster_p27_enrichment(
+    sobj,
+    "cluster",
+    layer = "pflog",
+    condition_col = "Condition",
+    n_perm = 80L,
+    seed = 4242L
+  )
+  actual_seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
+  if (!identical(actual_seed, expected_seed)) {
+    return(fail(
+      slug,
+      "compute_cluster_p27_enrichment() changed .Random.seed for an existing caller seed."
+    ))
+  }
+
+  set.seed(20260706)
+  result_two <- compute_cluster_p27_enrichment(
+    sobj,
+    "cluster",
+    layer = "pflog",
+    condition_col = "Condition",
+    n_perm = 80L,
+    seed = 4242L
+  )
+  if (
+    !isTRUE(all.equal(
+      result_one$z_score,
+      result_two$z_score,
+      tolerance = 1e-12,
+      check.attributes = FALSE
+    ))
+  ) {
+    return(fail(
+      slug,
+      "compute_cluster_p27_enrichment() returned non-deterministic z-scores for the same seed."
+    ))
+  }
+  if (anyNA(result_one$z_score) || any(!is.finite(result_one$z_score))) {
+    return(fail(slug, "Synthetic p27 enrichment returned non-finite z-scores."))
+  }
+  enriched <- result_one$z_score[match("1", result_one$cluster)]
+  depleted <- result_one$z_score[match("2", result_one$cluster)]
+  if (!isTRUE(enriched > 0 && depleted < 0)) {
+    return(fail(
+      slug,
+      "Synthetic elevated/depleted p27 clusters did not return positive/negative z-scores."
+    ))
+  }
+
+  pass(
+    slug,
+    "compute_cluster_p27_enrichment() preserves caller RNG state exactly and returns deterministic positive/negative synthetic p27 z-scores."
+  )
+}
+
+tripwire_mycelium_provenance_semantics <- function(root) {
+  # Provenance boundary: review F5 is scoped to the heatmap session records.
+  # Broader historical Mycelium registry backfill is a separate task, so older
+  # blank/file-list-only rows outside this review must not fail this tripwire.
+  slug <- "mycelium-provenance-semantics"
+  registry <- file.path(root, ".living", "log", "LOG_REGISTRY.md")
+  scoped_session_ids <- c("2026-07-05-007", "2026-07-05-008")
+  if (!file.exists(registry)) {
+    return(fail(slug, ".living/log/LOG_REGISTRY.md is missing."))
+  }
+
+  lines <- read_text(registry)
+  table_lines <- grep("^\\|", lines)
+  if (length(table_lines) < 3L) {
+    return(fail(slug, "LOG_REGISTRY.md does not contain a markdown table."))
+  }
+  header <- parse_markdown_table_row(lines[[table_lines[[1L]]]])
+  required <- c("Session ID", "Summary", "Key Outputs", "Status", "Tags", "Log")
+  missing_columns <- setdiff(required, header)
+  if (length(missing_columns) > 0L) {
+    return(fail(
+      slug,
+      paste(
+        "LOG_REGISTRY.md is missing required column(s):",
+        paste(missing_columns, collapse = ", ")
+      )
+    ))
+  }
+
+  registry_rows <- list()
+  problems <- character()
+  for (line_no in table_lines[-seq_len(2L)]) {
+    fields <- parse_markdown_table_row(lines[[line_no]])
+    if (length(fields) != length(header)) {
+      session_idx <- match("Session ID", header)
+      session_id <- if (length(fields) >= session_idx) {
+        fields[[session_idx]]
+      } else {
+        ""
+      }
+      if (length(session_id) == 1L && session_id %in% scoped_session_ids) {
+        problems <- c(
+          problems,
+          sprintf(
+            "L%d %s malformed registry row has %d fields",
+            line_no,
+            session_id,
+            length(fields)
+          )
+        )
+      }
+      next
+    }
+    row <- stats::setNames(fields, header)
+    if (row[["Session ID"]] %in% scoped_session_ids) {
+      registry_rows[[row[["Session ID"]]]] <- list(row = row, line_no = line_no)
+    }
+  }
+
+  missing_rows <- setdiff(scoped_session_ids, names(registry_rows))
+  if (length(missing_rows) > 0L) {
+    problems <- c(
+      problems,
+      sprintf(
+        "LOG_REGISTRY.md is missing review-scoped row(s): %s",
+        paste(missing_rows, collapse = ", ")
+      )
+    )
+  }
+
+  for (row_id in intersect(scoped_session_ids, names(registry_rows))) {
+    entry <- registry_rows[[row_id]]
+    row <- entry$row
+    line_no <- entry$line_no
+
+    if (!identical(tolower(trimws(row[["Status"]])), "complete")) {
+      problems <- c(
+        problems,
+        sprintf("L%d %s status is not complete", line_no, row_id)
+      )
+    }
+    for (field in c("Summary", "Key Outputs", "Tags")) {
+      value <- trimws(row[[field]])
+      if (!nzchar(value) || identical(value, "—")) {
+        problems <- c(
+          problems,
+          sprintf("L%d %s has empty %s", line_no, row_id, field)
+        )
+      }
+    }
+    if (is_file_list_only_summary(row[["Summary"]])) {
+      problems <- c(
+        problems,
+        sprintf("L%d %s summary is file-list-only", line_no, row_id)
+      )
+    }
+
+    log_target <- extract_markdown_link_target(row[["Log"]])
+    if (is.na(log_target) || !nzchar(log_target)) {
+      problems <- c(
+        problems,
+        sprintf("L%d %s lacks a linked log", line_no, row_id)
+      )
+      next
+    }
+    log_path <- file.path(dirname(registry), log_target)
+    if (!file.exists(log_path)) {
+      problems <- c(
+        problems,
+        sprintf("L%d %s linked log is missing: %s", line_no, row_id, log_target)
+      )
+      next
+    }
+    log_lines <- read_text(log_path)
+    for (field in c("ended", "duration_minutes", "files_changed")) {
+      value <- frontmatter_scalar(log_lines, field)
+      if (is.na(value) || !nzchar(value) || identical(value, "NA")) {
+        problems <- c(
+          problems,
+          sprintf(
+            "L%d %s linked log lacks populated frontmatter %s",
+            line_no,
+            row_id,
+            field
+          )
+        )
+      }
+    }
+  }
+
+  if (length(problems) > 0L) {
+    return(fail(slug, compact_problem_list(problems)))
+  }
+
+  pass(
+    slug,
+    "Review-scoped LOG_REGISTRY rows 2026-07-05-007 and 2026-07-05-008 have semantic Summary/Key Outputs/Tags fields, and linked logs carry ended/duration/files_changed frontmatter."
+  )
+}
+
+
 tripwire_metadata_contract <- function(root) {
   # Scientific boundary: Mouse, Condition, and derived sample_id define the
   # pseudobulk sample identity; missing or drifting metadata changes the biology.
@@ -1057,6 +1618,9 @@ main <- function() {
     tripwire_branch_artifact_collision,
     tripwire_report_values_freshness,
     tripwire_missing_counts_file,
+    tripwire_heatmap_missing_input,
+    tripwire_p27_rng_state_preservation,
+    tripwire_mycelium_provenance_semantics,
     tripwire_metadata_contract,
     tripwire_label_firewall,
     tripwire_toy_contrast_direction

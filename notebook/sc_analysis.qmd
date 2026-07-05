@@ -128,16 +128,20 @@ Here's an example of one of the UMAP resolution sweeps. This uses PFlog normaliz
 ### MG-selected clustering
 
 I scored the selected PFlog, non-filtered 50-PC, resolution-0.3 clusters with
-`Seurat::AddModuleScore()` using `cell_type_marker_genes`, then handled
-`Cdkn1b` (p27) as a separate expression/detection signal. The marker rule removes
+`Seurat::AddModuleScore()` using `cell_type_marker_genes`, then handled the
+p27 (CDKN1B) expression/detection signal separately. The marker rule removes
 microglia or photoreceptor calls only when the top module score is at least 0.5
-and exceeds the runner-up score by at least 0.25. The `Cdkn1b` rule removes
-clusters with expression and detection BH-adjusted Wilcoxon $q < 0.05$ and at
-least 20% detected cells. In this run, cluster 4 met both microglia and `Cdkn1b`
-rules, cluster 7 met the microglia rule, and clusters 9 and 10 met the `Cdkn1b`
-rule, leaving 4,713 cells for the `mg-selected` dataset. Because `Cdkn1b`
-filtering conditions the branch on p27 biology, interpret the downstream results
-as the p27-low/negative MG-enriched branch requested here.
+and exceeds the runner-up score by at least 0.25. The p27 rule removes clusters
+with expression and detection BH-adjusted Wilcoxon $q < 0.05$ and at least 20%
+detected cells. In this run, cluster 4 met both microglia and p27 rules,
+cluster 7 met the microglia rule, and clusters 9 and 10 met the p27 rule,
+leaving 4,713 cells for the `mg-selected` dataset. Because p27 filtering
+conditions the branch on p27 biology, interpret the downstream results as the
+p27-low/negative MG-enriched branch requested here.
+
+![Per-cluster cell-type module scores and descriptive p27 annotation for the full source PFlog clustering (no cell-cycle filtering, 50 PCs, resolution 0.3). The body shows `cell_type_marker_genes` module scores from the RNA `data` layer, z-scored across clusters and clipped to ±2; the top strip shows the cluster-level p27 enrichment z-score from PFlog expression after within-Mouse × Condition cluster-label permutations.](figures/cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims50_res0.3.png){#fig-mg-full-module-p27-heatmap}
+
+This heatmap is descriptive cluster annotation, not condition-level evidence. Module scores use RNA `data` by default to mirror `Seurat::AddModuleScore()` and the selection scoring above, while the p27 strip uses the PFlog layer to match the p27 expression signal used for cluster review. The p27 z-score describes whether each cluster is high or low relative to labels permuted within the same Mouse × Condition samples, so the null preserves per-sample composition.
 
 I reselected HVGs on `mg-selected`, reran PFlog PCA, and swept 20, 30, and 50
 PCs with Leiden resolutions 0.3, 0.5, and 0.8, with and without cell-cycle HVG
@@ -148,6 +152,10 @@ PFlog, no-cell-cycle-filtered, 30-PC, resolution-0.3 clustering for downstream
 figures and differential analysis.
 
 ![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization, cell-cycle HVGs retained, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-umap}
+
+![Per-cluster cell-type module scores and descriptive p27 annotation for the MG-selected PFlog clustering (cell-cycle HVGs retained, 30 PCs, resolution 0.3). Body scores use the RNA `data` layer; the top strip uses PFlog p27 values and the same within-Mouse × Condition permutation null as the full-source heatmap.](figures/cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-module-p27-heatmap}
+
+This per-cluster heatmap makes the `mg-selected` cluster-level identity signals directly comparable without adding a condition-level test. It shows `cell_type_marker_genes` module scores from RNA `data`, z-scored across retained clusters, with the descriptive PFlog p27 enrichment z-score on top. It complements the UMAP and the per-cell marker heatmap and does not replace the clustering, abundance, or differential analyses.
 
 #### Descriptive pooled abundance
 

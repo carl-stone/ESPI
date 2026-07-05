@@ -337,3 +337,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: structural
 
 **structural_mitigation_candidate**: Keep provenance guard behavior covered by persisted `tools/` tests whenever the guard learns a new clobbering pattern.
+
+### [2026-07-05] Review sessions can still expose Mycelium provenance clobbering
+
+**Tags**: mycelium, hooks, provenance, review, session-logs, last-session
+
+**Category**: Workflow provenance
+
+**What happened**: The static review of the MG module/p27 heatmap working tree found that `.living/log/LOG_REGISTRY.md` and the linked session log had again been overwritten with file-list-only hook summaries after a semantic log row had been written; the later stop hook also rewrote the current session log and `.claude/last-session.md` after validation passed.
+
+**Why it matters**: The provenance guard and prior awareness reduce this failure mode but do not remove the need to inspect completed log rows and last-session summaries before committing. A final valid verification pass can still be followed by provenance clobbering that loses decisions, outputs, and validation evidence.
+
+**Resolution**: Treat completed `LOG_REGISTRY.md` rows with blank Key Outputs or Tags as a blocking review finding, then re-run session-end triage after stop-hook activity: repair the current log and registry row, regenerate `.living/INDEX.md`, and rewrite `.claude/last-session.md` until the hook path preserves semantic summaries reliably.
+
+**mitigation_type**: ambient-awareness
+
+**structural_mitigation_candidate**: Extend `tools/mycelium-provenance-guard.py` or its tests to cover this exact file-list-only overwrite after review/session activity, including the current session log and `.claude/last-session.md`.

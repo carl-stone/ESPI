@@ -61,6 +61,19 @@ The script defaults to `cluster_pflog_filter_cc_dims50_res0.3` and the PFlog
 expression layer, writes per-cell PNG/PDF outputs under `figures/annotation/`
 in the Box data root, and symlinks the PNG into `notebook/figures/`.
 
+Generate the per-cluster cell-type module and p27 enrichment heatmaps:
+
+```sh
+Rscript scripts/plot-cluster-marker-heatmaps.R --dims 50 --resolution 0.3
+MG_SELECTED_INPUT="$(Rscript -e 'devtools::load_all(".", quiet = TRUE); cat(file.path(ESPI::CURRENT_OBJECT_DIR, "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds"))')"
+Rscript scripts/plot-cluster-marker-heatmaps.R \
+  --input "$MG_SELECTED_INPUT" --dims 30 --resolution 0.3
+```
+
+The script writes PNG/PDF heatmaps under `figures/annotation/`, writes module
+score and p27 enrichment TSVs under `tables/annotation/`, and symlinks PNGs
+into `notebook/figures/`.
+
 
 ## Tripwire Checks
 
