@@ -289,3 +289,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: structural
 
 **structural_mitigation_candidate**: Keep the join policy in the plotting code and include a count of plotted shared genes in future `numbers.json` report fragments if this scatter becomes a manuscript figure.
+
+### [2026-07-05] Use Rscript files for heavy ESPI smoke tests
+
+**Tags**: r, validation, mg-selected, tooling
+
+**Category**: Workflow validation
+
+**What happened**: The MCP R runner timed out while loading the package and reading the MG-selected Seurat RDS object, and then also timed out on a later lightweight parse request in the same session.
+
+**Why it matters**: ESPI smoke tests that call `devtools::load_all()` and touch large Seurat objects can exceed short interactive tool timeouts. Retrying the same MCP call can waste time or leave uncertainty about whether the session is still busy.
+
+**Resolution**: For heavy validation, write a temporary R script and run it with `Rscript <file>` through the Bash tool with an explicit timeout. Keep `Rscript -e` out of Bash unless a plan explicitly requires it and no safer evaluator works.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Keep reusable smoke-test scripts in `tools/` only if the same validation becomes routine across multiple analysis changes.

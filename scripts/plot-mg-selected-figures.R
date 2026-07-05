@@ -17,6 +17,9 @@
 #   FIGURE_DIR/mg_selected/mg_selected_feature_umap_<layer>_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   TABLE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.tsv
+#   FIGURE_DIR/mg_selected/mg_selected_cluster_proportion_by_mouse_<branch>_dims<dims>_res<resolution>.(png|pdf)
+#   TABLE_DIR/mg_selected/mg_selected_cluster_proportion_randomization_<branch>_dims<dims>_res<resolution>.tsv
+#   TABLE_DIR/mg_selected/mg_selected_sample_cluster_proportions_<branch>_dims<dims>_res<resolution>.tsv
 #   notebook/figures/<png filename> symlinks for all PNG outputs.
 
 suppressPackageStartupMessages({
@@ -38,6 +41,21 @@ compute_cluster_abundance <- get(
 )
 plot_clr_fisher_enrichment <- get(
   "plot_clr_fisher_enrichment",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+compute_sample_cluster_proportions <- get(
+  "compute_sample_cluster_proportions",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+test_cluster_proportion_randomization <- get(
+  "test_cluster_proportion_randomization",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+plot_cluster_proportion_by_mouse <- get(
+  "plot_cluster_proportion_by_mouse",
   envir = asNamespace("ESPI"),
   inherits = FALSE
 )
@@ -416,6 +434,18 @@ abundance_plot <- plot_clr_fisher_enrichment(abundance_table) +
     dims,
     resolution
   ))
+sample_props <- compute_sample_cluster_proportions(
+  sobj = sobj,
+  cluster_col = cluster_column
+)
+randomization_table <- test_cluster_proportion_randomization(sample_props)
+proportion_plot <- plot_cluster_proportion_by_mouse(sample_props) +
+  ggplot2::ggtitle(sprintf(
+    "MG-selected cluster proportion by mouse; %d PCs; res %s",
+    dims,
+    resolution
+  ))
+
 
 feature_plot <- feature_umap_plot(
   sobj = sobj,
@@ -454,6 +484,24 @@ abundance_out_tag <- sprintf(
   dims,
   resolution_tag
 )
+proportion_out_tag <- sprintf(
+  "mg_selected_cluster_proportion_by_mouse_%s_dims%d_res%s",
+  branch_tag,
+  dims,
+  resolution_tag
+)
+randomization_out_tag <- sprintf(
+  "mg_selected_cluster_proportion_randomization_%s_dims%d_res%s",
+  branch_tag,
+  dims,
+  resolution_tag
+)
+sample_props_out_tag <- sprintf(
+  "mg_selected_sample_cluster_proportions_%s_dims%d_res%s",
+  branch_tag,
+  dims,
+  resolution_tag
+)
 cluster_png_path <- file.path(out_dir, sprintf("%s.png", cluster_out_tag))
 cluster_pdf_path <- file.path(out_dir, sprintf("%s.pdf", cluster_out_tag))
 feature_png_path <- file.path(out_dir, sprintf("%s.png", feature_out_tag))
@@ -461,6 +509,16 @@ feature_pdf_path <- file.path(out_dir, sprintf("%s.pdf", feature_out_tag))
 abundance_png_path <- file.path(out_dir, sprintf("%s.png", abundance_out_tag))
 abundance_pdf_path <- file.path(out_dir, sprintf("%s.pdf", abundance_out_tag))
 abundance_tsv_path <- file.path(table_dir, sprintf("%s.tsv", abundance_out_tag))
+proportion_png_path <- file.path(out_dir, sprintf("%s.png", proportion_out_tag))
+proportion_pdf_path <- file.path(out_dir, sprintf("%s.pdf", proportion_out_tag))
+randomization_tsv_path <- file.path(
+  table_dir,
+  sprintf("%s.tsv", randomization_out_tag)
+)
+sample_props_tsv_path <- file.path(
+  table_dir,
+  sprintf("%s.tsv", sample_props_out_tag)
+)
 
 ggplot2::ggsave(
   cluster_png_path,
@@ -504,9 +562,39 @@ ggplot2::ggsave(
   height = 4.5,
   bg = "white"
 )
+ggplot2::ggsave(
+  proportion_png_path,
+  proportion_plot,
+  width = 8,
+  height = 6,
+  bg = "white"
+)
+ggplot2::ggsave(
+  proportion_pdf_path,
+  proportion_plot,
+  width = 8,
+  height = 6,
+  bg = "white"
+)
 utils::write.table(
   abundance_table,
   file = abundance_tsv_path,
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE,
+  col.names = TRUE
+)
+utils::write.table(
+  randomization_table,
+  file = randomization_tsv_path,
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE,
+  col.names = TRUE
+)
+utils::write.table(
+  sample_props,
+  file = sample_props_tsv_path,
   sep = "\t",
   quote = FALSE,
   row.names = FALSE,
@@ -516,6 +604,7 @@ utils::write.table(
 cluster_notebook_path <- link_notebook_png(cluster_png_path)
 feature_notebook_path <- link_notebook_png(feature_png_path)
 abundance_notebook_path <- link_notebook_png(abundance_png_path)
+proportion_notebook_path <- link_notebook_png(proportion_png_path)
 
 message("Wrote mg-selected cluster UMAP PNG: ", cluster_png_path)
 message("Wrote mg-selected cluster UMAP PDF: ", cluster_pdf_path)
@@ -524,6 +613,17 @@ message("Wrote mg-selected feature UMAP PDF: ", feature_pdf_path)
 message("Wrote mg-selected cluster abundance TSV: ", abundance_tsv_path)
 message("Wrote mg-selected cluster abundance PNG: ", abundance_png_path)
 message("Wrote mg-selected cluster abundance PDF: ", abundance_pdf_path)
+message(
+  "Wrote mg-selected cluster proportion randomization TSV: ",
+  randomization_tsv_path
+)
+message(
+  "Wrote mg-selected sample cluster proportions TSV: ",
+  sample_props_tsv_path
+)
+message("Wrote mg-selected cluster proportion PNG: ", proportion_png_path)
+message("Wrote mg-selected cluster proportion PDF: ", proportion_pdf_path)
 message("Linked notebook figure: ", cluster_notebook_path)
 message("Linked notebook figure: ", feature_notebook_path)
 message("Linked notebook figure: ", abundance_notebook_path)
+message("Linked notebook figure: ", proportion_notebook_path)

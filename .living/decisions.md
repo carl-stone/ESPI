@@ -360,3 +360,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The ESPI statistical unit is Mouse × Condition. Sample-level proportions or log-ratios align the abundance question with the DE/DD design, while explicit caveats about frozen/data-derived clusters address circularity from testing a clustering learned on the same dataset.
 
 **Consequences**: Any future manuscript-facing cluster-proportion claim should cite a mouse-level analysis, not the descriptive Fisher/CLR plot. Stronger causal or cell-state claims need frozen labels, cross-fit/alternative clustering sensitivity, or validation data.
+
+### [2026-07-05] Make cluster-proportion inference design-restricted and exact
+
+**Tags**: mg-selected, abundance, paired-design, randomization, notebook
+
+**Context**: The pooled Fisher/CLR cluster-abundance plot was already labeled descriptive, but the notebook still needed a primary sample-level screen for MG-selected cluster-proportion shifts.
+
+**Decision**: Add exported helpers for Mouse × Condition sample cluster proportions, exact paired sign-flip randomization, and by-mouse proportion plotting. Use paired mice 10 and 3 as the primary statistic and report the mouse 30 E-Stim-only plus mouse 33 control-only block as a clearly labeled paired-plus-singleton sensitivity.
+
+**Alternatives considered**: Keeping only pooled Fisher/CLR would be simpler but would keep cell counts as the inferential unit. A fuller model-based differential-abundance method is heavier than the current small design supports as a first screen.
+
+**Rationale**: Exact enumeration matches the tiny design and makes the p-value floor transparent: 0.5 for paired-only and 0.25 for paired-plus-singleton. Reporting effect size and directional consistency is more honest than treating coarse p-values as conventional significance evidence.
+
+**Consequences**: The notebook now treats Fisher/CLR bars as descriptive only and points per-cluster inference to `TABLE_DIR/mg_selected/mg_selected_cluster_proportion_randomization_pflog_mg_selected_no_filter_cc_dims30_res0.3.tsv`.

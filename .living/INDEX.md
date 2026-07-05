@@ -5,9 +5,9 @@ Last audit: 2026-07-05
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 4 sections | 2026-07-04 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit |
-| decisions.md | 25 entries | 2026-07-05 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
-| learnings.md | 18 entries | 2026-07-04 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
-| log/ | 17 sessions | 2026-07-05 | espi (17) |
+| decisions.md | 26 entries | 2026-07-05 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
+| learnings.md | 19 entries | 2026-07-05 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
+| log/ | 18 sessions | 2026-07-05 | espi (18) |
 | findings/ | 5 findings across 2 topics | 2026-07-04 | population-structure, condition-response |
 
 ## Local skills
@@ -19,16 +19,18 @@ Last summarized: 2026-07-05 (heuristic)
 
 ## Tag clusters
 
+- **mg-selected** (17 entries) — D-22, D-23, D-24, D-25, D-26
 - **mycelium** (16 entries) — D-13, D-14, D-15, D-16, D-18
-- **mg-selected** (15 entries) — D-21, D-22, D-23, D-24, D-25
 - **hooks** (10 entries) — D-12, D-13, D-14, D-15, D-16
 - **plotting** (9 entries) — D-20, D-21, D-22, D-23, D-24
-- **notebook** (7 entries) — L-16, D-20, D-21, D-22, D-23
+- **notebook** (8 entries) — D-20, D-21, D-22, D-23, D-26
 - **omp** (6 entries) — L-13, D-13, D-14, D-15, D-16
 
 ## Most recent (10)
 
+- [2026-07-05] L-19: Use Rscript files for heavy ESPI smoke tests
 - [2026-07-05] D-25: Use Mouse × Condition cluster counts for future abundance inference
+- [2026-07-05] D-26: Make cluster-proportion inference design-restricted and exact
 - [2026-07-04] L-8: Read TSV row counts with a count tool when output looks truncated
 - [2026-07-04] L-9: Make DE output overwrites explicit
 - [2026-07-04] L-10: Completed LOG_REGISTRY rows still need semantic fields
@@ -36,41 +38,40 @@ Last summarized: 2026-07-05 (heuristic)
 - [2026-07-04] L-12: OMP hook adapters must return modified tool content
 - [2026-07-04] L-13: Stop hooks need session-boundary sentinel checks
 - [2026-07-04] L-14: Differential-detection gene filters can change empirical-Bayes behavior
-- [2026-07-04] L-15: Muscat DD changes the paired-sensitivity hit set
-- [2026-07-04] L-16: Do not report planned marker analyses as completed
 
 ## By tag
 
+- `mg-selected`: L-14, L-15, L-17, L-18, L-19, D-10, D-11, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24, D-25, D-26
 - `mycelium`: L-1, L-3, L-10, L-11, L-12, L-13, D-1, D-2, D-3, D-4, D-12, D-13, D-14, D-15, D-16, D-18
-- `mg-selected`: L-14, L-15, L-17, L-18, D-10, D-11, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24, D-25
 - `hooks`: L-1, L-10, L-11, L-12, L-13, D-12, D-13, D-14, D-15, D-16
 - `plotting`: L-5, L-6, L-18, D-8, D-20, D-21, D-22, D-23, D-24
-- `notebook`: L-2, L-7, L-16, D-20, D-21, D-22, D-23
+- `notebook`: L-2, L-7, L-16, D-20, D-21, D-22, D-23, D-26
 - `omp`: L-12, L-13, D-13, D-14, D-15, D-16
 - `reproducibility`: L-9, L-10, L-11, D-5, D-9, D-12
 - `differential-detection`: L-14, L-15, L-18, D-17, D-18
 - `differential-expression`: L-9, L-18, D-10, D-17, D-20
 - `marker-analysis`: L-16, L-17, D-19, D-22, D-23
+- `r`: L-7, L-12, L-19, D-9, D-15
 - `session-state`: L-11, L-13, D-13, D-14, D-16
 - `seurat`: L-4, L-5, L-17, D-5, D-19
 - `clustering`: L-4, D-5, D-6, D-11
-- `r`: L-7, L-12, D-9, D-15
 - `r-package`: L-6, D-1, D-3, D-8
+- `abundance`: D-24, D-25, D-26
 - `filtering`: L-14, L-15, D-17
 - `marker-genes`: L-6, D-7, D-8
-- `abundance`: D-24, D-25
+- `paired-design`: D-10, D-25, D-26
 - `conventions`: D-2, D-4
 - `data-lineage`: L-12, D-15
 - `figures`: L-2, L-7
 - `findallmarkers`: L-17, D-19
 - `muscat`: L-15, D-18
-- `paired-design`: D-10, D-25
 - `repo-structure`: D-1, D-3
 - `reporting`: L-16, D-6
 - `scripts`: D-5, D-9
 - `setup`: L-1, L-3
 - `single-cell`: D-2, D-7
 - `skillpacks`: L-3, D-4
+- `validation`: L-8, L-19
 - `annotation`: D-7
 - `audit`: D-3
 - `bioinformatics`: D-2
@@ -93,6 +94,7 @@ Last summarized: 2026-07-05 (heuristic)
 - `portability`: L-1
 - `pseudobulk`: D-10
 - `quarto`: L-2
+- `randomization`: D-26
 - `read-tool`: L-8
 - `reductions`: L-4
 - `review`: L-16
@@ -103,10 +105,10 @@ Last summarized: 2026-07-05 (heuristic)
 - `supplemental-figures`: D-6
 - `symlink`: L-7
 - `tests`: L-13
+- `tooling`: L-19
 - `tsv`: L-8
 - `umap`: D-21
 - `unicode`: L-6
-- `validation`: L-8
 - `warnings`: L-5
 
 _Heuristic clustering: tags with ≥2 entries, top 6 by count. To fetch matching entries: `python3 skills/core/scripts/recall_lessons.py --living-dir <path> --tag <tag>` or `--id L-N`._

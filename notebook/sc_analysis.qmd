@@ -149,14 +149,35 @@ figures and differential analysis.
 
 ![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization, cell-cycle HVGs retained, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-umap}
 
-The cluster-abundance summary compares E-Stim and control cells within this
-chosen clustering. Bars show CLR log2 enrichment of cluster abundance in E-Stim
-versus control; colors distinguish enriched or depleted clusters with
-significant pooled cell-level Fisher tests after Holm correction. This is
-descriptive and does not use the Mouse × Condition pseudobulk unit used for
-DE/DD.
+#### Descriptive pooled abundance
+
+The Fisher/CLR cluster-abundance summary compares pooled E-Stim and control
+cells within this chosen clustering. Bars show CLR log2 enrichment of cluster
+abundance in E-Stim versus control; colors distinguish enriched or depleted
+clusters with significant pooled cell-level Fisher tests after Holm correction.
+These bars are descriptive only and are not primary evidence for
+condition-level abundance because they do not use the Mouse × Condition sample
+as the statistical unit.
 
 ![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in E-Stim versus control; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
+
+#### Sample-level cluster-proportion screen
+
+The primary screen for cluster-proportion shifts is a design-restricted
+randomization test on Mouse × Condition samples. The paired-only statistic is
+the mean within-mouse E-Stim − control stabilized logit-proportion difference
+over paired mice 10 and 3. The paired-plus-singleton sensitivity adds mouse 30
+(E-Stim only) and mouse 33 (control only) as one exchangeable unpaired block.
+
+With two paired mice, the paired-only two-sided permutation p-value cannot fall
+below 0.5; with the singleton block added, it cannot fall below 0.25. I
+therefore interpret effect sizes and directional consistency, not conventional
+significance thresholds. These tests condition on the frozen chosen cluster
+labels; they do not claim that treatment created the clusters. Per-cluster
+numbers are written to
+`TABLE_DIR/mg_selected/mg_selected_cluster_proportion_randomization_pflog_mg_selected_no_filter_cc_dims30_res0.3.tsv`.
+
+![MG-selected cluster proportion by Mouse × Condition sample. Points are mice; paired mice (10, 3) are connected across conditions; singleton mice (30 E-Stim, 33 control) are shown separately.](figures/mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-proportion-by-mouse}
 
 The marker heatmap below shows the same `mg-selected` clustering
 (`cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3`). Columns are cells split

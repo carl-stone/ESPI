@@ -5,7 +5,7 @@
 | **Date** | 2026-07-05 |
 | **Author** | OMP agent |
 | **Priority** | medium |
-| **Status** | open |
+| **Status** | done |
 | **Category** | analysis |
 | **Related analyses** | [Cluster proportion testing ideas](../analysis/ideas/2026-07-05-cluster-proportion-testing/00_index.md) |
 | **Related data** | ESPI Mouse × Condition MG-selected cluster counts |
@@ -29,12 +29,16 @@ The current pooled Fisher/CLR abundance plot is descriptive because it treats ce
 
 ## Acceptance Criteria
 
-- [ ] Sample × cluster count table is generated from the MG-selected branch with one row per Mouse × Condition × cluster.
-- [ ] Paired-only randomization results are written with effect estimates, raw p-values, BH-adjusted q-values, and sample-level proportions.
-- [ ] Paired-plus-singleton sensitivity is either implemented and clearly labeled or explicitly deferred with rationale.
-- [ ] Output plots show mouse-level proportions, connect paired mice, and show singleton mice separately.
-- [ ] Notebook/report text states that inference conditions on the chosen cluster labels and does not use cell-pooled Fisher p-values as primary evidence.
+- [x] Sample × cluster count table is generated from the MG-selected branch with one row per Mouse × Condition × cluster.
+- [x] Paired-only randomization results are written with effect estimates, raw p-values, BH-adjusted q-values, and sample-level proportions.
+- [x] Paired-plus-singleton sensitivity is either implemented and clearly labeled or explicitly deferred with rationale.
+- [x] Output plots show mouse-level proportions, connect paired mice, and show singleton mice separately.
+- [x] Notebook/report text states that inference conditions on the chosen cluster labels and does not use cell-pooled Fisher p-values as primary evidence.
 
 ## Notes
 
 Source idea: `analysis/ideas/2026-07-05-cluster-proportion-testing/01-biostatistician.md`, Idea 1.
+
+Completed 2026-07-05 in `R/cluster-abundance.R`, `scripts/plot-mg-selected-figures.R`,
+and `notebook/sc_analysis.qmd`. Outputs are written under
+`TABLE_DIR/mg_selected/` and `FIGURE_DIR/mg_selected/`.
