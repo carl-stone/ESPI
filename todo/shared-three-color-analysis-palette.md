@@ -5,7 +5,7 @@
 | **Date** | 2026-07-05 |
 | **Author** | OMP agent |
 | **Priority** | medium |
-| **Status** | open |
+| **Status** | complete |
 | **Category** | infrastructure |
 | **Related analyses** | `R/themes.R`; MG-selected figure scripts |
 | **Related data** | — |
@@ -24,10 +24,14 @@ Add an exported palette in `R/themes.R`, e.g. blue/gray/pink values for low/mid/
 
 ## Acceptance Criteria
 
-- [ ] `R/themes.R` exports a named three-color analysis palette.
-- [ ] Existing hard-coded not-significant gray colors are replaced with the palette gray.
-- [ ] Existing hard-coded `#2166ac` / `#e31a8c` direction colors use the shared palette where appropriate.
-- [ ] Changed R files are formatted, documented, and linted.
+- [x] `R/themes.R` exports a named three-color analysis palette.
+- [x] Existing hard-coded not-significant gray colors are replaced with the palette gray.
+- [x] Existing hard-coded `#2166ac` / `#e31a8c` direction colors use the shared palette where appropriate.
+- [x] Changed R files are formatted, documented, and linted.
+
+## Completion
+
+Completed in Batch 1 presentation cleanup with a shared low/mid/high analysis palette used by the affected plotting code.
 
 ## Notes
 

@@ -151,15 +151,16 @@ figures and differential analysis.
 
 #### Descriptive pooled abundance
 
-The Fisher/CLR cluster-abundance summary compares pooled E-Stim and control
-cells within this chosen clustering. Bars show CLR log2 enrichment of cluster
-abundance in E-Stim versus control; colors distinguish enriched or depleted
-clusters with significant pooled cell-level Fisher tests after Holm correction.
+The Fisher/CLR cluster-abundance summary compares pooled p27CKO + E-Stim and
+p27CKO cells within this chosen clustering. Bars show CLR log2 enrichment of
+cluster abundance in p27CKO + E-Stim versus p27CKO; colors distinguish
+enriched or depleted clusters with significant pooled cell-level Fisher tests
+after Holm correction.
 These bars are descriptive only and are not primary evidence for
 condition-level abundance because they do not use the Mouse × Condition sample
 as the statistical unit.
 
-![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in E-Stim versus control; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
+![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in p27CKO + E-Stim versus p27CKO; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
 
 #### Sample-level cluster-proportion screen
 

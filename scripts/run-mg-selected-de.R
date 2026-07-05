@@ -46,6 +46,16 @@ utils::data("cell_type_marker_genes", package = "ESPI", envir = environment())
 utils::data("cell_type_marker_labels", package = "ESPI", envir = environment())
 cell_type_marker_genes <- get("cell_type_marker_genes", envir = environment())
 cell_type_marker_labels <- get("cell_type_marker_labels", envir = environment())
+palette_analysis_three <- get(
+  "palette_analysis_three",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+CONTRAST_DISPLAY_LABEL <- get(
+  "CONTRAST_DISPLAY_LABEL",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
 
 # ---- parameters ----
 
@@ -495,9 +505,9 @@ plot_de_dd_effect_scatter <- function(plot_data) {
     ) +
     ggplot2::scale_color_manual(
       values = c(
-        "neither" = "grey65",
-        "DE only" = "#2166ac",
-        "DD only" = "#e31a8c",
+        "neither" = unname(palette_analysis_three[["mid"]]),
+        "DE only" = unname(palette_analysis_three[["low"]]),
+        "DD only" = unname(palette_analysis_three[["high"]]),
         "both" = "#4daf4a"
       ),
       name = "FDR < 0.05",
@@ -506,8 +516,8 @@ plot_de_dd_effect_scatter <- function(plot_data) {
     ggplot2::labs(
       title = "MG-selected DE and differential detection effects",
       subtitle = "Inner join on gene; genes missing either effect are omitted.",
-      x = "Differential expression log2 FC (E-Stim vs control)",
-      y = "Differential detection log2 FC (E-Stim vs control)"
+      x = sprintf("Differential expression log2 FC %s", CONTRAST_DISPLAY_LABEL),
+      y = sprintf("Differential detection log2 FC %s", CONTRAST_DISPLAY_LABEL)
     ) +
     ggplot2::theme_bw(base_size = 10) +
     ggplot2::theme(

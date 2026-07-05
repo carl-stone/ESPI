@@ -5,7 +5,7 @@
 | **Date** | 2026-07-05 |
 | **Author** | OMP agent |
 | **Priority** | low |
-| **Status** | open |
+| **Status** | complete |
 | **Category** | refactor |
 | **Related analyses** | `R/cluster-abundance.R`; `scripts/plot-mg-selected-figures.R` |
 | **Related data** | — |
@@ -24,10 +24,14 @@ Create `R/cluster-abundance-plots.R`, move the plot helper and plot-only support
 
 ## Acceptance Criteria
 
-- [ ] `plot_clr_fisher_enrichment()` lives in `R/cluster-abundance-plots.R`.
-- [ ] `compute_cluster_abundance()` remains in `R/cluster-abundance.R`.
-- [ ] `NAMESPACE` and Rd files are regenerated with `devtools::document()`.
-- [ ] Changed R files are formatted and linted.
+- [x] `plot_clr_fisher_enrichment()` lives in `R/cluster-abundance-plots.R`.
+- [x] `compute_cluster_abundance()` remains in `R/cluster-abundance.R`.
+- [x] `NAMESPACE` and Rd files are regenerated with `devtools::document()`.
+- [x] Changed R files are formatted and linted.
+
+## Completion
+
+Completed in Batch 1 presentation cleanup by separating cluster-abundance plotting helpers from compute/test code.
 
 ## Notes
 

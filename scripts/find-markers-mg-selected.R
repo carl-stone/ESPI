@@ -51,13 +51,11 @@ suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
 
-palette_dotplot_pair <- if (
-  exists("palette_dotplot_pair", envir = asNamespace("ESPI"), inherits = FALSE)
-) {
-  get("palette_dotplot_pair", envir = asNamespace("ESPI"), inherits = FALSE)
-} else {
-  c("#2166ac", "#e31a8c")
-}
+palette_dotplot_pair <- get(
+  "palette_dotplot_pair",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
 
 # ---- parameters ----
 

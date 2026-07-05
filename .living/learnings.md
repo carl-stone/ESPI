@@ -305,3 +305,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: Keep reusable smoke-test scripts in `tools/` only if the same validation becomes routine across multiple analysis changes.
+
+### [2026-07-05] Mycelium hook summaries can overwrite manual semantic log rows
+
+**Tags**: mycelium, hooks, session-logs, provenance
+
+**Category**: Workflow provenance
+
+**What happened**: During Batch 1 review cleanup, manual semantic edits to `.living/log/LOG_REGISTRY.md`, `.living/log/2026-07-05-004-espi.md`, and `.claude/last-session.md` were replaced by hook-generated file-list placeholders, leaving completed records with blank Key Outputs and Tags.
+
+**Why it matters**: The session registry is the audit trail for analysis and review work. If hook-generated placeholders overwrite semantic summaries after manual cleanup, future agents can falsely treat incomplete provenance as complete and reviewers must rediscover the same issue.
+
+**Resolution**: Re-check the current session registry row and last-session summary after any Mycelium hook activity, then repair Summary, Key Outputs, Tags, duration, and file counts before committing or yielding.
+
+**mitigation_type**: ambient-awareness
+
+**structural_mitigation_candidate**: Add a stop-hook invariant that rejects completed `LOG_REGISTRY.md` rows with blank Summary, blank Key Outputs, blank Tags, or file-list-only summaries.

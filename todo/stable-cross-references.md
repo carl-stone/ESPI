@@ -5,7 +5,7 @@
 | **Date** | 2026-07-05 |
 | **Author** | OMP agent |
 | **Priority** | medium |
-| **Status** | open |
+| **Status** | complete |
 | **Category** | writing |
 | **Related analyses** | `notebook/sc_analysis.qmd`; `.living/log/` |
 | **Related data** | — |
@@ -24,9 +24,13 @@ Prefer Quarto figure IDs, explicit captions, file basenames, decision headings, 
 
 ## Acceptance Criteria
 
-- [ ] Document the project convention for stable cross-references.
-- [ ] Replace current fragile `Figure N` references in review/session records where stable IDs are available.
-- [ ] Future notebook/log prose uses stable IDs or captions for cross-referenced artifacts.
+- [x] Document the project convention for stable cross-references.
+- [x] Supersede the original criterion, `Replace current fragile Figure N references in review/session records where stable IDs are available`, via the `Require stable cross-references going forward` decision and historical-fidelity exception; do not rewrite existing historical review/session evidence solely to replace `Figure N` text.
+- [x] Future notebook/log prose uses stable IDs or captions for cross-referenced artifacts.
+
+## Completion
+
+Completed in Batch 1 presentation cleanup for forward-going records. Added the Cross-References convention and recorded the historical-record exception; the original criterion, `Replace current fragile Figure N references in review/session records where stable IDs are available`, was superseded rather than performed, so review/log evidence remains intact by design.
 
 ## Notes
 

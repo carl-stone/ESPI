@@ -4,16 +4,6 @@
 #' @export
 SEED <- 1312
 
-#' Metadata column containing condition labels.
-#' @export
-CONDITION_COL <- "Condition"
-#' E-Stim condition label.
-#' @export
-ESTIM_LABEL <- "p27CKO +EStim"
-#' Control condition label.
-#' @export
-CTRL_LABEL <- "p27CKO"
-
 # Machine-local artifact root.
 #
 # Create `config.local.R` from `config.local.example.R` to set either:

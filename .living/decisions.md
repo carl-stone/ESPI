@@ -374,3 +374,45 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Exact enumeration matches the tiny design and makes the p-value floor transparent: 0.5 for paired-only and 0.25 for paired-plus-singleton. Reporting effect size and directional consistency is more honest than treating coarse p-values as conventional significance evidence.
 
 **Consequences**: The notebook now treats Fisher/CLR bars as descriptive only and points per-cluster inference to `TABLE_DIR/mg_selected/mg_selected_cluster_proportion_randomization_pflog_mg_selected_no_filter_cc_dims30_res0.3.tsv`.
+
+### [2026-07-05] Batch open TODOs by shared code surfaces
+
+**Tags**: todo, planning, mg-selected, plotting, notebook
+
+**Context**: The open TODO registry contained five items: shared plotting palette, condition-label standardization, stable cross-references, cluster-abundance plot-helper split, and MG-selected marker/p27 heatmaps. Palette and label changes both touched plotting code, while the heatmap task added new scientific/report outputs.
+
+**Decision**: Batch the palette, contrast-label, plot-helper split, and stable-reference cleanup together as one presentation-infrastructure pass, then implement the MG-selected marker/p27 heatmaps as a separate analysis/report pass.
+
+**Alternatives considered**: Batching strictly by registry category would separate infrastructure, refactor, and writing tasks even though they touch the same plot labels and notebook prose. Combining all five TODOs would bury a new biological heatmap analysis inside refactor and style changes.
+
+**Rationale**: The first batch can normalize shared plotting semantics and captions once before regenerating figures. The second batch stays reviewable as a scientific addition and can reuse the standardized palette and contrast labels.
+
+**Consequences**: Future implementation should produce at least two focused commits: one for presentation infrastructure/reference cleanup and one for MG-selected heatmap analysis.
+
+### [2026-07-05] Require stable cross-references going forward
+
+**Tags**: conventions, cross-references, notebook, reporting, session-logs
+
+**Context**: Batch 1 presentation cleanup found fragile auto-numbered figure references in records after notebook panels had shifted.
+
+**Decision**: Use stable Quarto figure IDs (`#fig-...`), file basenames, or decision headings in new notebook prose, session logs, review reports, and Mycelium records. Preserve historical `.living/log/` entries, review evidence, and old decision entries unless their content is otherwise being edited; do not rewrite old records solely to remove `Figure N`.
+
+**Alternatives considered**: Rewriting every historical mention would make records look cleaner but would erase audit and review context. Continuing to use auto-numbered labels would keep new records brittle.
+
+**Rationale**: Stable handles survive panel insertion, removal, and reorderings, while historical records should remain faithful to what the session or review observed at the time.
+
+**Consequences**: New prose and Mycelium records should cite stable handles. Existing `Figure N` mentions may remain in older logs, reviews, and decisions as historical evidence.
+
+### [2026-07-05] Centralize presentation palette and contrast display labels
+
+**Tags**: plotting, mg-selected, notebook, contrast-labels, palette
+
+**Context**: Batch 1 presentation cleanup needed a shared three-color plotting palette and consistent rendered contrast text across the MG-selected abundance and DE/DD figures.
+
+**Decision**: Keep metadata condition labels unchanged (`p27CKO +EStim`, `p27CKO`), move them to `R/conditions.R`, add display-only labels for human-facing text, and render plot contrast labels from `CONTRAST_DISPLAY_LABEL`. Use `palette_analysis_three` as the shared blue/gray/pink low/mid/high palette and derive `palette_dotplot_pair` from it.
+
+**Alternatives considered**: Renaming metadata values would make display text prettier but would break existing Seurat metadata and tripwire contrast declarations. Leaving each script with local colors and labels would preserve current output but keep drift-prone hard-coded strings.
+
+**Rationale**: Separating metadata values from display labels keeps computation stable while giving plots a single source of truth for manuscript-facing labels and colors.
+
+**Consequences**: Future plotting code should import display labels and palette values from the package namespace instead of hard-coding condition text or endpoint colors.

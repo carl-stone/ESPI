@@ -29,3 +29,7 @@ Project-specific rules here override generic Mycelium convention packs.
 ## Statistical Unit
 
 The primary condition-level differential-expression unit is Mouse × Condition pseudobulk sample, not cell.
+
+## Cross-References
+
+Refer to figures, tables, decisions, and other artifacts by stable handles — Quarto figure IDs (`#fig-...`), file basenames, or decision headings — not auto-numbered labels such as `Figure N` in notebook prose, session logs, review reports, and Mycelium records. Auto-numbers shift when panels are inserted or removed.
