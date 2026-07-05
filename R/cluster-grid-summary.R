@@ -882,7 +882,8 @@ splot_umap_resolution_sweep <- function(
       sobj,
       reduction = reduction,
       group.by = column,
-      label = TRUE
+      label = TRUE,
+      pt.size = 0.25
     ) +
       ggplot2::ggtitle(sprintf("res %s", resolution)) +
       ggplot2::labs(x = "UMAP 1", y = "UMAP 2") +

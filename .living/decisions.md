@@ -286,6 +286,8 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Consequences**: `notebook/sc_analysis.qmd` now includes both MG-selected visual branches, while `scripts/run-mg-selected-de.R` writes `mg_selected_de_dd_effect_scatter.(png|pdf)` and a notebook symlink. Genes tested by only one workflow are not plotted in the DE/DD scatter.
 
+**Revision 2026-07-04**: Retain and regenerate the cell-cycle-filtered marker heatmap in the notebook rather than dropping it; the missing symlink was an output gap, not a scientific decision to remove the panel.
+
 ### [2026-07-04] Scale MG-selected feature UMAP panels per gene
 
 **Tags**: mg-selected, plotting, notebook, umap
@@ -314,3 +316,33 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The dot plot is a descriptive marker-summary figure. Binned diverging colors preserve the low/high expression direction while making the z-score range visually explicit.
 
 **Consequences**: Figure 11 now communicates approximate z-score bins rather than continuous color values. Values outside ±2 remain clipped into the endpoint bins.
+
+**Superseded 2026-07-04 by "Use six endpoint-aware bins for MG-selected marker dot plot":** row z-scores are no longer pre-clipped before plotting; endpoint squishing now happens in the color scale.
+
+### [2026-07-04] Use six endpoint-aware bins for MG-selected marker dot plot
+
+**Tags**: mg-selected, plotting, notebook, marker-analysis
+
+**Context**: The previous Figure 11 binned guide collapsed values at or beyond `+/-2` into the same endpoint value before plotting, so the darkest endpoint colors could not distinguish `1` to `2` from `>= 2` or `-2` to `-1` from `<= -2`.
+
+**Decision**: Keep raw row z-scores after zero-SD/NA handling, use a six-color diverging binned scale, and squish out-of-range values into endpoint bins at plot time.
+
+**Alternatives considered**: Pre-clipping z-scores to `+/-2` keeps the scale bounded but hides meaningful extremes. A continuous gradient makes outliers visible but makes the requested range bins harder to read.
+
+**Rationale**: The marker dot plot is a descriptive figure. Six diverging bins preserve direction, show `1` to `2` separately from `>= 2`, and show the three requested blue-side ranges.
+
+**Consequences**: The guide now shows endpoint labels `<= -2` and `>= 2`, and values outside the display limits render with the endpoint colors instead of disappearing as missing values.
+
+### [2026-07-04] Treat cluster abundance Fisher CLR as descriptive
+
+**Tags**: mg-selected, abundance, fisher-exact, clr, plotting
+
+**Context**: The requested cluster abundance summary mirrors `compute_cluster_abundance()` from the separate `megan_sc` repo, which pools raw cell counts across mice within each condition before running Fisher exact tests.
+
+**Decision**: Port the Fisher/CLR logic into ESPI-owned `R/` code, plot vertical CLR log2 enrichment bars with E-Stim-enriched clusters in `#e31a8c` and E-Stim-depleted clusters in `#2166ac`, and label the output as a pooled cell-level descriptive summary.
+
+**Alternatives considered**: Replacing Fisher with a per-mouse model would better match the Mouse × Condition statistical unit used for DE/DD, but it would not implement the method the user asked to calculate.
+
+**Rationale**: The plot answers a descriptive cluster-composition question and should be visually available in the notebook, while the caveat prevents it from being presented as equivalent to pseudobulk condition-level inference.
+
+**Consequences**: The abundance figure is useful for cluster-level pattern review, but DE/DD remain the condition-level analyses with Mouse × Condition pseudobulk samples as the statistical unit.

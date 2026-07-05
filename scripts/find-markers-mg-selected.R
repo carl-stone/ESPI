@@ -588,8 +588,6 @@ build_dotplot_data <- function(
     }
   }
   scaled_expression[is.na(scaled_expression)] <- 0
-  scaled_expression[scaled_expression > 2] <- 2
-  scaled_expression[scaled_expression < -2] <- -2
   plot_data$scaled_mean_expression <- scaled_expression
   plot_data$gene <- factor(plot_data$gene, levels = rev(genes))
   plot_data$marker_identity <- factor(
@@ -600,6 +598,22 @@ build_dotplot_data <- function(
 }
 
 marker_dotplot <- function(plot_data, expression_layer) {
+  blue_ramp <- grDevices::colorRampPalette(c(
+    palette_dotplot_pair[[1L]],
+    "white"
+  ))(4L)
+  pink_ramp <- grDevices::colorRampPalette(c(
+    "white",
+    palette_dotplot_pair[[2L]]
+  ))(4L)
+  dotplot_colour_breaks <- c(-3, -2, -1, 0, 1, 2, 3)
+  dotplot_colour_limits <- c(-3, 3)
+  dotplot_colour_labels <- function(breaks) {
+    labels <- as.character(breaks)
+    labels[abs(breaks - dotplot_colour_limits[[1L]]) < 1e-8] <- "<= -2"
+    labels[abs(breaks - dotplot_colour_limits[[2L]]) < 1e-8] <- ">= 2"
+    labels
+  }
   ggplot2::ggplot(
     plot_data,
     ggplot2::aes(
@@ -616,15 +630,21 @@ marker_dotplot <- function(plot_data, expression_layer) {
       name = "Detected cells (%)"
     ) +
     ggplot2::scale_color_stepsn(
-      colours = grDevices::colorRampPalette(c(
+      colours = c(
         palette_dotplot_pair[[1L]],
-        "white",
+        blue_ramp[[2L]],
+        blue_ramp[[3L]],
+        pink_ramp[[2L]],
+        pink_ramp[[3L]],
         palette_dotplot_pair[[2L]]
-      ))(6L),
-      breaks = c(-2, -1, 0, 1, 2),
-      labels = c("<= -2", "-1", "0", "1", ">= 2"),
-      limits = c(-2, 2),
-      guide = ggplot2::guide_coloursteps(),
+      ),
+      breaks = dotplot_colour_breaks,
+      labels = dotplot_colour_labels,
+      limits = dotplot_colour_limits,
+      oob = function(x, range, ...) {
+        pmin(pmax(x, range[[1L]]), range[[2L]])
+      },
+      guide = ggplot2::guide_coloursteps(show.limits = TRUE),
       name = sprintf("Mean %s expression\n(row z-score bin)", expression_layer)
     ) +
     ggplot2::labs(

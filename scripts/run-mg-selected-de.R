@@ -423,7 +423,7 @@ build_de_dd_effect_data <- function(de_table, detection_table, design_label) {
     c("gene", "logFC", "padj"),
     drop = FALSE
   ]
-  colnames(detection_effects) <- c("gene", "dd_log_fc", "dd_padj")
+  colnames(detection_effects) <- c("gene", "dd_log2_fold_change", "dd_padj")
 
   joined <- merge(
     de_effects,
@@ -433,21 +433,14 @@ build_de_dd_effect_data <- function(de_table, detection_table, design_label) {
     sort = FALSE
   )
   joined <- joined[
-    !is.na(joined$de_log2_fold_change) & !is.na(joined$dd_log_fc),
+    !is.na(joined$de_log2_fold_change) &
+      !is.na(joined$dd_log2_fold_change),
     ,
     drop = FALSE
   ]
 
   marker_table <- make_marker_table(joined$gene)
-  joined$curated_marker <- ifelse(
-    joined$gene %in% marker_table$gene,
-    "curated marker",
-    "not curated"
-  )
-  joined$curated_marker <- factor(
-    joined$curated_marker,
-    levels = c("not curated", "curated marker")
-  )
+  joined$curated_marker <- joined$gene %in% marker_table$gene
 
   de_significant <- !is.na(joined$de_padj) & joined$de_padj < 0.05
   dd_significant <- !is.na(joined$dd_padj) & joined$dd_padj < 0.05
@@ -466,7 +459,7 @@ build_de_dd_effect_data <- function(de_table, detection_table, design_label) {
   )
   joined$design <- factor(
     design_label,
-    levels = c("Primary all samples", "Paired sensitivity")
+    levels = c("All samples by condition", "Paired mice by condition")
   )
   joined
 }
@@ -479,23 +472,26 @@ plot_de_dd_effect_scatter <- function(plot_data) {
     )
   }
 
+  plot_data <- plot_data[
+    order(plot_data$fdr_category != "neither", plot_data$fdr_category),
+    ,
+    drop = FALSE
+  ]
+  label_data <- plot_data[plot_data$curated_marker, , drop = FALSE]
+
   plot <- ggplot2::ggplot(
     plot_data,
     ggplot2::aes(
       x = .data[["de_log2_fold_change"]],
-      y = .data[["dd_log_fc"]]
+      y = .data[["dd_log2_fold_change"]]
     )
   ) +
     ggplot2::geom_hline(yintercept = 0, linewidth = 0.25, color = "grey70") +
     ggplot2::geom_vline(xintercept = 0, linewidth = 0.25, color = "grey70") +
     ggplot2::geom_point(
-      ggplot2::aes(
-        color = .data[["fdr_category"]],
-        shape = .data[["curated_marker"]]
-      ),
+      ggplot2::aes(color = .data[["fdr_category"]]),
       alpha = 0.55,
-      size = 0.9,
-      stroke = 0.45
+      size = 0.8
     ) +
     ggplot2::scale_color_manual(
       values = c(
@@ -507,22 +503,29 @@ plot_de_dd_effect_scatter <- function(plot_data) {
       name = "FDR < 0.05",
       drop = FALSE
     ) +
-    ggplot2::scale_shape_manual(
-      values = c("not curated" = 16, "curated marker" = 21),
-      name = "Marker list",
-      drop = FALSE
-    ) +
     ggplot2::labs(
       title = "MG-selected DE and differential detection effects",
       subtitle = "Inner join on gene; genes missing either effect are omitted.",
-      x = "DESeq2 log2 fold change (E-Stim vs control)",
-      y = "muscat DD logFC (E-Stim vs control)"
+      x = "Differential expression log2 FC (E-Stim vs control)",
+      y = "Differential detection log2 FC (E-Stim vs control)"
     ) +
     ggplot2::theme_bw(base_size = 10) +
     ggplot2::theme(
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right"
     )
+
+  if (nrow(label_data) > 0L) {
+    plot <- plot +
+      ggplot2::geom_text(
+        data = label_data,
+        ggplot2::aes(label = .data[["gene"]]),
+        size = 2.2,
+        vjust = -0.4,
+        check_overlap = TRUE,
+        show.legend = FALSE
+      )
+  }
 
   if (length(unique(plot_data$design)) > 1L) {
     plot <- plot + ggplot2::facet_wrap(stats::as.formula("~ design"))
@@ -1350,13 +1353,13 @@ if (!identical(paired_status, "run")) {
 de_dd_plot_data <- build_de_dd_effect_data(
   full_de,
   full_detection,
-  "Primary all samples"
+  "All samples by condition"
 )
 if (identical(paired_status, "run")) {
   paired_de_dd_plot_data <- build_de_dd_effect_data(
     paired_full_de,
     paired_full_detection,
-    "Paired sensitivity"
+    "Paired mice by condition"
   )
   de_dd_plot_data <- rbind(de_dd_plot_data, paired_de_dd_plot_data)
 }

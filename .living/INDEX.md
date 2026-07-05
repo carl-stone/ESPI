@@ -5,9 +5,9 @@ Last audit: 2026-07-04
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 4 sections | 2026-07-04 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit |
-| decisions.md | 22 entries | 2026-07-04 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
+| decisions.md | 24 entries | 2026-07-04 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
 | learnings.md | 18 entries | 2026-07-04 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
-| log/ | 15 sessions | 2026-07-04 | espi (15) |
+| log/ | 16 sessions | 2026-07-04 | espi (16) |
 | findings/ | 5 findings across 2 topics | 2026-07-04 | population-structure, condition-response |
 
 ## Local skills
@@ -20,10 +20,10 @@ Last summarized: 2026-07-04 (heuristic)
 ## Tag clusters
 
 - **mycelium** (16 entries) — D-13, D-14, D-15, D-16, D-18
-- **mg-selected** (12 entries) — D-18, D-19, D-20, D-21, D-22
+- **mg-selected** (14 entries) — D-20, D-21, D-22, D-23, D-24
 - **hooks** (10 entries) — D-12, D-13, D-14, D-15, D-16
-- **plotting** (7 entries) — L-18, D-8, D-20, D-21, D-22
-- **notebook** (6 entries) — L-7, L-16, D-20, D-21, D-22
+- **plotting** (9 entries) — D-20, D-21, D-22, D-23, D-24
+- **notebook** (7 entries) — L-16, D-20, D-21, D-22, D-23
 - **omp** (6 entries) — L-13, D-13, D-14, D-15, D-16
 
 ## Most recent (10)
@@ -42,18 +42,18 @@ Last summarized: 2026-07-04 (heuristic)
 ## By tag
 
 - `mycelium`: L-1, L-3, L-10, L-11, L-12, L-13, D-1, D-2, D-3, D-4, D-12, D-13, D-14, D-15, D-16, D-18
-- `mg-selected`: L-14, L-15, L-17, L-18, D-10, D-11, D-17, D-18, D-19, D-20, D-21, D-22
+- `mg-selected`: L-14, L-15, L-17, L-18, D-10, D-11, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24
 - `hooks`: L-1, L-10, L-11, L-12, L-13, D-12, D-13, D-14, D-15, D-16
-- `plotting`: L-5, L-6, L-18, D-8, D-20, D-21, D-22
-- `notebook`: L-2, L-7, L-16, D-20, D-21, D-22
+- `plotting`: L-5, L-6, L-18, D-8, D-20, D-21, D-22, D-23, D-24
+- `notebook`: L-2, L-7, L-16, D-20, D-21, D-22, D-23
 - `omp`: L-12, L-13, D-13, D-14, D-15, D-16
 - `reproducibility`: L-9, L-10, L-11, D-5, D-9, D-12
 - `differential-detection`: L-14, L-15, L-18, D-17, D-18
 - `differential-expression`: L-9, L-18, D-10, D-17, D-20
+- `marker-analysis`: L-16, L-17, D-19, D-22, D-23
 - `session-state`: L-11, L-13, D-13, D-14, D-16
 - `seurat`: L-4, L-5, L-17, D-5, D-19
 - `clustering`: L-4, D-5, D-6, D-11
-- `marker-analysis`: L-16, L-17, D-19, D-22
 - `r`: L-7, L-12, D-9, D-15
 - `r-package`: L-6, D-1, D-3, D-8
 - `filtering`: L-14, L-15, D-17
@@ -69,11 +69,14 @@ Last summarized: 2026-07-04 (heuristic)
 - `setup`: L-1, L-3
 - `single-cell`: D-2, D-7
 - `skillpacks`: L-3, D-4
+- `abundance`: D-24
 - `annotation`: D-7
 - `audit`: D-3
 - `bioinformatics`: D-2
 - `box`: L-2
+- `clr`: D-24
 - `clustree`: L-5
+- `fisher-exact`: D-24
 - `github`: L-3
 - `heatmap`: D-8
 - `interactivity`: D-9

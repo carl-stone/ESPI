@@ -18,7 +18,8 @@ splot_umap_by <- function(sobj, umap, color_by) {
     sobj,
     reduction = umap,
     group.by = color_by,
-    label = TRUE
+    label = TRUE,
+    pt.size = 0.25
   )
   ggplot2::ggsave(
     file.path(out_dir, sprintf("%s_by_%s.png", umap_tag, color_tag)),

@@ -15,7 +15,9 @@
 # Outputs:
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_umap_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   FIGURE_DIR/mg_selected/mg_selected_feature_umap_<layer>_<branch>_dims<dims>_res<resolution>.(png|pdf)
-#   notebook/figures/<png filename> symlinks for both PNG outputs.
+#   FIGURE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.(png|pdf)
+#   TABLE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.tsv
+#   notebook/figures/<png filename> symlinks for all PNG outputs.
 
 suppressPackageStartupMessages({
   library(here)
@@ -26,6 +28,16 @@ suppressPackageStartupMessages({
 })
 palette_dotplot_pair <- get(
   "palette_dotplot_pair",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+compute_cluster_abundance <- get(
+  "compute_cluster_abundance",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+plot_clr_fisher_enrichment <- get(
+  "plot_clr_fisher_enrichment",
   envir = asNamespace("ESPI"),
   inherits = FALSE
 )
@@ -280,7 +292,7 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
         color = .data[["scaled_expression"]]
       )
     ) +
-      ggplot2::geom_point(size = 0.5, stroke = 0) +
+      ggplot2::geom_point(size = 0.25, stroke = 0) +
       ggplot2::scale_color_gradient(
         low = "grey85",
         high = palette_dotplot_pair[[2L]],
@@ -385,7 +397,7 @@ cluster_plot <- Seurat::DimPlot(
   reduction = reduction,
   group.by = cluster_column,
   label = TRUE,
-  pt.size = 0.5
+  pt.size = 0.25
 ) +
   ggplot2::ggtitle(sprintf(
     "MG-selected PFlog; %d PCs; res %s",
@@ -393,6 +405,17 @@ cluster_plot <- Seurat::DimPlot(
     resolution
   )) +
   ggplot2::labs(x = "UMAP 1", y = "UMAP 2")
+
+abundance_table <- compute_cluster_abundance(
+  sobj = sobj,
+  cluster_col = cluster_column
+)
+abundance_plot <- plot_clr_fisher_enrichment(abundance_table) +
+  ggplot2::ggtitle(sprintf(
+    "MG-selected cluster abundance; %d PCs; res %s",
+    dims,
+    resolution
+  ))
 
 feature_plot <- feature_umap_plot(
   sobj = sobj,
@@ -408,7 +431,9 @@ feature_plot <- feature_umap_plot(
 # ---- output ----
 
 out_dir <- file.path(FIGURE_DIR, "mg_selected")
+table_dir <- file.path(TABLE_DIR, "mg_selected")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
 resolution_tag <- filename_tag(resolution)
 cluster_out_tag <- sprintf(
   "mg_selected_cluster_umap_%s_dims%d_res%s",
@@ -423,10 +448,19 @@ feature_out_tag <- sprintf(
   dims,
   resolution_tag
 )
+abundance_out_tag <- sprintf(
+  "mg_selected_cluster_abundance_enrichment_%s_dims%d_res%s",
+  branch_tag,
+  dims,
+  resolution_tag
+)
 cluster_png_path <- file.path(out_dir, sprintf("%s.png", cluster_out_tag))
 cluster_pdf_path <- file.path(out_dir, sprintf("%s.pdf", cluster_out_tag))
 feature_png_path <- file.path(out_dir, sprintf("%s.png", feature_out_tag))
 feature_pdf_path <- file.path(out_dir, sprintf("%s.pdf", feature_out_tag))
+abundance_png_path <- file.path(out_dir, sprintf("%s.png", abundance_out_tag))
+abundance_pdf_path <- file.path(out_dir, sprintf("%s.pdf", abundance_out_tag))
+abundance_tsv_path <- file.path(table_dir, sprintf("%s.tsv", abundance_out_tag))
 
 ggplot2::ggsave(
   cluster_png_path,
@@ -456,13 +490,40 @@ ggplot2::ggsave(
   height = 9.0,
   bg = "white"
 )
+ggplot2::ggsave(
+  abundance_png_path,
+  abundance_plot,
+  width = max(6.5, 0.45 * nrow(abundance_table)),
+  height = 4.5,
+  bg = "white"
+)
+ggplot2::ggsave(
+  abundance_pdf_path,
+  abundance_plot,
+  width = max(6.5, 0.45 * nrow(abundance_table)),
+  height = 4.5,
+  bg = "white"
+)
+utils::write.table(
+  abundance_table,
+  file = abundance_tsv_path,
+  sep = "\t",
+  quote = FALSE,
+  row.names = FALSE,
+  col.names = TRUE
+)
 
 cluster_notebook_path <- link_notebook_png(cluster_png_path)
 feature_notebook_path <- link_notebook_png(feature_png_path)
+abundance_notebook_path <- link_notebook_png(abundance_png_path)
 
 message("Wrote mg-selected cluster UMAP PNG: ", cluster_png_path)
 message("Wrote mg-selected cluster UMAP PDF: ", cluster_pdf_path)
 message("Wrote mg-selected feature UMAP PNG: ", feature_png_path)
 message("Wrote mg-selected feature UMAP PDF: ", feature_pdf_path)
+message("Wrote mg-selected cluster abundance TSV: ", abundance_tsv_path)
+message("Wrote mg-selected cluster abundance PNG: ", abundance_png_path)
+message("Wrote mg-selected cluster abundance PDF: ", abundance_pdf_path)
 message("Linked notebook figure: ", cluster_notebook_path)
 message("Linked notebook figure: ", feature_notebook_path)
+message("Linked notebook figure: ", abundance_notebook_path)

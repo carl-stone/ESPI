@@ -270,7 +270,8 @@ save_mg_selected_resolution_sweeps <- function(objects, branches) {
           sobj,
           reduction = reduction,
           group.by = column,
-          label = TRUE
+          label = TRUE,
+          pt.size = 0.25
         ) +
           ggplot2::ggtitle(sprintf(
             "res %s",

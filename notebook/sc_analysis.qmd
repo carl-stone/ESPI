@@ -149,6 +149,15 @@ figures and differential analysis.
 
 ![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization, cell-cycle HVGs retained, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-umap}
 
+The cluster-abundance summary compares E-Stim and control cells within this
+chosen clustering. Bars show CLR log2 enrichment of cluster abundance in E-Stim
+versus control; colors distinguish enriched or depleted clusters with
+significant pooled cell-level Fisher tests after Holm correction. This is
+descriptive and does not use the Mouse × Condition pseudobulk unit used for
+DE/DD.
+
+![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in E-Stim versus control; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
+
 The marker heatmap below shows the same `mg-selected` clustering
 (`cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3`). Columns are cells split
 by Leiden cluster, with cluster blocks hierarchically ordered by their
@@ -168,6 +177,8 @@ cell-cycle-filtered 30-PC, resolution-0.3 branch. First, the UMAP shows the
 Leiden cluster IDs for that branch.
 
 ![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization with cell-cycle HVGs filtered before PCA, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims30_res0.3.png){#fig-mg-selected-filter-cc-cluster-umap}
+
+![Per-cell marker-gene heatmap for the MG-selected PFlog clustering with cell-cycle HVGs filtered before PCA. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims30_res0.3.png){#fig-mg-selected-filter-cc-cell-type-marker-heatmap}
 
 ![MG-selected 3 × 3 PFlog feature UMAP grid for the cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims30_res0.3.png){#fig-mg-selected-filter-cc-feature-umap-grid}
 
@@ -205,7 +216,7 @@ has no genes detected more often than in the rest of cells under the positive
 marker filter; that argues against treating cluster 2 as a marker-defined
 identity, but it also does not identify a specific merge partner.
 
-![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color bins show average scaled expression from the Seurat data layer as row z-score ranges, with the end bins marking $\leq -2$ and $\geq 2$. Marker rankings are descriptive because cells, not mice, are the units in FindAllMarkers.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims30_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
+![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color uses six diverging row-z-score bins for average scaled expression from the Seurat data layer, with endpoint bins labeled $\leq -2$ and $\geq 2$. Marker rankings are descriptive because cells, not mice, are the units in FindAllMarkers.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims30_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
 
 ## Differential expression
 
@@ -240,10 +251,11 @@ signal, not a general all-sample DD conclusion.
 
 The DE/DD scatterplot compares condition effects for genes tested in both the DE
 and DD analyses for each design, because the two workflows test different gene
-universes. The x-axis shows the DE effect, the y-axis shows the DD effect, and
-color/shape mark FDR significance and curated marker-list membership.
+universes. Points are genes, the x-axis shows the DE effect size, the y-axis
+shows the DD effect size, color shows the FDR significance category (neither, DE
+only, DD only, or both), and some points carry gene-name text labels.
 
-![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; x shows the DE effect, y shows the DD effect, and color/shape indicate FDR significance and curated marker-list membership.](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
+![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; color shows the FDR significance category, and selected genes carry text labels.](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
 
 As follow-up summaries of this selected branch, upregulated DEGs are enriched
 for stress/growth and apoptotic-signaling terms, while downregulated DEGs and
