@@ -272,7 +272,7 @@ function writeFallbackLastSession(root: string): void {
   const existing = fs.existsSync(lastSessionPath) ? fs.readFileSync(lastSessionPath, "utf8") : "";
   const requiredSections = ["What was worked on", "Key decisions made", "Blockers & surprises", "Current state", "Next steps"];
   const hasFiveSections = requiredSections.every((heading) => existing.includes(`## ${heading}`));
-  if (!fs.existsSync(activityPath) && hasFiveSections) return;
+  if (hasFiveSections) return;
 
   ensureDir(lastSessionPath);
 
@@ -312,7 +312,7 @@ export default function myceliumHooks(pi: ExtensionAPI): void {
   pi.on("session_start", async (_event, ctx) => {
     const root = repoRoot(ctx.cwd);
     runSync(root);
-    runHook(root, "skills/core/hooks/mycelium-health.sh", { cwd: root, source: "omp" });
+    runHook(root, ".agents/hooks/adapters/mycelium-health-wrapper.sh", { cwd: root, source: "omp" });
   });
 
   pi.on("tool_result", async (event, ctx) => {
@@ -344,7 +344,7 @@ export default function myceliumHooks(pi: ExtensionAPI): void {
   pi.on("session_stop", async (event, ctx): Promise<SessionDecision | undefined> => {
     const root = repoRoot(ctx.cwd);
     const payload = { cwd: root, source: "omp", session_id: sessionId(event) };
-    const result = runHook(root, "skills/core/hooks/mycelium-stop-check.sh", payload);
+    const result = runHook(root, ".agents/hooks/adapters/mycelium-stop-wrapper.sh", payload);
     runHook(root, "skills/core/hooks/mycelium-data-lineage-stop.sh", payload);
     writeFallbackLastSession(root);
 
