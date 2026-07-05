@@ -161,7 +161,14 @@ plot_clr_fisher_enrichment <- function(enrichment) {
   }
 
   plot_data <- enrichment
-  plot_data$cluster <- factor(plot_data$cluster, levels = plot_data$cluster)
+  enrichment_order <- order(
+    -plot_data$log2_enrichment,
+    seq_len(nrow(plot_data))
+  )
+  plot_data$cluster <- factor(
+    plot_data$cluster,
+    levels = plot_data$cluster[enrichment_order]
+  )
   plot_data$direction <- factor(
     plot_data$direction,
     levels = c("Enriched in E-Stim", "Depleted in E-Stim", "Not significant")

@@ -161,14 +161,15 @@ This per-cluster heatmap makes the `mg-selected` cluster-level identity signals 
 
 The Fisher/CLR cluster-abundance summary compares pooled p27CKO + E-Stim and
 p27CKO cells within this chosen clustering. Bars show CLR log2 enrichment of
-cluster abundance in p27CKO + E-Stim versus p27CKO; colors distinguish
-enriched or depleted clusters with significant pooled cell-level Fisher tests
-after Holm correction.
+cluster abundance in p27CKO + E-Stim versus p27CKO, ordered left-to-right from
+the highest E-Stim enrichment to the lowest; colors distinguish enriched or
+depleted clusters with significant pooled cell-level Fisher tests after Holm
+correction.
 These bars are descriptive only and are not primary evidence for
 condition-level abundance because they do not use the Mouse × Condition sample
 as the statistical unit.
 
-![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in p27CKO + E-Stim versus p27CKO; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
+![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in p27CKO + E-Stim versus p27CKO, ordered left-to-right from highest E-Stim enrichment to lowest; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
 
 #### Sample-level cluster-proportion screen
 
@@ -283,9 +284,11 @@ The DE/DD scatterplot compares condition effects for genes tested in both the DE
 and DD analyses for each design, because the two workflows test different gene
 universes. Points are genes, the x-axis shows the DE effect size, the y-axis
 shows the DD effect size, color shows the FDR significance category (neither, DE
-only, DD only, or both), and some points carry gene-name text labels.
+only, DD only, or both), and gene-name labels are shown only for genes that are
+FDR-significant in one or both DE/DD tests using repelled text labels
+(`ggrepel::geom_text_repel()`).
 
-![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; color shows the FDR significance category, and selected genes carry text labels.](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
+![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; x shows the DE effect size, y shows the DD effect size, color shows the FDR significance category (neither, DE only, DD only, or both), and gene-name labels are shown only for genes that are FDR-significant in one or both DE/DD tests using repelled text labels (`ggrepel::geom_text_repel()`).](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
 
 As follow-up summaries of this selected branch, upregulated DEGs are enriched
 for stress/growth and apoptotic-signaling terms, while downregulated DEGs and

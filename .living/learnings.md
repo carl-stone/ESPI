@@ -353,3 +353,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: ambient-awareness
 
 **structural_mitigation_candidate**: Extend `tools/mycelium-provenance-guard.py` or its tests to cover this exact file-list-only overwrite after review/session activity, including the current session log and `.claude/last-session.md`.
+
+### [2026-07-05] Treat git status as authority for todo-only stop-hook triage
+
+**Tags**: mycelium, hooks, todo, session-logs, provenance
+
+**Category**: Workflow provenance
+
+**What happened**: After commit `0a4e88e`, the stop hook reported stale prior heatmap files even though `git status --short` showed only the TODO registry and two new TODO files before session-end repair. Later in the same implementation thread, the stop hook appended a generic file-list tail to `2026-07-05-011-espi.md` and rewrote `.claude/last-session.md` after the semantic session-end record had already been written.
+
+**Why it matters**: Todo-only turns and follow-on implementation turns should not inherit scientific or code-change summaries from prior sessions. The existing hook-summary clobbering lessons still apply, but these recurrences add post-commit, todo-only, and post-verification no-new-code cases.
+
+**Resolution**: Use actual `git status --short` as the authoritative changed-file set for session-end provenance; after stop-hook activity, re-read the current log and last-session file, then remove stale file-list appendages and restore semantic summaries.
+
+**mitigation_type**: ambient-awareness
+
+**structural_mitigation_candidate**: Extend the provenance guard to reject stop-hook summaries whose changed-file list is not a subset of the current Git-visible working tree plus expected local Mycelium files.

@@ -33,4 +33,6 @@ All future work items, ideas, and planned improvements for this project are trac
 | Standardize condition labels and contrast text | medium | complete | refactor | 2026-07-05 | OMP agent | [standardize-condition-labels-contrast-text.md](standardize-condition-labels-contrast-text.md) |
 | Add design-restricted sample-level randomization tests | medium | complete | analysis | 2026-07-05 | OMP agent | [design-restricted-sample-randomization-tests.md](design-restricted-sample-randomization-tests.md) |
 | Add cell-type and p27 score heatmaps to MG-selected clustering | medium | complete | analysis | 2026-07-05 | OMP agent | [add-cell-type-p27-score-heatmaps-mg-selected-clustering.md](add-cell-type-p27-score-heatmaps-mg-selected-clustering.md) |
+| Order CLR log2 enrichment columns by contrast enrichment | medium | complete | analysis | 2026-07-05 | OMP agent | [order-clr-log2-enrichment-columns.md](order-clr-log2-enrichment-columns.md) |
+| Filter DE/DD effect size labels to significant genes | medium | complete | analysis | 2026-07-05 | OMP agent | [filter-de-dd-effect-size-labels.md](filter-de-dd-effect-size-labels.md) |
 <!-- Add new entries above this line -->

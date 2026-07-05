@@ -487,7 +487,7 @@ plot_de_dd_effect_scatter <- function(plot_data) {
     ,
     drop = FALSE
   ]
-  label_data <- plot_data[plot_data$curated_marker, , drop = FALSE]
+  label_data <- plot_data[plot_data$fdr_category != "neither", , drop = FALSE]
 
   plot <- ggplot2::ggplot(
     plot_data,
@@ -527,12 +527,11 @@ plot_de_dd_effect_scatter <- function(plot_data) {
 
   if (nrow(label_data) > 0L) {
     plot <- plot +
-      ggplot2::geom_text(
+      ggrepel::geom_text_repel(
         data = label_data,
         ggplot2::aes(label = .data[["gene"]]),
         size = 2.2,
-        vjust = -0.4,
-        check_overlap = TRUE,
+        seed = 275,
         show.legend = FALSE
       )
   }

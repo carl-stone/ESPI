@@ -13,6 +13,7 @@ Imports:
     clustree,
     ggplot2,
     ggraph,
+    ggrepel,
     here,
     igraph,
     mclust,
