@@ -486,3 +486,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The TODO registry is the project-visible place for actionable future work. Recording source DEG and enrichment directories plus acceptance criteria makes the later bundle task reproducible and easy to scope.
 
 **Consequences**: Future work should convert the selected MG-selected TSV outputs to clearly named CSVs in a small sendable directory or archive, then update the TODO status when complete.
+
+### [2026-07-06] Bundle Ed handoff as significant DE/DD subsets plus explicit GO/GSEA term sets
+
+**Tags**: todo, mg-selected, differential-expression, differential-detection, enrichment, collaboration
+
+**Context**: The Ed handoff TODO asked for a small sendable CSV bundle of current MG-selected DE/DD and GSEA/GO outputs.
+
+**Decision**: Put the bundle under the Box `exports/` directory with a matching zip archive. For DE/DD, include small design/sample/run summaries, significant DESeq2 subsets, marker-overlap tables, and FDR-filtered differential-detection subsets rather than the multi-MB all-gene result dumps. For GO/GSEA, include both FDR-filtered term CSVs and full all-term conversions, with filenames and `manifest.csv` distinguishing filtered from full tables.
+
+**Alternatives considered**: Including every all-gene DE/DD result table would be complete but unnecessarily heavy for an external handoff. Shipping only filtered GO/GSEA hits would be smaller but would lose full pathway rankings and the GSEA Entrez mapping needed to interpret core-enrichment IDs.
+
+**Rationale**: This keeps the archive small while preserving the pieces Ed is most likely to review: significant gene-level results, marker-context tables, pathway hits, and full pathway context where rankings/mappings matter.
+
+**Consequences**: The bundle explicitly contains a zero-row primary differential-detection significant-gene CSV because no primary DD genes pass `padj < 0.05` in the current outputs; the manifest records that this is a genuine null result, not a conversion failure.

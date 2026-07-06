@@ -5,7 +5,7 @@
 | **Date** | 2026-07-06 |
 | **Author** | OMP agent |
 | **Priority** | medium |
-| **Status** | open |
+| **Status** | complete |
 | **Category** | analysis |
 | **Related analyses** | MG-selected DE/DD and enrichment outputs |
 | **Related data** | `DEG_DIR/mg_selected/`; `ENRICHMENT_DIR/mg_selected/` |
@@ -27,11 +27,19 @@ Ed needs the relevant DEG and GSEA/GO result tables in a portable format without
 
 ## Acceptance Criteria
 
-- [ ] Bundle includes the relevant DEG CSVs.
-- [ ] Bundle includes the relevant GSEA/GO CSVs.
-- [ ] File names are self-explanatory for someone outside the repo.
-- [ ] Bundle location is easy to send to Ed.
+- [x] Bundle includes the relevant DEG CSVs.
+- [x] Bundle includes the relevant GSEA/GO CSVs.
+- [x] File names are self-explanatory for someone outside the repo.
+- [x] Bundle location is easy to send to Ed.
 
 ## Notes
 
 The current source outputs are TSVs under the MG-selected DEG and enrichment output directories. Convert to CSVs for the bundle unless Ed prefers TSVs.
+
+## Completion
+
+- Bundle directory: `/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data/exports/ed_mg_selected_de_dd_gsea_go_2026-07-06/`
+- Sendable archive: `/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data/exports/ed_mg_selected_de_dd_gsea_go_2026-07-06.zip`
+- Contents: 18 result CSVs plus `manifest.csv`.
+- Note: `mg_selected_detection_primary_significant_genes.csv` has zero rows because no primary differential-detection genes pass `padj < 0.05` in the current output.
+- Note: GO/GSEA includes both FDR-filtered term CSVs and full all-term conversion CSVs; filenames and `manifest.csv` label the difference.
