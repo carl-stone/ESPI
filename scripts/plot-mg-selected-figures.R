@@ -14,6 +14,7 @@
 #
 # Outputs:
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_umap_<branch>_dims<dims>_res<resolution>.(png|pdf)
+#   FIGURE_DIR/mg_selected/mg_selected_condition_umap_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   FIGURE_DIR/mg_selected/mg_selected_feature_umap_<layer>_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   TABLE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.tsv
@@ -31,6 +32,31 @@ suppressPackageStartupMessages({
 })
 palette_dotplot_pair <- get(
   "palette_dotplot_pair",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+CONDITION_COL <- get(
+  "CONDITION_COL",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+CTRL_LABEL <- get(
+  "CTRL_LABEL",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+ESTIM_LABEL <- get(
+  "ESTIM_LABEL",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+CTRL_DISPLAY_LABEL <- get(
+  "CTRL_DISPLAY_LABEL",
+  envir = asNamespace("ESPI"),
+  inherits = FALSE
+)
+ESTIM_DISPLAY_LABEL <- get(
+  "ESTIM_DISPLAY_LABEL",
   envir = asNamespace("ESPI"),
   inherits = FALSE
 )
@@ -383,6 +409,29 @@ if (anyNA(sobj@meta.data[[cluster_column]])) {
     call. = FALSE
   )
 }
+if (!CONDITION_COL %in% colnames(sobj@meta.data)) {
+  stop("Missing condition metadata column: ", CONDITION_COL, call. = FALSE)
+}
+condition_values <- as.character(sobj@meta.data[[CONDITION_COL]])
+if (anyNA(condition_values) || any(!nzchar(condition_values))) {
+  stop(
+    "Condition metadata column contains missing or empty values: ",
+    CONDITION_COL,
+    call. = FALSE
+  )
+}
+expected_condition_values <- c(CTRL_LABEL, ESTIM_LABEL)
+unexpected_condition_values <- setdiff(
+  unique(condition_values),
+  expected_condition_values
+)
+if (length(unexpected_condition_values) > 0L) {
+  stop(
+    "Condition metadata column contains unexpected value(s): ",
+    paste(unexpected_condition_values, collapse = ", "),
+    call. = FALSE
+  )
+}
 
 assay <- SeuratObject::DefaultAssay(sobj)
 available_layers <- SeuratObject::Layers(sobj[[assay]])
@@ -415,7 +464,8 @@ cluster_plot <- Seurat::DimPlot(
   reduction = reduction,
   group.by = cluster_column,
   label = TRUE,
-  pt.size = 0.25
+  pt.size = 0.25,
+  stroke.size = 0
 ) +
   ggplot2::ggtitle(sprintf(
     "MG-selected PFlog; %d PCs; res %s",
@@ -423,6 +473,47 @@ cluster_plot <- Seurat::DimPlot(
     resolution
   )) +
   ggplot2::labs(x = "UMAP 1", y = "UMAP 2")
+condition_colors <- stats::setNames(
+  palette_dotplot_pair,
+  expected_condition_values
+)
+condition_labels <- stats::setNames(
+  c(CTRL_DISPLAY_LABEL, ESTIM_DISPLAY_LABEL),
+  expected_condition_values
+)
+condition_filter_cc <- grepl("filter_cc", branch_tag, fixed = TRUE) &&
+  !grepl("no_filter_cc", branch_tag, fixed = TRUE)
+condition_legend_position <- if (condition_filter_cc) {
+  c(0.98, 0.02)
+} else {
+  c(0.98, 0.98)
+}
+condition_legend_justification <- if (condition_filter_cc) {
+  c(1, 0)
+} else {
+  c(1, 1)
+}
+condition_plot <- Seurat::DimPlot(
+  sobj,
+  reduction = reduction,
+  group.by = CONDITION_COL,
+  label = FALSE,
+  pt.size = 0.25,
+  stroke.size = 0
+) +
+  ggplot2::scale_color_manual(
+    values = condition_colors,
+    breaks = expected_condition_values,
+    labels = condition_labels,
+    drop = FALSE
+  ) +
+  ggplot2::labs(x = "UMAP 1", y = "UMAP 2", color = "Condition") +
+  ggplot2::theme(
+    legend.position = condition_legend_position,
+    legend.justification = condition_legend_justification,
+    legend.background = ggplot2::element_rect(fill = "white", color = NA)
+  )
+
 
 abundance_table <- compute_cluster_abundance(
   sobj = sobj,
@@ -471,6 +562,12 @@ cluster_out_tag <- sprintf(
   dims,
   resolution_tag
 )
+condition_out_tag <- sprintf(
+  "mg_selected_condition_umap_%s_dims%d_res%s",
+  branch_tag,
+  dims,
+  resolution_tag
+)
 feature_out_tag <- sprintf(
   "mg_selected_feature_umap_%s_%s_dims%d_res%s",
   filename_tag(expression_layer),
@@ -504,6 +601,8 @@ sample_props_out_tag <- sprintf(
 )
 cluster_png_path <- file.path(out_dir, sprintf("%s.png", cluster_out_tag))
 cluster_pdf_path <- file.path(out_dir, sprintf("%s.pdf", cluster_out_tag))
+condition_png_path <- file.path(out_dir, sprintf("%s.png", condition_out_tag))
+condition_pdf_path <- file.path(out_dir, sprintf("%s.pdf", condition_out_tag))
 feature_png_path <- file.path(out_dir, sprintf("%s.png", feature_out_tag))
 feature_pdf_path <- file.path(out_dir, sprintf("%s.pdf", feature_out_tag))
 abundance_png_path <- file.path(out_dir, sprintf("%s.png", abundance_out_tag))
@@ -530,6 +629,20 @@ ggplot2::ggsave(
 ggplot2::ggsave(
   cluster_pdf_path,
   cluster_plot,
+  width = 5.5,
+  height = 5.0,
+  bg = "white"
+)
+ggplot2::ggsave(
+  condition_png_path,
+  condition_plot,
+  width = 5.5,
+  height = 5.0,
+  bg = "white"
+)
+ggplot2::ggsave(
+  condition_pdf_path,
+  condition_plot,
   width = 5.5,
   height = 5.0,
   bg = "white"
@@ -602,12 +715,15 @@ utils::write.table(
 )
 
 cluster_notebook_path <- link_notebook_png(cluster_png_path)
+condition_notebook_path <- link_notebook_png(condition_png_path)
 feature_notebook_path <- link_notebook_png(feature_png_path)
 abundance_notebook_path <- link_notebook_png(abundance_png_path)
 proportion_notebook_path <- link_notebook_png(proportion_png_path)
 
 message("Wrote mg-selected cluster UMAP PNG: ", cluster_png_path)
 message("Wrote mg-selected cluster UMAP PDF: ", cluster_pdf_path)
+message("Wrote mg-selected condition UMAP PNG: ", condition_png_path)
+message("Wrote mg-selected condition UMAP PDF: ", condition_pdf_path)
 message("Wrote mg-selected feature UMAP PNG: ", feature_png_path)
 message("Wrote mg-selected feature UMAP PDF: ", feature_pdf_path)
 message("Wrote mg-selected cluster abundance TSV: ", abundance_tsv_path)
@@ -624,6 +740,7 @@ message(
 message("Wrote mg-selected cluster proportion PNG: ", proportion_png_path)
 message("Wrote mg-selected cluster proportion PDF: ", proportion_pdf_path)
 message("Linked notebook figure: ", cluster_notebook_path)
+message("Linked notebook figure: ", condition_notebook_path)
 message("Linked notebook figure: ", feature_notebook_path)
 message("Linked notebook figure: ", abundance_notebook_path)
 message("Linked notebook figure: ", proportion_notebook_path)

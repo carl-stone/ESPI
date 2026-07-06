@@ -385,3 +385,35 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: If more plots need marker-list membership checks, add a small helper that explicitly distinguishes direct `cell_type_marker_genes` membership from marker-overlap tables that include standalone genes.
+
+### [2026-07-06] Wide condition legends fit better inside UMAP panels
+
+**Tags**: plotting, notebook, umap, mg-selected, condition
+
+**Category**: Plotting presentation
+
+**What happened**: The first condition-colored MG-selected UMAP used the default outside legend, and visual inspection showed the rendered title/canvas was clipped on the left. The condition legend also occupied a large amount of horizontal space because the condition labels are much wider than cluster-number legend entries.
+
+**Why it matters**: Condition UMAPs should show the same cell geometry clearly while keeping the legend close to the color encoding. Wide external legends can waste notebook space, and rendered figures need visual checks because plot layout issues may not appear as R errors or warnings.
+
+**Resolution**: For condition UMAPs, keep `Seurat::DimPlot()` but move the legend inside empty plot space; use the top right for the cell-cycle-retained branch and the bottom right for the cell-cycle-filtered branch.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: If more UMAP overlays with long labels are added, consider a small branch-aware legend-placement helper instead of repeating `theme(legend.position = ...)` logic.
+
+### [2026-07-06] DimPlot point stroke changes apparent UMAP point size
+
+**Tags**: plotting, umap, seurat, mg-selected
+
+**Category**: Plotting presentation
+
+**What happened**: MG-selected condition UMAPs drawn with `Seurat::DimPlot()` looked heavier than explicit ggplot UMAPs even when the nominal point size matched.
+
+**Why it matters**: `DimPlot()` defaults to a circle shape with a stroke, while explicit ggplot UMAP layers commonly use shape 19, a filled circle without stroke. The stroke increases the apparent point size and can make dense UMAPs look overplotted.
+
+**Resolution**: When matching apparent UMAP point size between `DimPlot()` and explicit ggplot layers, set the `DimPlot()` point stroke to `0` in addition to matching `pt.size`.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Keep stroke handling explicit in future Seurat UMAP plotting helpers that need to match custom ggplot UMAP layers.

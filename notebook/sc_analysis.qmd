@@ -133,7 +133,7 @@ The best panels by those vibe statistics are PFlog CC-filtered 30 PCs or 50 PCs 
 
 **Choice 2**: Based off the clustree and UMAP resolution sweeps, it looks like the best combination of normalization, number of PCs, and resolution is PFlog normalization, 50 PCs, and resolution 0.3. I'll use this for most downstream analyses, using the same settings for the cell-cycle filtered and non-filtered HVGs. We can use a higher resolution like 0.8 for subclustering later if we want.
 
-## Filtering out contaminant clusters
+### Filtering out contaminant clusters
 
 Here's what the selected dataset and processing parameters looks like. This is the full dataset, nothing filtered yet. We could use the 0.8 resolution clusters and then you can manually combine clusters if you want.
 
@@ -145,7 +145,7 @@ Next, I scored the expression of the cell type marker genes from the original ma
 
 Cluster 4 is clearly microglia and has high p27 expression. Cluster 9 is high for photoreceptor genes, and also pretty high for p27. Cluster 10 is also high for p27 and is a tiny periphery cluster so that's fine to filter. So, I filtered out clusters 4, 9, and 10, then re-reran PCA and clustering on the remaining cells.
 
-## Exploratory data analysis
+### MG-selected clustering
 
 I reselected HVGs on `mg-selected`, reran PFlog PCA, and swept 20, 30, and 50
 PCs with Leiden resolutions 0.3, 0.5, and 0.8, with and without cell-cycle HVG
@@ -156,6 +156,8 @@ PFlog, 30-PC, resolution-0.3 clustering for downstream
 figures and differential analysis.
 
 ![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization, cell-cycle HVGs retained, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-umap}
+
+![MG-selected UMAP colored by condition for PFlog normalization, cell-cycle HVGs retained, 30 PCs, resolution 0.3.](figures/mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-condition-umap}
 
 ### Cluster marker genes
 
@@ -172,64 +174,94 @@ Top results:
 
 Note: don't talk about markers like they're differentially expressed genes. The best statistical way to test differential expression is pseudobulk DESeq2 with ~ mouse + condition. Anything else is anecdotal evidence so don't overinterpret it.
 
-## Curated markers and treatment-dependent results
+### Curated markers and treatment-dependent results
 
-### Cluster enrichment in E-Stim
+#### Cluster enrichment in E-Stim
 
-I did a Fisher's exact test to see if any clusters are enriched in the proportion of cells that are E-Stim versus just p27CKO. This is more of a descriptive test than a formal hypothesis test, because the statistical unit should be a single biological sample, while this introduces pseudoreplication by counting cells. But, it's still a fine thing to show, just don't overinterpret it.
+The cluster-abundance summary is descriptive because cells, not Mouse ×
+Condition samples, are counted in the Fisher tests.
 
 ![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in p27CKO + E-Stim versus p27CKO, ordered left-to-right from highest E-Stim enrichment to lowest; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
 
-Unfortunately, since we have 2 paired samples and 2 unpaired samples, we're kinda limited in good statistical tests here, so the E-Stim enrichment claim might need to be more of a "these data are consistent with" rather than a strong statistical claim.
-
-Here's a plot of the cluster proportions by mouse x condition. I tried doing a permutation test but with this many n's it's impossible to get a p-value lower than 0.25.
+With two paired samples and two singleton samples, condition-level abundance
+claims should be framed cautiously as data-consistent patterns rather than
+strong statistical conclusions. The cluster-proportion plot shows the Mouse ×
+Condition sample structure directly.
 
 ![MG-selected cluster proportion by Mouse × Condition sample. Points are mice; paired mice (10, 3) are connected across conditions; singleton mice (30 E-Stim, 33 control) are shown separately.](figures/mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-cluster-proportion-by-mouse}
 
-### Curated marker genes
+#### Curated marker genes
 
-This is the same genes as are in the original manuscript. I put a tree on top because I like it, but I can take it off and adjust the separation if you want. Colors are row z-scores across cells, clipped to $\pm 2$.
+The marker heatmap below shows the same `mg-selected` clustering
+(`cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3`). Columns are cells split
+by Leiden cluster, with cluster blocks hierarchically ordered by their
+marker-expression profiles. Rows are marker genes grouped by their expected
+cell-type labels. Colors show each gene's row z-score across cells, clipped to
+$\pm 2$.
 
 ![Per-cell marker-gene heatmap for the MG-selected PFlog clustering. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims30_res0.3.png){#fig-mg-selected-cell-type-marker-heatmap}
 
-Here's the same UMAP plots from the paper:
+The feature UMAP grid uses the marker feature list in `data/umap_feature_list.rda`
+and the same pink high-expression endpoint as the marker heatmap.
 
 ![MG-selected 3 × 3 PFlog feature UMAP grid for the no-cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims30_res0.3.png){#fig-mg-selected-feature-umap-grid}
 
 As a complementary check, I also reviewed the matching PFlog,
-cell-cycle-filtered 30-PC, resolution-0.3 branch. First, the UMAP shows the
-Leiden cluster IDs for that branch. You can see it's virtually identical to the dataset with the cell-cycle genes in there, which is good because it shows our data are stable.
+cell-cycle-filtered 30-PC, resolution-0.3 branch. The UMAPs show the Leiden
+cluster IDs and condition overlay for that branch.
 
 ![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization with cell-cycle HVGs filtered before PCA, 30 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims30_res0.3.png){#fig-mg-selected-filter-cc-cluster-umap}
 
-Note that the heatmap with our curated gene set includes genes that aren't HVGs, so I didn't plot a heatmap with just HVGs with or without cell-cycle genes filtered.
+![MG-selected UMAP colored by condition for PFlog normalization with cell-cycle HVGs filtered before PCA, 30 PCs, resolution 0.3.](figures/mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims30_res0.3.png){#fig-mg-selected-filter-cc-condition-umap}
 
-Here's the same UMAP grid for the cell-cycle-filtered data.
+The cell-cycle-filtered branch uses the same curated marker heatmap and feature
+UMAP panels as the no-cell-cycle-filtered branch.
+
+![Per-cell marker-gene heatmap for the MG-selected PFlog clustering with cell-cycle HVGs filtered before PCA. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims30_res0.3.png){#fig-mg-selected-filter-cc-cell-type-marker-heatmap}
 
 ![MG-selected 3 × 3 PFlog feature UMAP grid for the cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims30_res0.3.png){#fig-mg-selected-filter-cc-feature-umap-grid}
 
 
 ## Differential expression
 
-Finally, for differential expression, since our experimental design is kinda janky with the two paired and two unpaired samples, I ran everything both ways: either all samples by condition (expression ~ condition), or just the paired mice (expression ~ mouse + condition). The ideal statistical test would be some combination of both of these and way more complicated than anything DESeq2 can do, so I won't go too crazy here. You should just report both of these.
+I tested condition-level changes in the `mg-selected` branch with Mouse ×
+Condition pseudobulk samples as the statistical unit. The primary DESeq2 design
+used `~ condition` across all six Mouse × Condition samples. The paired
+`~ mouse + condition` design used only mice 10 and 3, so I treat it as a
+sensitivity analysis rather than the primary result.
 
-I also did differential detection analysis, which is complementary to DE analysis because it tests for changes in the fraction of cells with non-zero expression per gene, which makes sense for more of these binary expression markers we're interested in.
+Primary DESeq2 tested 24,514 genes and found 453 FDR-significant genes for
+E-Stim versus `p27CKO`. Seven curated marker-list genes were significant:
+`Glul` (Müller glia), `Ccn1` (activated Müller glia), `Hes6` (neurogenic
+progenitor), `Mcm2`, `Mcm6`, and `Pcna` (proliferative), and `Grm6` (rod
+bipolar). `Glul`, `Ccn1`, `Hes6`, and `Grm6` increased with E-Stim, while the
+proliferative markers decreased. The strongest design-robust curated marker
+signals are concordant in the primary and paired-sensitivity analyses:
+increased `Glul` and `Ccn1` and decreased `Mcm2` and `Mcm6`. `Hes6`, `Pcna`,
+and `Grm6` are primary-model hits but do not remain FDR-significant in the
+paired sensitivity. `Serpina3n` is significant only in the paired sensitivity,
+so I treat it as paired-subset support for activated Müller glia rather than a
+primary all-sample marker hit.
 
-On all samples, unpaired, there are 453 DEGs, including 7 of the genes that were on your heatmap:
+The differential-detection (DD) analysis tests changes in the fraction of cells
+with non-zero expression per gene, using the pseudobulk `edgeR_NB_optim`
+workflow through `muscat::pbDS(method = "DD")`. Primary DD tested 36,468 genes
+and found no FDR-significant genes or marker-list hits, so the primary evidence
+does not support condition-level changes in detection for curated marker genes.
+The paired sensitivity DD tested 34,880 genes and found 40 FDR-significant
+genes, with no marker-list hits. Because this result uses only mice 10 and 3 and
+is not supported by primary DD, I treat it as a within-paired-mice sensitivity
+signal, not a general all-sample DD conclusion.
 
-* Glul, Ccn1, Hes6, and Grm6 increased with E-Stim.
-* Mcm2, Mcm6, and Pcna decreased with E-Stim.
+The DE/DD scatterplot compares condition effects for genes tested in both the DE
+and DD analyses for each design, because the two workflows test different gene
+universes. Points are genes, the x-axis shows the DE effect size, the y-axis
+shows the DD effect size, color shows the FDR significance category (neither, DE
+only, DD only, or both), and some points carry gene-name text labels.
 
-With only the paired samples,
+![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; x shows the DE effect size, y shows the DD effect size, color shows the FDR significance category (neither, DE only, DD only, or both), and some points carry gene-name text labels.](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
 
-* Glul, Ccn1, and Serpina3n increased with E-Stim.
-* Mcm2 and Mcm6 decreased with E-Stim.
-* Hes6, Pcna, and Grm6 ns.
-
-For differential detection, there were no significant genes in the all-sample test but 40 significant genes in the paired-sample test, but none are in the marker gene set.
-
-Here's the DE and DD effect sizes plotted against each other. Labeled genes are ones in the curated marker set.
-
-![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; x shows the DE effect size, y shows the DD effect size, color shows the FDR significance category (neither, DE only, DD only, or both).](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
-
-We can just make this a boring volcano plot with the DEGs if you want, since the DD is interesting but may not be necessary to show.
+As follow-up summaries of this selected branch, upregulated DEGs are enriched
+for stress/growth and apoptotic-signaling terms, while downregulated DEGs and
+preranked GSEA are dominated by cell-cycle, chromosome-segregation, and
+DNA-replication terms.

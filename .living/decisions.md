@@ -458,3 +458,31 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The figure is a marker-context plot, not a top-hit labeling plot. Intersecting curated markers with the existing significance filter preserves the user's requested marker focus without labeling nonsignificant genes.
 
 **Consequences**: `scripts/run-mg-selected-de.R` now derives `curated_marker` directly from `cell_type_marker_genes`, and the rendered scatter labels only `Ccn1`, `Glul`, `Grm6`, `Hes6`, `Mcm2`, `Mcm6`, `Pcna`, and `Serpina3n` for the current outputs.
+
+### [2026-07-06] Show condition-colored MG-selected UMAPs beside cluster UMAPs
+
+**Tags**: mg-selected, plotting, notebook, umap, condition
+
+**Context**: The notebook needed condition-colored UMAPs next to the existing MG-selected cluster UMAPs for both the cell-cycle-HVG-retained and cell-cycle-HVG-filtered PFlog branches.
+
+**Decision**: Add `mg_selected_condition_umap_*` PNG/PDF outputs to `scripts/plot-mg-selected-figures.R`, color cells by `Condition`, use the shared `palette_dotplot_pair` colors with display labels, and insert each condition UMAP immediately after its matching cluster UMAP in `notebook/sc_analysis.qmd`.
+
+**Alternatives considered**: Reusing cluster UMAP legend placement would put a wide condition legend outside the panel and waste space. Making a combined two-panel figure would be compact but would move away from the user's requested exact notebook placement after each existing figure.
+
+**Rationale**: Adjacent cluster and condition UMAPs make it easy to see whether condition structure aligns with the chosen clustering without changing the existing figure order. In-panel legends use empty space in each branch-specific UMAP: top right for the cell-cycle-retained branch and bottom right for the cell-cycle-filtered branch.
+
+**Consequences**: Running `scripts/plot-mg-selected-figures.R` now regenerates and links an additional condition UMAP for whichever MG-selected branch is requested, and `notebook/sc_analysis.html` must be rerendered after these figure outputs change.
+
+### [2026-07-06] Track Ed DEG and enrichment handoff as a TODO
+
+**Tags**: todo, mg-selected, differential-expression, enrichment, collaboration
+
+**Context**: The user asked to capture a future work item for sending Ed a compact set of current MG-selected DEG and GSEA/GO result tables.
+
+**Decision**: Add an open medium-priority analysis TODO with explicit acceptance criteria and source output locations instead of generating the bundle in the same turn.
+
+**Alternatives considered**: Creating the CSV bundle immediately would have produced new analysis artifacts without an explicit build request. Leaving the request only in chat would make the handoff easy to lose.
+
+**Rationale**: The TODO registry is the project-visible place for actionable future work. Recording source DEG and enrichment directories plus acceptance criteria makes the later bundle task reproducible and easy to scope.
+
+**Consequences**: Future work should convert the selected MG-selected TSV outputs to clearly named CSVs in a small sendable directory or archive, then update the TODO status when complete.
