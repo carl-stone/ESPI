@@ -444,3 +444,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Within-sample label shuffling preserves each Mouse × Condition sample's p27 expression distribution and cluster-size composition while asking whether a cluster has more or less p27 expression than expected under sample-aware relabeling. The helper/script split keeps statistical code unit-testable without turning one-off figure layout into package API.
 
 **Consequences**: The notebook now has two per-cluster module/p27 heatmaps with p27 strip scales fitted per figure. Future shared-scale comparisons would need a coupled two-object script or an explicit shared z-limit option.
+
+### [2026-07-06] Label DE/DD scatter only with significant curated markers
+
+**Tags**: differential-expression, differential-detection, mg-selected, plotting, marker-genes
+
+**Context**: The MG-selected DE/DD effect-size scatter had been changed to use `ggrepel::geom_text_repel()` for every gene significant in one or both DE/DD tests. That rendered hundreds of eligible labels and the visible labels were not from `cell_type_marker_genes`, while the notebook prose now frames the labels as curated marker genes.
+
+**Decision**: Restrict DE/DD scatter labels to the intersection of genes directly listed in `cell_type_marker_genes` and genes with FDR < 0.05 in DE, DD, or both. Keep all tested genes as points and keep FDR category as point color.
+
+**Alternatives considered**: Labeling every significant gene preserves a broad hit overview but hides the curated marker narrative. Labeling every curated marker would add nonsignificant genes back to the plot. Reusing `make_marker_table()` would also include standalone `Cdkn1b`, which is useful for overlap reports but is not part of the curated cell-type marker list.
+
+**Rationale**: The figure is a marker-context plot, not a top-hit labeling plot. Intersecting curated markers with the existing significance filter preserves the user's requested marker focus without labeling nonsignificant genes.
+
+**Consequences**: `scripts/run-mg-selected-de.R` now derives `curated_marker` directly from `cell_type_marker_genes`, and the rendered scatter labels only `Ccn1`, `Glul`, `Grm6`, `Hes6`, `Mcm2`, `Mcm6`, `Pcna`, and `Serpina3n` for the current outputs.

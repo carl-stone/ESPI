@@ -369,3 +369,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: ambient-awareness
 
 **structural_mitigation_candidate**: Extend the provenance guard to reject stop-hook summaries whose changed-file list is not a subset of the current Git-visible working tree plus expected local Mycelium files.
+
+### [2026-07-06] Use direct marker vectors for curated-only plot filters
+
+**Tags**: marker-genes, plotting, differential-expression, differential-detection, mg-selected
+
+**Category**: Plotting robustness
+
+**What happened**: The DE/DD scatter needed labels limited to curated cell-type marker genes that were significant in DE or DD. `make_marker_table()` looked tempting because it wraps `cell_type_marker_genes`, but it also adds standalone `Cdkn1b` for marker-overlap reports.
+
+**Why it matters**: Plot filters that claim to use the curated cell-type marker list should not silently inherit report-specific standalone genes or other marker-table decorations.
+
+**Resolution**: For curated-only label filters, derive the set with `unique(unlist(cell_type_marker_genes, use.names = FALSE))`, then intersect with the plot-specific significance rule.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: If more plots need marker-list membership checks, add a small helper that explicitly distinguishes direct `cell_type_marker_genes` membership from marker-overlap tables that include standalone genes.

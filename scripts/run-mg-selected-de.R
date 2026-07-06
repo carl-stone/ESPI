@@ -449,8 +449,8 @@ build_de_dd_effect_data <- function(de_table, detection_table, design_label) {
     drop = FALSE
   ]
 
-  marker_table <- make_marker_table(joined$gene)
-  joined$curated_marker <- joined$gene %in% marker_table$gene
+  marker_genes <- unique(unlist(cell_type_marker_genes, use.names = FALSE))
+  joined$curated_marker <- joined$gene %in% marker_genes
 
   de_significant <- !is.na(joined$de_padj) & joined$de_padj < 0.05
   dd_significant <- !is.na(joined$dd_padj) & joined$dd_padj < 0.05
@@ -487,7 +487,11 @@ plot_de_dd_effect_scatter <- function(plot_data) {
     ,
     drop = FALSE
   ]
-  label_data <- plot_data[plot_data$fdr_category != "neither", , drop = FALSE]
+  label_data <- plot_data[
+    plot_data$curated_marker & plot_data$fdr_category != "neither",
+    ,
+    drop = FALSE
+  ]
 
   plot <- ggplot2::ggplot(
     plot_data,
