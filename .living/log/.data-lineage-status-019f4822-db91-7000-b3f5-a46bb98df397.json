@@ -2,8 +2,8 @@
   "session_id": "019f4822-db91-7000-b3f5-a46bb98df397",
   "exit_code": 0,
   "wall_seconds": 0,
-  "events_file_size": 11437,
+  "events_file_size": 35584,
   "output_path": "/Users/carlstone/ESPI/.living/log/data-lineage/019f4822-db91-7000-b3f5-a46bb98df397.json",
-  "log_tail": "extract_data_lineage: wrote /Users/carlstone/ESPI/.living/log/data-lineage/019f4822-db91-7000-b3f5-a46bb98df397.json (1 actions, 1 inputs, 3 outputs, 0 warnings)\n",
-  "dispatched_at": "2026-07-09T21:29:17.826822Z"
+  "log_tail": "extract_data_lineage: wrote /Users/carlstone/ESPI/.living/log/data-lineage/019f4822-db91-7000-b3f5-a46bb98df397.json (3 actions, 1 inputs, 3 outputs, 0 warnings)\n",
+  "dispatched_at": "2026-07-09T22:01:56.597452Z"
 }
