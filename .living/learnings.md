@@ -433,3 +433,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: If this recurs, add a repository check that flags case-colliding paths before release or commit.
+
+### [2026-07-09] Treat load_all as normal package loading
+
+**Tags**: r, documentation, just, workflow
+
+**Category**: Documentation terminology
+
+**What happened**: README and `justfile` wording described `devtools::load_all()` / `just load` as a package-load smoke test.
+
+**Why it matters**: Loading the package is a legitimate development workflow step in ESPI, not only a validation check, so "smoke test" underdescribes the command and can mislead future docs.
+
+**Resolution**: Describe `just load` as loading the package after setup or dependency changes, and reserve smoke-test language for actual validation scenarios.
+
+**mitigation_type**: documentation
+
+**structural_mitigation_candidate**: Keep command descriptions action-oriented in the `justfile` comments and generated docs.

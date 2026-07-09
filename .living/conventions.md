@@ -13,6 +13,7 @@ Project-specific rules here override generic Mycelium convention packs.
 - Use `<-` assignment and the native base pipe `|>`.
 - Prefer explicit namespaces over conflict-resolution side effects.
 - Use `just --list` to discover project commands. Prefer `just` recipes for routine package, pipeline, notebook, formatting, and tripwire steps; use raw `Rscript` only when a recipe does not fit.
+- Describe `devtools::load_all()` / `just load` as loading the package, not as a smoke test; loading is a normal development workflow step.
 - Run `devtools::document()` after editing files in `R/`.
 - Never edit generated `.Rd` files directly.
 - Edit `README.Rmd`; regenerate `README.md` with `devtools::build_readme()`.
