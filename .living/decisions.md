@@ -528,3 +528,47 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The configured data root is the portable source of location, and the metadata table is the authoritative mapping of sample identity and fields.
 
 **Consequences**: `scripts/process-counts.R` currently has no artifact output; saving or preprocessing begins only with a defined next pipeline stage.
+
+### [2026-07-09] Persist the raw Seurat object at the user-chosen input path
+
+**Tags**: scripts, data-lineage, reproducibility, provenance
+
+**Context**: The raw-count loader now produces a verified Seurat object that preprocessing must consume.
+
+**Decision**: Persist `sobj_raw.rds` at `DATA_ROOT_DIR/data/input/sobj_raw.rds`; invoke preprocessing with that path through explicit `--input`.
+
+**Alternatives considered**: Changing preprocessing's default would silently redefine its existing input contract.
+
+**Rationale**: The user selected this durable raw-object location, while preprocessing's default points elsewhere.
+
+**Consequences**: This is an explicit handoff, not a new preprocessing default.
+
+### [2026-07-09] Limit QC filtering to low-complexity count thresholds
+**Superseded 2026-07-09 by "Use complete mixed-label mitochondrial metric with a data-specific >20% cutoff":** The prior `^mt-` metric counted only `mt-Rnr1` and `mt-Rnr2`; it was not the complete mitochondrial set.
+
+
+**Tags**: qc-filtering, scripts, data-lineage, validation, provenance
+
+**Context**: The raw Seurat object must pass through a documented cell-QC stage before preprocessing, but the custom reference represents mitochondrial genes only as `mt-Rnr1` and `mt-Rnr2`.
+
+**Decision**: Retain cells only when `nFeature_RNA >= 50` and `nCount_RNA >= 100`. Keep `percent.mt` and `percent.ribo` as diagnostic metadata; apply no mitochondrial cutoff. Apply no sample-, empty-droplet-, ambient-RNA-, or droplet-doublet gate. Treat PIPseeker upstream matrix selection as separate from this cell-QC stage.
+
+**Alternatives considered**: A mitochondrial threshold or additional sample/droplet/doublet gates would add filtering criteria that the available reference or project inputs do not support.
+
+**Rationale**: The two count thresholds remove low-complexity observations while avoiding an unsupported mitochondrial criterion from an incomplete mitochondrial reference.
+
+**Consequences**: The verified output is `INPUT_OBJECT_DIR/sobj_qc_filtered.rds`, retaining 22,751 of 983,903 cells across all six samples. Preprocessing must receive this path explicitly with `--input`; this verification creates no scientific result.
+
+### [2026-07-09] Use complete mixed-label mitochondrial metric with a data-specific >20% cutoff
+
+**Tags**: qc-filtering, mitochondrial, provenance, validation, data-lineage
+
+**Context**: The prior `^mt-` metric incorrectly treated its two matches, `mt-Rnr1` and `mt-Rnr2`, as the complete mitochondrial set. A feature audit found 37 mitochondrial rows in the raw object: those two rRNAs, 13 unprefixed uppercase protein-coding identifiers (`ND1`, `ND2`, `COX1`, `COX2`, `ATP8`, `ATP6`, `COX3`, `ND3`, `ND4L`, `ND4`, `ND5`, `ND6`, `CYTB`), and 22 `Trn*` identifiers. The earlier lossless `Read10X()` audit establishes the R import but not PIPseeker upstream cell calling; this feature audit shows no mitochondrial features were lost by the reference or import.
+
+**Decision**: Calculate `percent.mt` from all 37 observed mitochondrial features and retain cells with `nFeature_RNA >= 50`, `nCount_RNA >= 100`, and `percent.mt <= 20`. Keep `percent.ribo` diagnostic only. Apply no ribosomal, high-complexity, sample, empty-droplet, ambient-RNA, or doublet filter.
+
+**Alternatives considered**: Keeping the two-rRNA metric would preserve the earlier implementation but would understate mitochondrial content. Adding a ribosomal cutoff or further gates would add unsupported filtering criteria.
+
+**Rationale**: In the 22,751 complexity-passing cells, complete-mito P95/P97.5/P99 are 16.038/19.313/27.666%; the >20% tail removes 503 cells (2.211%). The cutoff is data-specific, not a scientific finding.
+
+**Consequences**: `sobj_qc_filtered.rds` retains 22,248 of 983,903 cells across S2/S3/S4/S5/S7/S8. An independent test reconstructed the exact saved cell IDs. The previous two-rRNA provenance statement remains historical but is erroneous and superseded.

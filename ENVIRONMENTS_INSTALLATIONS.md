@@ -30,20 +30,47 @@ just notebook
 
 ## Preprocessing Pipeline
 
-Run all preprocessing branches:
+First create the combined raw Seurat object from the six 10X directories and
+sample metadata:
 
 ```sh
-just preprocess
+Rscript scripts/process-counts.R
 ```
 
-Run one branch directly, with defaults matching the R script:
+This writes `data/input/sobj_raw.rds` beneath the Box data root
+(`DATA_ROOT_DIR/data/input/sobj_raw.rds`).
+
+Run QC filtering before preprocessing:
 
 ```sh
-just preprocess-one pflog false
+Rscript scripts/qc-filtering.R
 ```
 
-Pass an explicit input path to override the default Trailmaker input object:
-`just preprocess-one pflog false /path/to/object.rds`.
+The script writes QC figures to `FIGURE_DIR/qc/*.png`, QC tables to
+`TABLE_DIR/qc/*.tsv`, and `INPUT_OBJECT_DIR/sobj_qc_filtered.rds` under the
+Box data root. `percent.mt` uses all 37 observed mitochondrial features,
+whose labels are mixed (including `mt-Rnr1`, `mt-Rnr2`, and non-`mt-` labels);
+none were lost upstream or from the custom reference. It retains 22,248 of
+983,903 cells across S2, S3, S4, S5, S7, and S8 only when `nFeature_RNA >= 50`,
+`nCount_RNA >= 100`, and `percent.mt <= 20`. This is a data-specific cutoff,
+not a universal PipSeq rule: among the 22,751 cells meeting the complexity
+thresholds, complete-mitochondrial P95/P97.5/P99 were
+16.038/19.313/27.666%, and the >20% sparse extreme tail removed 503 cells
+(2.211%). `percent.ribo` is diagnostic only. This step applies no sample,
+droplet/empty-drop, ambient-RNA, doublet, or high-complexity filter;
+PIPseeker source-matrix selection and cell calling remain upstream.
+
+Preprocess the QC-filtered object with an explicit input path:
+
+```sh
+Rscript scripts/preprocess-sobj.R \
+  --input INPUT_OBJECT_DIR/sobj_qc_filtered.rds \
+  --normalization pflog
+```
+
+The equivalent `just` command is
+`just preprocess-one pflog false INPUT_OBJECT_DIR/sobj_qc_filtered.rds`.
+Repeat with the desired normalization and cell-cycle-HVG settings.
 
 ## Clustering Pipeline
 
@@ -87,7 +114,7 @@ Generate the per-cluster cell-type module and p27 enrichment heatmaps:
 ```sh
 just cluster-marker-heatmaps 50 0.3
 just summarize-mg-selected
-just cluster-marker-heatmaps 30 0.3
+just cluster-marker-heatmaps 30 0.3 /path/to/mg-selected-object.rds
 ```
 
 The script writes PNG/PDF heatmaps under `figures/annotation/`, writes module

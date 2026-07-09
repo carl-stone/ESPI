@@ -44,19 +44,48 @@ Load the package after setup or dependency changes:
 just load
 ```
 
-Run all preprocessing branches, or one branch with an explicit normalization and
-cell-cycle-HVG filter setting:
+Create the combined raw Seurat object from the six 10X directories and sample
+metadata:
 
 ```sh
-just preprocess
-just preprocess-one log1p false
-just preprocess-one log1p true
-just preprocess-one pflog false
-just preprocess-one pflog true
+Rscript scripts/process-counts.R
 ```
 
-Pass an explicit input path to override the default Trailmaker input object:
-`just preprocess-one pflog false /path/to/object.rds`.
+This saves `sobj_raw.rds` at `data/input/sobj_raw.rds` beneath the Box data
+root (`DATA_ROOT_DIR/data/input/sobj_raw.rds`).
+
+Run QC filtering before preprocessing:
+
+```sh
+Rscript scripts/qc-filtering.R
+```
+
+The script writes QC figures to `FIGURE_DIR/qc/*.png`, QC tables to
+`TABLE_DIR/qc/*.tsv`, and the filtered Seurat object to the Box path
+`INPUT_OBJECT_DIR/sobj_qc_filtered.rds`. `percent.mt` uses all 37 observed
+mitochondrial features, whose labels are mixed (including `mt-Rnr1`,
+`mt-Rnr2`, and non-`mt-` labels); none were lost upstream or from the custom
+reference. It retains 22,248 of 983,903 cells across S2, S3, S4, S5, S7, and
+S8 only when `nFeature_RNA >= 50`, `nCount_RNA >= 100`, and `percent.mt <= 20`.
+This is a data-specific cutoff, not a universal PipSeq rule: among the 22,751
+cells meeting the complexity thresholds, complete-mitochondrial P95/P97.5/P99
+were 16.038/19.313/27.666%, and the >20% sparse extreme tail removed 503
+cells (2.211%). `percent.ribo` is diagnostic only. This step applies no
+sample, droplet/empty-drop, ambient-RNA, doublet, or high-complexity filter,
+and does not replace upstream PIPseeker source-matrix selection or cell
+calling.
+
+Preprocess the QC-filtered object with an explicit input path:
+
+```sh
+Rscript scripts/preprocess-sobj.R \
+  --input INPUT_OBJECT_DIR/sobj_qc_filtered.rds \
+  --normalization pflog
+```
+
+The equivalent `just` command is
+`just preprocess-one pflog false INPUT_OBJECT_DIR/sobj_qc_filtered.rds`.
+Repeat with the desired normalization and cell-cycle-HVG settings.
 
 Preview clustering commands before running them, then cluster all preprocessed
 objects and summarize the clustering grid:
@@ -67,16 +96,7 @@ just cluster
 just summarize-clusters
 ```
 
-Generate marker-annotation outputs and MG-selected follow-up outputs:
-
-```sh
-just marker-heatmap
-just cluster-marker-heatmaps
-just summarize-mg-selected
-just mg-markers-no-merge
-just mg-figures
-just mg-de-overwrite
-```
+Use `just --list` to discover figure, marker, and MG-selected follow-up recipes.
 
 Rebuild generated documentation and render the embedded-resource notebook after
 source or figure changes:

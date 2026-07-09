@@ -465,3 +465,68 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: Keep raw-input path construction at the script parameter boundary rather than embedding machine paths in loading code.
+
+### [2026-07-09] Non-default raw-object handoffs require explicit preprocessing input
+
+**Tags**: scripts, workflow, data-lineage, provenance
+
+**Category**: Pipeline workflow
+
+**What happened**: The persisted raw Seurat object location differs from preprocessing's default input path.
+
+**Why it matters**: Omitting `--input` can make documentation or scripts invoke preprocessing on the wrong path.
+
+**Resolution**: Pass the persisted raw-object path explicitly with `--input` wherever this handoff is documented or invoked.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Keep non-default handoff paths visible at the command boundary.
+
+### [2026-07-09] Read10X integrity does not establish upstream PIPseeker cell calling
+
+**Tags**: qc-filtering, data-lineage, validation, pipseeker, provenance
+
+**Category**: Pipeline validation
+
+**What happened**: A named-vector `Read10X()` import reconciled losslessly, but the raw source matrices still contained a large low-count PIP/barcode population. No PIPseeker selected matrix or selection report was present under the mounted project data root.
+
+**Why it matters**: Lossless import verifies the R handoff, not whether PIPseeker already selected cells upstream.
+
+**Resolution**: Reconcile named-vector imports and validate PIPseeker's selected matrix or report before treating raw source matrices as upstream cell-called input.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Preserve the selected-matrix path and PIPseeker report with future raw-input provenance.
+
+### [2026-07-09] A `^mt-` match can be a partial mitochondrial metric
+
+**Tags**: qc-filtering, mitochondrial, provenance, validation, data-lineage
+
+**Category**: QC metric validation
+
+**What happened**: `^mt-` matched only `mt-Rnr1` and `mt-Rnr2`, while the raw object contained a complete 37-feature mitochondrial set with unprefixed uppercase protein-coding and `Trn*` identifiers. The prior two-rRNA metric was therefore erroneous, not evidence of missing mitochondrial features.
+
+**Why it matters**: Naming patterns cannot establish a QC feature set when a reference uses mixed labels. A lossless `Read10X()` audit verifies the R import but does not establish PIPseeker upstream cell calling.
+
+**Resolution**: Audit feature identifiers directly, calculate `percent.mt` from all 37 observed mitochondrial features, apply the data-specific <=20% cutoff, leave `percent.ribo` diagnostic only, and independently reconstruct saved cell IDs from the selector.
+
+**mitigation_type**: validation
+
+**structural_mitigation_candidate**: Record the explicit mitochondrial feature count and label classes beside every mitochondrial QC threshold.
+
+
+### [2026-07-09] Keep barcode-rank plots diagnostic
+
+**Tags**: qc-filtering, plotting, pipseeker, workflow, provenance
+
+**Category**: QC visualization workflow
+
+**What happened**: Per-sample PipSeq barcode-rank plots used UMI count and barcode rank to show complexity tails.
+
+**Why it matters**: These plots visualize QC structure but do not distinguish cells from empty droplets.
+
+**Resolution**: Keep barcode-rank plots diagnostic; do not use them for cell calling or filtering in place of PIPseeker selection or a droplet empty-drop method.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Preserve the diagnostic-versus-calling boundary whenever QC visualizations are added.

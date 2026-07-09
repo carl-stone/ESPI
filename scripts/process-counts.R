@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Load Megan's raw 10X counts and sample metadata into one in-memory Seurat object.
+# Read six 10X count directories and sample metadata into one combined Seurat object.
 #
 # Usage:
 #   Rscript scripts/process-counts.R
@@ -9,10 +9,10 @@
 #   None. Input paths derive from DATA_ROOT_DIR.
 #
 # Outputs:
-#   None. This stage validates and prints an in-memory Seurat object only.
+#   DATA_ROOT_DIR/data/input/sobj_raw.rds
 #
 # Next step:
-#   Save or preprocess the validated object in a later pipeline stage.
+#   Run scripts/preprocess-sobj.R with --input DATA_ROOT_DIR/data/input/sobj_raw.rds.
 
 suppressPackageStartupMessages({
   library(Seurat)
@@ -121,16 +121,22 @@ seurat_object <- Seurat::CreateSeuratObject(
 # ---- output ----
 
 message(
-  "Loaded ",
+  "Created a Seurat object with ",
   ncol(seurat_object),
   " cells and ",
   nrow(seurat_object),
   " Gene Expression features across ",
   nrow(metadata),
-  " samples into a Seurat object."
+  " samples."
 )
 
 saveRDS(
   seurat_object,
   file.path(DATA_ROOT_DIR, "data", "input", "sobj_raw.rds")
+)
+
+message(
+  "Saved raw Seurat object to ",
+  file.path(DATA_ROOT_DIR, "data", "input", "sobj_raw.rds"),
+  ". Next step: preprocess this file."
 )

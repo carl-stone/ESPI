@@ -4,6 +4,7 @@ Reusable ESPI methods currently live in the R package source. Keep implementatio
 
 | Entry | Location | Type | Status | Notes |
 |-------|----------|------|--------|-------|
+| QC filtering | `scripts/qc-filtering.R` | R analysis script | active | Retains cells with `nFeature_RNA >= 50`, `nCount_RNA >= 100`, and `percent.mt <= 20`; percent.ribo is diagnostic only. Writes QC artifacts and `INPUT_OBJECT_DIR/sobj_qc_filtered.rds`. |
 | PCA branch helpers | `R/dim-reduction.R` | R package code | active | Runs log1p and PFlog PCA using retained HVGs. |
 | Preprocessing diagnostic plots | `R/preprocess-plots.R` | R package code | active | Saves QC violin, HVG scatter, DimHeatmap, and elbow plots. |
 | Clustering diagnostic plots | `R/cluster-plots.R` | R package code | active | Saves UMAP overlays and clustree plots. |
