@@ -417,3 +417,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: Keep stroke handling explicit in future Seurat UMAP plotting helpers that need to match custom ggplot UMAP layers.
+
+### [2026-07-09] APFS case-insensitive paths can hide justfile casing mistakes
+
+**Tags**: tooling, just, macos, reproducibility
+
+**Category**: Tooling setup
+
+**What happened**: During `just` setup, `read Justfile` and `read justfile` resolved to the same underlying file on the default case-insensitive APFS filesystem, so treating them as duplicates risked deleting the only command file.
+
+**Why it matters**: Casing-only filename checks on macOS can report misleading paths, and cleanup decisions can remove the real file rather than a duplicate.
+
+**Resolution**: Keep a single lowercase `justfile`, confirm it with a path glob after changes, and avoid casing-only cleanup unless the filesystem behavior is known.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: If this recurs, add a repository check that flags case-colliding paths before release or commit.

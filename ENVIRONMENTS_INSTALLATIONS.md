@@ -3,46 +3,67 @@
 ## Primary Environment
 
 - **Project type**: Minimal R package for ESPI single-cell analysis.
-- **Package load**: `devtools::load_all()` from the repo root.
-- **Formatter**: Air (`air format <file>`).
-- **Notebook renderer**: Quarto (`quarto render notebook/sc_analysis.qmd`).
+- **Command runner**: `just` from the repo root; run `just --list` to
+  discover recipes.
+- **Package load**: `just load` (`devtools::load_all()`).
+- **Formatter**: `just format <paths>` for R files.
+- **Notebook renderer**: `just notebook`.
 - **External data root**: `/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data`.
 
 ## Setup From Scratch
 
-```r
-# From an R session with working directory at the repo root
-devtools::load_all()
-devtools::document()
-```
+Install the R package dependencies, Quarto, Air, and `just` (for example,
+`brew install just`). Then smoke-test the package load from the repo root:
 
 ```sh
-# Format changed R files
-air format R/<file>.R scripts/<script>.R
-
-# Render the notebook after figure source changes
-quarto render notebook/sc_analysis.qmd
+just load
 ```
+
+Common package and document tasks:
+
+```sh
+just document
+just readme
+just format R/<file>.R scripts/<script>.R
+just notebook
+```
+
+## Preprocessing Pipeline
+
+Run all preprocessing branches:
+
+```sh
+just preprocess
+```
+
+Run one branch directly, with defaults matching the R script:
+
+```sh
+just preprocess-one pflog false
+```
+
+Pass an explicit input path to override the default Trailmaker input object:
+`just preprocess-one pflog false /path/to/object.rds`.
 
 ## Clustering Pipeline
 
 Preview all current clustering commands without running clustering:
 
 ```sh
-Rscript scripts/cluster-all.R --dry-run --elbow-n 20
+just cluster-dry-run
 ```
 
 Run the all-branch clustering wrapper from the repo root:
 
 ```sh
-Rscript scripts/cluster-all.R --elbow-n 20
+just cluster
 ```
 
 Generate the supplemental cluster grid table, 12-panel clustree grid, and
 representative UMAP resolution sweep after clustered objects exist:
 
 ```sh
-Rscript scripts/summarize-cluster-grid.R
+just summarize-clusters
 ```
 
 The wrapper loads ESPI path constants in R; do not rely on a shell-exported
@@ -54,7 +75,7 @@ The wrapper loads ESPI path constants in R; do not rely on a shell-exported
 Generate the per-cell cell type marker heatmap from the repo root:
 
 ```sh
-Rscript scripts/big-heatmap-plot.R
+just marker-heatmap
 ```
 
 The script defaults to `cluster_pflog_filter_cc_dims50_res0.3` and the PFlog
@@ -64,10 +85,9 @@ in the Box data root, and symlinks the PNG into `notebook/figures/`.
 Generate the per-cluster cell-type module and p27 enrichment heatmaps:
 
 ```sh
-Rscript scripts/plot-cluster-marker-heatmaps.R --dims 50 --resolution 0.3
-MG_SELECTED_INPUT="$(Rscript -e 'devtools::load_all(".", quiet = TRUE); cat(file.path(ESPI::CURRENT_OBJECT_DIR, "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds"))')"
-Rscript scripts/plot-cluster-marker-heatmaps.R \
-  --input "$MG_SELECTED_INPUT" --dims 30 --resolution 0.3
+just cluster-marker-heatmaps 50 0.3
+just summarize-mg-selected
+just cluster-marker-heatmaps 30 0.3
 ```
 
 The script writes PNG/PDF heatmaps under `figures/annotation/`, writes module
@@ -80,7 +100,7 @@ into `notebook/figures/`.
 Run the lightweight scientific-boundary checks from the repo root:
 
 ```sh
-Rscript tools/run-tripwires.R
+just tripwires
 ```
 
 The runner uses `analysis_labels.yml` for label/contrast declarations and exits

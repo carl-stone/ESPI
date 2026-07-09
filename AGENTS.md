@@ -28,7 +28,7 @@ Follow these important style rules when writing R code:
 - Prefer solutions that use {tidyverse}
 - Always use `<-` for assignment
 - Always use the native base-R pipe `|>` for piped expressions
-- This package uses Air for code formatting; use `air format` in bash to format code.
+- Use `just --list` to discover project command recipes; prefer `just format` over raw `air format` for routine formatting.
 - This package uses `conflicted` for function name conflicts. Prefer explicit namespace calls (e.g., `dplyr::filter()`) over `conflicted` resolution.
 - Keep executable scripts in `scripts/` top-to-bottom and RStudio-step-friendly: purpose/usage docs, package loading, `# ---- parameters ----`, validation/work sections, and side effects at the end. Avoid wrapping simple scripts in `main()`.
 

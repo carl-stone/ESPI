@@ -29,22 +29,33 @@ You can install the development version of ESPI from [GitHub](https://github.com
 pak::pak("carl-stone/ESPI")
 ```
 
+## Command interface
+
+Use `just` from the repo root for common package, pipeline, notebook, and
+tripwire commands:
+
+```sh
+just --list
+```
+
 ## Preprocessing
 
 Run all preprocessing branches:
 
 ```sh
-Rscript scripts/preprocess-all.R
+just preprocess
 ```
 
 Or run one branch directly:
 
 ```sh
-Rscript scripts/preprocess-sobj.R --normalization log1p
-Rscript scripts/preprocess-sobj.R --normalization log1p --filter-cell-cycle
-Rscript scripts/preprocess-sobj.R --normalization pflog
-Rscript scripts/preprocess-sobj.R --normalization pflog --filter-cell-cycle
+just preprocess-one log1p false
+just preprocess-one log1p true
+just preprocess-one pflog false
+just preprocess-one pflog true
 ```
 
-Use `--input /path/to/object.rds` to override the default Trailmaker input object.
+Pass an explicit input path to override the default Trailmaker input object:
+`just preprocess-one pflog false /path/to/object.rds`. The underlying script
+still accepts its raw flags when needed.
 

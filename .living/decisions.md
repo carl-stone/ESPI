@@ -500,3 +500,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: This keeps the archive small while preserving the pieces Ed is most likely to review: significant gene-level results, marker-context tables, pathway hits, and full pathway context where rankings/mappings matter.
 
 **Consequences**: The bundle explicitly contains a zero-row primary differential-detection significant-gene CSV because no primary DD genes pass `padj < 0.05` in the current outputs; the manifest records that this is a genuine null result, not a conversion failure.
+
+### [2026-07-09] Use just as the ESPI command interface
+
+**Tags**: tooling, reproducibility, scripts, r-package
+
+**Context**: ESPI had many raw `Rscript`, `devtools`, Quarto, Air, and tripwire commands spread across docs and script headers. The user asked to install `just` and route scripts and pipeline build steps through `just` commands.
+
+**Decision**: Add a root lowercase `justfile` as the preferred command interface, with recipes for package loading/documentation, README rebuilds, formatting, preprocessing, clustering dry-runs/runs, marker heatmaps, MG-selected marker/figure/DE outputs, notebook rendering, and tripwires. Keep the recipes as direct wrappers over existing scripts rather than moving pipeline logic into `just`.
+
+**Alternatives considered**: Leaving raw command snippets in docs would preserve the status quo but keep the workflow harder to discover. Moving orchestration into new R helpers would add package surface area for a one-off analysis pipeline.
+
+**Rationale**: `just --list` gives a small discoverable interface while existing R scripts remain the implementation and source of scientific behavior.
+
+**Consequences**: Future routine command examples should prefer `just` recipes. New pipeline scripts should get a matching recipe when they become a repeated build step.
