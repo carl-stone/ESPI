@@ -4,7 +4,7 @@ set positional-arguments
 default:
     just --list
 
-# Smoke-load package code
+# Load package code
 load:
     Rscript -e 'devtools::load_all(".", quiet = TRUE)'
 
@@ -136,6 +136,10 @@ mg-markers input="" branch_tag="pflog_mg_selected_no_filter_cc" elbow_n="20" dim
     if [ "{{overwrite}}" = "true" ]; then args+=(--overwrite); fi
     Rscript scripts/find-markers-mg-selected.R "${args[@]}"
 
+# Run default mg-selected marker ranking without a cluster merge map
+mg-markers-no-merge:
+    just mg-markers "" "pflog_mg_selected_no_filter_cc" "20" "30" "0.3" "" "data" "counts" "5" "0.10" "0.25" "0" "3" "" "" "" "true" "false"
+
 # Plot mg-selected figures
 mg-figures input="" branch_tag="pflog_mg_selected_no_filter_cc" elbow_n="20" dims="30" resolution="0.3" layer="pflog" feature_list="":
     #!/usr/bin/env bash
@@ -158,6 +162,10 @@ mg-de input="" cluster_column="cluster_pflog_mg_selected_no_filter_cc_dims30_res
     if [ -n "{{enrichment_dir}}" ]; then args+=(--enrichment-dir "{{enrichment_dir}}"); fi
     if [ "{{overwrite}}" = "true" ]; then args+=(--overwrite); fi
     Rscript scripts/run-mg-selected-de.R "${args[@]}"
+
+# Re-run default mg-selected DE and replace existing outputs
+mg-de-overwrite:
+    just mg-de "" "cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3" "" "" "" "counts" "" "" "normal" "true"
 
 # Render the Quarto notebook
 notebook:

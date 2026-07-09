@@ -13,7 +13,7 @@
 ## Setup From Scratch
 
 Install the R package dependencies, Quarto, Air, and `just` (for example,
-`brew install just`). Then smoke-test the package load from the repo root:
+`brew install just`). Then load the package from the repo root:
 
 ```sh
 just load
