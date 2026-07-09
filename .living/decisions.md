@@ -514,3 +514,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: `just --list` gives a small discoverable interface while existing R scripts remain the implementation and source of scientific behavior.
 
 **Consequences**: Future routine command examples should prefer `just` recipes. New pipeline scripts should get a matching recipe when they become a repeated build step.
+
+### [2026-07-09] Derive raw-count inputs from `DATA_ROOT_DIR` and stop at an in-memory object
+
+**Tags**: scripts, single-cell, reproducibility, data-lineage
+
+**Context**: The new first pipeline stage loads six 10X count-matrix samples and requires stable sample metadata without creating a downstream artifact prematurely.
+
+**Decision**: Build the raw-input directory from `DATA_ROOT_DIR` plus `data/input/Raw Matrices`, use the metadata table as the sample manifest, and validate the combined Seurat object in memory without saving it.
+
+**Alternatives considered**: A hardcoded machine path, filesystem discovery without metadata, or an immediate RDS write would make the stage less portable, less explicit, or commit to an artifact before the next stage is defined.
+
+**Rationale**: The configured data root is the portable source of location, and the metadata table is the authoritative mapping of sample identity and fields.
+
+**Consequences**: `scripts/process-counts.R` currently has no artifact output; saving or preprocessing begins only with a defined next pipeline stage.

@@ -449,3 +449,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: documentation
 
 **structural_mitigation_candidate**: Keep command descriptions action-oriented in the `justfile` comments and generated docs.
+
+### [2026-07-09] Raw sample files may sit below the user-described input root
+
+**Tags**: scripts, data-lineage, portability, validation
+
+**Category**: Pipeline portability
+
+**What happened**: The actual 10X sample directories were one level below the user-described raw-input root.
+
+**Why it matters**: Hardcoded paths can silently target the wrong level of a configured data tree and make a script machine-specific.
+
+**Resolution**: Build configuration-root paths from `DATA_ROOT_DIR` and confirm the on-disk nesting before loading sample files.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Keep raw-input path construction at the script parameter boundary rather than embedding machine paths in loading code.
