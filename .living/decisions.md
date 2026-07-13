@@ -560,6 +560,7 @@ Append-only log of non-obvious decisions and their rationale.
 **Consequences**: The verified output is `INPUT_OBJECT_DIR/sobj_qc_filtered.rds`, retaining 22,751 of 983,903 cells across all six samples. Preprocessing must receive this path explicitly with `--input`; this verification creates no scientific result.
 
 ### [2026-07-09] Use complete mixed-label mitochondrial metric with a data-specific >20% cutoff
+**Superseded 2026-07-13 by "Use liberal floors before sample-specific MAD and doublet filtering":** The global thresholds remain the first gate, but the saved QC object now also requires the sample-specific MAD criteria and a scDblFinder singlet call.
 
 **Tags**: qc-filtering, mitochondrial, provenance, validation, data-lineage
 
@@ -594,6 +595,7 @@ Append-only log of non-obvious decisions and their rationale.
 **Consequences**: Documentation, recipes, and tripwires use numbered script paths. Retain `R/` helpers that carry substantial, reusable, testable scientific computation; inline the one-call input-source path selector in preprocessing.
 
 ### [2026-07-12] Use 20 PCs and Leiden resolution 0.3 for the counts-derived PFlog run
+**Run-specific results superseded 2026-07-13 by "Preserve the chosen PFlog parameters for the emptyDrops/log-MAD rebuild":** The 20-PC, resolution-0.3 parameter choice remains current, but the source/MG cluster counts and excluded cluster IDs below describe the prior QC object.
 
 **Tags**: clustering, pflog, mg-selected, reproducibility
 
@@ -614,3 +616,46 @@ Append-only log of non-obvious decisions and their rationale.
 **Decision**: In `scripts/01-process-counts.R`, normalize only the optional whitespace between `+` and `EStim` before creating the Seurat object.
 
 **Consequences**: Counts-derived objects use exactly `p27CKO` and `p27CKO +EStim`, matching `analysis_labels.yml` and the DE contrast.
+
+### [2026-07-13] Use liberal floors before sample-specific MAD and doublet filtering
+**Superseded 2026-07-13 by "Use emptyDrops calls and log-MAD QC flags in the rewritten QC stage":** Carl replaced this implementation intentionally. The current script does not run scDblFinder or apply the fixed liberal thresholds to `pass_qc`.
+
+**Tags**: qc-filtering, doublets, mitochondrial, data-lineage, reproducibility
+
+**Context**: The counts-derived QC stage needs a permissive global gate before robust sample-specific quality thresholds and doublet detection. Each `Sample` represents an independently processed input and therefore the physical scope in which a doublet can arise.
+
+**Decision**: First retain cells with `nFeature_RNA >= 50`, `nCount_RNA >= 100`, and `percent.mt <= 20`. Calculate lower three-MAD thresholds for counts and detected features and an upper three-MAD threshold for mitochondrial percentage within each sample, bounded by those global floors and ceiling. Run `scDblFinder` independently by `Sample` after the liberal gate. Save cells that pass all three effective MAD criteria and are classified as singlets. Keep `percent.ribo` diagnostic only; apply no sample, empty-drop, or ambient-RNA filter.
+
+**Alternatives considered**: Saving only the liberal-floor object would preserve every candidate cell but would not apply the requested stricter thresholds. Two-sided MAD limits for counts and features would remove high-complexity cells despite separate doublet classification and the strongly right-skewed count distributions.
+
+**Rationale**: The liberal gate removes the extreme low-information population before robust summaries and doublet modeling. One-sided quality limits match the expected failure direction for low counts/features and high mitochondrial percentage, while sample-specific scDblFinder calls avoid impossible cross-capture doublets.
+
+**Consequences**: The liberal gate retains 22,248 of 983,903 cells; 22,010 pass all effective MAD criteria; 1,566 liberal-floor cells are called doublets; and `sobj_qc_filtered.rds` retains 20,459 MAD-passing singlets across all six samples. The effective count and feature lower limits equal the liberal floors in every sample, while mitochondrial ceilings tighten in S2, S5, S7, and S8.
+
+### [2026-07-13] Use emptyDrops calls and log-MAD QC flags in the rewritten QC stage
+
+**Tags**: qc-filtering, emptydrops, metadata, data-lineage, reproducibility
+
+**Context**: Carl rewrote `scripts/02-qc-filtering.R` to simplify the Seurat metadata and replace the prior scDblFinder-plus-fixed-floor implementation. He confirmed that the omitted scDblFinder step and unused fixed liberal thresholds are intentional.
+
+**Decision**: Run `barcodeRanks()` and `emptyDrops()` on the raw RNA count matrix, store cell-call probability/FDR and `is_cell`, calculate sample-specific count and feature lower limits on the log10 scale and a mitochondrial upper limit among called cells, and define `pass_qc` from those three MAD criteria. Save all cells with the compact QC metadata as `sobj_raw_with_qc.rds` and save the `pass_qc` subset as `sobj_qc_filtered.rds`.
+
+**Alternatives considered**: Restoring scDblFinder, adding the prior fixed-floor gate to `pass_qc`, or preserving the larger earlier metadata set would override intentional analysis choices in the rewrite.
+
+**Rationale**: The rewritten script makes cell calling, threshold estimation, and saved QC flags explicit while retaining a compact handoff. The raw annotated object preserves enough information to reconstruct alternate subsets without carrying every prior diagnostic field.
+
+**Consequences**: Downstream `counts-qc` preprocessing remains path-compatible and receives RNA counts plus `Mouse` and `Condition`. The filtered object is defined by `pass_qc`, not by scDblFinder, the fixed 50-feature/100-count/20%-mitochondrial gate, or `is_cell`; those omissions are intentional.
+
+### [2026-07-13] Preserve the chosen PFlog parameters for the emptyDrops/log-MAD rebuild
+
+**Tags**: clustering, pflog, mg-selected, reproducibility, emptydrops
+
+**Context**: Carl regenerated preprocessing and full clustering from the rewritten emptyDrops/log-MAD QC object, then requested the remaining downstream pipeline. The prior chosen analysis identifiers remain the no-cell-cycle-HVG PFlog branch, 20 PCs, and Leiden resolution 0.3.
+
+**Decision**: Continue the downstream rebuild with `cluster_pflog_no_filter_cc_dims20_res0.3` as the source clustering and `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3` as the chosen MG clustering. Regenerate 30- and 50-PC MG candidates as sensitivity outputs without changing the chosen identifiers.
+
+**Alternatives considered**: Re-selecting normalization, PC count, or resolution from the new candidate grids would expand the requested pipeline rerun into a new parameter-selection exercise.
+
+**Rationale**: The user asked to continue the established downstream pipeline after rebuilding preprocessing and clustering, not to revise the chosen clustering contract.
+
+**Consequences**: The revised QC object contains 4,145 source cells in 9 chosen source clusters. Source clusters 2, 7, and 8 meet configured exclusion criteria, leaving 3,460 MG-selected cells; the chosen MG clustering contains 7 clusters. Notebook prose and marker notes now use the regenerated cluster IDs.

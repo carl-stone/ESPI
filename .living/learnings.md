@@ -562,3 +562,36 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: code
 
 **structural_mitigation_candidate**: Treat preprocessing metadata as the authoritative assay-layer contract for downstream diagnostic plots.
+
+### [2026-07-13] MAD-derived thresholds are not necessarily stricter than fixed floors
+**Historical implementation note:** The quantitative thresholds below came from the superseded D-45 implementation. The general lesson remains valid, but the current rewritten QC script estimates log-scale MAD thresholds among emptyDrops-called cells and does not clamp them to fixed floors.
+
+**Tags**: qc-filtering, mitochondrial, doublets, validation, data-lineage
+
+**Category**: QC threshold interpretation
+
+**What happened**: After applying the liberal QC gate, the per-sample median-minus-three-MAD thresholds for `nFeature_RNA` and `nCount_RNA` fell at or below the fixed floors in every sample. Bounding them by the liberal floors made the effective lower thresholds 50 features and 100 counts. Median-plus-three-MAD mitochondrial ceilings tightened below 20% in S2, S5, S7, and S8.
+
+**Why it matters**: A MAD calculation does not guarantee a stricter cutoff. The observed distribution and the direction of the failure mode determine whether it adds filtering beyond the fixed gate.
+
+**Resolution**: Export both the calculated and effective sample-specific thresholds, report retention at the liberal, MAD, doublet, and combined stages, and encode MAD-pass status in the all-cell QC plot.
+
+**mitigation_type**: validation
+
+**structural_mitigation_candidate**: Keep effective threshold tables and staged retention summaries beside future QC-filtered objects.
+
+### [2026-07-13] MG candidate PCA must cover the largest requested clustering dimension
+
+**Tags**: clustering, pflog, mg-selected, workflow, validation
+
+**Category**: Pipeline parameter contract
+
+**What happened**: Rebuilding the MG-selected preprocessing objects with `--dims 20` produced only 20 principal components, while `04-cluster.R` retained the default 20-, 30-, and 50-PC candidate grid. Both MG clustering commands failed when `FindNeighbors()` reached dimensions that had not been computed.
+
+**Why it matters**: The clustering elbow parameter selects the primary candidate but does not limit the default sensitivity grid. The preprocessing PCA depth must cover every requested candidate dimension.
+
+**Resolution**: Re-run `07-select-mg-subset.R` with `--dims 50`, then cluster with elbow 20 and the default 30/50 sensitivity dimensions.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Validate requested clustering dimensions against available PCA dimensions before starting candidate clustering.

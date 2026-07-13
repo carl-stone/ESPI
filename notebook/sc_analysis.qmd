@@ -143,7 +143,7 @@ Next, I scored the expression of the cell type marker genes from the original ma
 
 ![Per-cluster cell-type module scores and descriptive p27 annotation for the full source PFlog clustering (no cell-cycle filtering, 20 PCs, resolution 0.3). The body shows `cell_type_marker_genes` module scores from the RNA `data` layer, z-scored across clusters and clipped to ±2; the top strip shows the cluster-level p27 enrichment z-score from PFlog expression after within-Mouse × Condition cluster-label permutations.](figures/cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims20_res0.3.png){#fig-mg-full-module-p27-heatmap}
 
-Cluster 10 is clearly microglia. Cluster 13 has high p27 expression. No cluster met the photoreceptor exclusion criteria. I filtered out clusters 10 and 13, then re-ran PCA and clustering on the remaining cells.
+Cluster 2 meets both the microglia-marker and high-p27 exclusion criteria. Clusters 7 and 8 meet the high-p27 exclusion criterion. No cluster met the photoreceptor exclusion criteria. I filtered out clusters 2, 7, and 8, then re-ran PCA and clustering on the remaining cells.
 
 ### MG-selected clustering
 
@@ -165,9 +165,9 @@ This is with only positive markers kept, so the top markers are genes that are u
 
 Top results:
 
-* Cluster 4 is enriched for microglia-associated genes (`Tyrobp`, `Spp1`, `C1qb`).
-* Cluster 12 is enriched for neuronal genes (`Gpr61`, `Elfn2`, `St8sia3`).
-* Cluster 19 is enriched for cell-cycle-associated genes (`Ankle1`, `Ercc6l`, `Raet1e`).
+* Cluster 4 is enriched for neuronal-associated genes (`Cabp5`, `Stmn3`, `St8sia3`).
+* Cluster 6 is enriched for cell-cycle-associated genes (`Esco2`, `Tk1`, `Neil3`).
+* Cluster 7 has highly specific markers including `Cnmd`, `Scrg1`, and `Gja1`.
 
 ![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color uses six diverging row-z-score bins for average scaled expression from the Seurat data layer, with endpoint bins labeled $\leq -2$ and $\geq 2$.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
 

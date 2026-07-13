@@ -51,20 +51,17 @@ Rscript scripts/02-qc-filtering.R
 ```
 
 The script writes QC figures to `FIGURE_DIR/qc/*.png`, QC tables to
-`TABLE_DIR/qc/*.tsv`, and the filtered Seurat object to the Box path
+`TABLE_DIR/qc/*.tsv`, the annotated raw object to
+`INPUT_OBJECT_DIR/sobj_raw_with_qc.rds`, and the filtered object to
 `INPUT_OBJECT_DIR/sobj_qc_filtered.rds`. `percent.mt` uses all 37
 observed mitochondrial features, whose labels are mixed (including
-`mt-Rnr1`, `mt-Rnr2`, and non-`mt-` labels); none were lost upstream or
-from the custom reference. It retains 22,248 of 983,903 cells across S2,
-S3, S4, S5, S7, and S8 only when `nFeature_RNA >= 50`,
-`nCount_RNA >= 100`, and `percent.mt <= 20`. This is a data-specific
-cutoff, not a universal PipSeq rule: among the 22,751 cells meeting the
-complexity thresholds, complete-mitochondrial P95/P97.5/P99 were
-16.038/19.313/27.666%, and the \>20% sparse extreme tail removed 503
-cells (2.211%). `percent.ribo` is diagnostic only. This step applies no
-sample, droplet/empty-drop, ambient-RNA, doublet, or high-complexity
-filter, and does not replace upstream PIPseeker source-matrix selection
-or cell calling.
+`mt-Rnr1`, `mt-Rnr2`, and non-`mt-` labels).
+`DropletUtils::emptyDrops()` supplies the cell-call FDR and `is_cell`
+flag. Called cells define sample-specific lower three-MAD thresholds for
+log10 counts and detected features and an upper three-MAD threshold for
+mitochondrial percentage. The saved filtered object contains the 4,145
+cells that pass those three MAD criteria; `is_cell` remains separate
+from `pass_qc`. `percent.ribo` remains diagnostic only.
 
 Choose one preprocessing input for an analysis run. The default `legacy`
 source is the original

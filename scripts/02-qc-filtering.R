@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-# Calculate complete mitochondrial and diagnostic ribosomal QC metrics, retain cells
-# meeting conservative complexity and mitochondrial-quality thresholds, and save the filtered Seurat v5 object.
+# Call cells with emptyDrops, calculate sample-specific MAD QC thresholds,
+# save annotated raw and filtered Seurat v5 objects, and write QC diagnostics.
 #
 # Usage:
 #   Rscript scripts/02-qc-filtering.R
@@ -17,6 +17,11 @@
 suppressPackageStartupMessages({
   library(Seurat)
   library(here)
+  library(DropletUtils)
+  library(ggplot2)
+  library(gghalves) # erocoar github
+  library(dplyr)
+  library(scDblFinder)
 })
 here::i_am("scripts/02-qc-filtering.R")
 suppressPackageStartupMessages({
@@ -25,14 +30,97 @@ suppressPackageStartupMessages({
 
 # ---- parameters ----
 
+SEED <- 1312
+
 input_path <- file.path(DATA_ROOT_DIR, "data", "input", "sobj_raw.rds")
 figure_dir <- file.path(FIGURE_DIR, "qc")
 table_dir <- file.path(TABLE_DIR, "qc")
 output_path <- file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds")
 
+is_cell_FDR <- 0.01
+mad_multiplier <- 3
+
 # ---- work ----
 
 sobj <- readRDS(input_path)
+
+dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(INPUT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
+
+# Empty droplet ID before any filtering
+set.seed(ESPI::SEED)
+br.sobj <- DropletUtils::barcodeRanks(sobj[["RNA"]]$counts)
+
+# Plot knee plot
+knee_plot <- ggplot2::ggplot(
+  br.sobj,
+  ggplot2::aes(x = rank, y = total)
+) +
+  ggplot2::geom_point(alpha = 0.5, size = 0.5) +
+  ggplot2::scale_x_log10(
+    labels = scales::label_number(big.mark = ",")
+  ) +
+  ggplot2::scale_y_log10(
+    labels = scales::label_number(big.mark = ",")
+  ) +
+  ggplot2::geom_hline(
+    yintercept = metadata(br.sobj)$knee,
+    linetype = "dashed",
+    color = "blue"
+  ) +
+  ggplot2::geom_hline(
+    yintercept = metadata(br.sobj)$inflection,
+    linetype = "dashed",
+    color = "red"
+  ) +
+  ESPI::theme_stone()
+# save plot
+ggplot2::ggsave(
+  file.path(figure_dir, "knee_plot.png"),
+  knee_plot,
+  width = 7,
+  height = 5,
+  dpi = 300
+)
+
+# Cell calling with DropletUtils permutation test
+set.seed(ESPI::SEED)
+e.out <- DropletUtils::emptyDrops(sobj[["RNA"]]$counts)
+
+# Plot cell calling results
+cell_call_plot <- ggplot2::ggplot(
+  e.out,
+  ggplot2::aes(
+    x = Total,
+    y = -LogProb,
+    color = dplyr::if_else(FDR <= 0.01, "Cell", "Empty", "Empty")
+  )
+) +
+  ggplot2::geom_point(alpha = 0.7, size = 1) +
+  ggplot2::scale_x_log10(
+    limits = c(100, NA),
+    labels = scales::label_number(big.mark = ",")
+  ) +
+  ggplot2::geom_vline(
+    xintercept = metadata(br.sobj)$knee,
+    linetype = "dashed",
+    color = "blue"
+  ) +
+  ESPI::theme_stone() +
+  ggplot2::labs(
+    color = "Cell call"
+  )
+# save plot
+ggplot2::ggsave(
+  file.path(figure_dir, "cell_call_plot.png"),
+  cell_call_plot,
+  width = 7,
+  height = 5,
+  dpi = 300
+)
+
+
 # The custom reference uses complete mouse mitochondrial features with mixed labels.
 mt_features <- rownames(sobj)[
   rownames(sobj) %in%
@@ -87,285 +175,362 @@ sobj[["percent.ribo"]] <- Seurat::PercentageFeatureSet(
   features = ribo_features
 )
 
-keep_cell <- sobj$nFeature_RNA >= 50 &
-  sobj$nCount_RNA >= 100 &
-  sobj$percent.mt <= 20
-sobj_filtered <- sobj[, keep_cell]
+# Add cell calling metadata to sobj
+# br.sobj has knee threshold
+# e.out has emptyDrops LogProb and FDR
 
-# Rank every cell within sample before excluding zero-UMI cells from log-scale plots.
-barcode_rank_before <- sobj[[]] |>
-  dplyr::select(Sample, nCount_RNA) |>
-  dplyr::group_by(Sample) |>
-  dplyr::mutate(barcode_rank = dplyr::row_number(dplyr::desc(nCount_RNA))) |>
-  dplyr::ungroup() |>
-  dplyr::filter(nCount_RNA > 0)
-barcode_rank_after <- sobj_filtered[[]] |>
-  dplyr::select(Sample, nCount_RNA) |>
-  dplyr::group_by(Sample) |>
-  dplyr::mutate(barcode_rank = dplyr::row_number(dplyr::desc(nCount_RNA))) |>
-  dplyr::ungroup() |>
-  dplyr::filter(nCount_RNA > 0)
+sobj[["cellcall_LogProb"]] <- e.out$LogProb
+sobj[["cellcall_FDR"]] <- e.out$FDR
+sobj@misc$knee <- metadata(br.sobj)$knee
 
-# ---- output ----
+# Set is_cell for cell call threshold based off FDR
+sobj[["is_cell"]] <- sobj$cellcall_FDR < is_cell_FDR
 
-dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(INPUT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)
-
-filtering_decisions <- data.frame(
-  metric = c(
-    "nFeature_RNA",
-    "nCount_RNA",
-    "percent.mt",
-    "percent.ribo",
-    "high-count/high-feature cells",
-    "sample membership"
-  ),
-  criterion = c(
-    ">= 50",
-    ">= 100",
-    "<= 20%",
-    "no threshold",
-    "no threshold",
-    "no sample-level exclusion"
-  ),
-  decision = c(
-    "Required by keep_cell.",
-    "Required by keep_cell.",
-    "Required by keep_cell; calculated from the complete 37-feature mixed-label mitochondrial set. The >20% sparse extreme tail is excluded (Q97.5 = 19.313%).",
-    "Diagnostic only; no separated high-ribosomal population (median 8.62%) and biology-dependent.",
-    "Retained and visualized as possible multiplets.",
-    "All samples remain in scope."
+# Identify floors for UMI and features before doublet detection
+sobj[[]] |>
+  dplyr::filter(is_cell) |>
+  dplyr::summarize(
+    n = dplyr::n(),
+    min_counts = min(nCount_RNA),
+    counts_q01 = quantile(nCount_RNA, 0.01),
+    counts_q05 = quantile(nCount_RNA, 0.05),
+    min_features = min(nFeature_RNA),
+    features_q01 = quantile(nFeature_RNA, 0.01),
+    features_q05 = quantile(nFeature_RNA, 0.05)
   )
-)
-utils::write.table(
-  filtering_decisions,
-  file.path(table_dir, "filtering_thresholds_and_decisions.tsv"),
-  sep = "\t",
-  row.names = FALSE,
-  quote = FALSE
-)
 
-global_retention <- data.frame(
-  raw_cells = ncol(sobj),
-  retained_cells = ncol(sobj_filtered),
-  removed_cells = ncol(sobj) - ncol(sobj_filtered),
-  retained_percent = 100 * ncol(sobj_filtered) / ncol(sobj),
-  raw_samples = length(unique(sobj$Sample)),
-  retained_samples = length(unique(sobj_filtered$Sample))
-)
-utils::write.table(
-  global_retention,
-  file.path(table_dir, "global_retention_summary.tsv"),
-  sep = "\t",
-  row.names = FALSE,
-  quote = FALSE
-)
-
-sample_retention <- sobj[[]] |>
-  dplyr::group_by(Sample) |>
-  dplyr::summarise(
-    raw_cells = dplyr::n(),
-    median_nCount_RNA_before = stats::median(nCount_RNA),
-    median_nFeature_RNA_before = stats::median(nFeature_RNA),
-    median_percent_mt_before = stats::median(percent.mt, na.rm = TRUE),
-    median_percent_ribo_before = stats::median(percent.ribo, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  dplyr::left_join(
-    sobj_filtered[[]] |>
-      dplyr::group_by(Sample) |>
-      dplyr::summarise(
-        retained_cells = dplyr::n(),
-        median_nCount_RNA_after = stats::median(nCount_RNA),
-        median_nFeature_RNA_after = stats::median(nFeature_RNA),
-        median_percent_mt_after = stats::median(percent.mt, na.rm = TRUE),
-        median_percent_ribo_after = stats::median(percent.ribo, na.rm = TRUE),
-        .groups = "drop"
-      ),
-    by = "Sample"
-  ) |>
-  dplyr::mutate(retained_percent = 100 * retained_cells / raw_cells)
-utils::write.table(
-  sample_retention,
-  file.path(table_dir, "sample_retention_summary.tsv"),
-  sep = "\t",
-  row.names = FALSE,
-  quote = FALSE
-)
-
-qc_violin_before <- Seurat::VlnPlot(
+# Doublet filtering
+sobj_cells <- subset(
   sobj,
-  features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.ribo"),
-  group.by = "Sample",
-  pt.size = 0,
-  ncol = 2
+  subset = is_cell &
+    nCount_RNA >= 108 &
+    nFeature_RNA >= 99
 )
-ggplot2::ggsave(
-  file.path(figure_dir, "qc_metrics_before_filter.png"),
-  qc_violin_before,
-  width = 10,
-  height = 8,
-  dpi = 300
+sce <- as.SingleCellExperiment(sobj_cells, assay = "RNA")
+
+bp <- BiocParallel::SerialParam(RNGseed = ESPI::SEED)
+
+sce <- scDblFinder(
+  sce,
+  samples = "Sample",
+  BPPARAM = bp,
+  dbr = 0.01
 )
 
-barcode_rank_plot_before <- ggplot2::ggplot(
-  barcode_rank_before,
-  ggplot2::aes(
-    x = nCount_RNA,
-    y = barcode_rank,
-    colour = Sample,
-    group = Sample
-  )
-) +
-  ggplot2::geom_line(alpha = 0.7, linewidth = 0.3) +
-  ggplot2::geom_vline(xintercept = 100, linetype = "dashed") +
-  ggplot2::scale_x_log10(labels = scales::label_number(big.mark = ",")) +
-  ggplot2::annotation_logticks(sides = "b") +
-  ggplot2::scale_y_log10() +
-  ggplot2::labs(
-    title = "Barcode-rank QC before filtering",
-    x = "UMI counts per cell",
-    y = "Barcode rank within sample",
-    caption = "Dashed line marks the 100-UMI retained-cell cutoff. Ranks are calculated independently within each sample; zero-UMI cells are omitted only for log-scale plotting."
-  )
-ggplot2::ggsave(
-  file.path(figure_dir, "barcode_rank_before_filter.png"),
-  barcode_rank_plot_before,
-  width = 7,
-  height = 5,
-  dpi = 300
-)
+sobj$doublet_score <- NA_real_
+sobj$doublet_call <- NA_character_
 
-count_feature_before <- ggplot2::ggplot(
+sobj$doublet_score[colnames(sce)] <- sce$scDblFinder.score
+sobj$doublet_call[colnames(sce)] <- as.character(sce$scDblFinder.class)
+sobj$is_singlet <- sobj$doublet_call == "singlet"
+
+sample_cell_call_summary <- with(
   sobj[[]],
-  ggplot2::aes(x = nCount_RNA, y = nFeature_RNA, colour = Sample)
-) +
-  ggplot2::geom_point(alpha = 0.05, size = 0.15) +
-  ggplot2::geom_vline(xintercept = 100, linetype = "dashed") +
-  ggplot2::geom_hline(yintercept = 50, linetype = "dashed") +
-  ggplot2::labs(
-    title = "QC before filtering: counts versus features",
-    caption = "Cells above both dashed lines are retained; high values remain as possible multiplets."
+  table(Sample, is_cell)
+)
+
+sample_summary_table <- sobj[[]] |>
+  dplyr::filter(is_cell & is_singlet) |>
+  dplyr::group_by(Sample) |>
+  dplyr::summarize(
+    n_cells = dplyr::n(),
+    median_counts = median(nCount_RNA),
+    median_features = median(nFeature_RNA),
+    median_percent_mt = median(percent.mt),
+    median_percent_ribo = median(percent.ribo)
   )
-ggplot2::ggsave(
-  file.path(figure_dir, "count_vs_feature_before_filter.png"),
-  count_feature_before,
+
+readr::write_tsv(
+  sample_summary_table,
+  file.path(table_dir, "sample_cell_call_summary.tsv")
+)
+
+qc_md <- sobj[[]] |>
+  tibble::rownames_to_column("barcode") |>
+  dplyr::filter(is_cell & is_singlet)
+
+sample_cell_frac_plot <- sobj[[]] |>
+  dplyr::filter(is.finite(is_cell)) |>
+  dplyr::count(Sample, is_cell) |>
+  dplyr::group_by(Sample) |>
+  dplyr::mutate(fraction = n / sum(n)) |>
+  ggplot2::ggplot(
+    ggplot2::aes(x = Sample, y = fraction, fill = is_cell)
+  ) +
+  ggplot2::geom_col() +
+  ggplot2::scale_y_continuous(labels = scales::label_percent()) +
+  ggplot2::labs(
+    x = "Sample",
+    y = "Fraction of barcodes called as cells",
+    fill = "Cell call"
+  ) +
+  ESPI::theme_stone() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+ggsave(
+  file.path(figure_dir, "sample_cell_call_fraction.png"),
+  sample_cell_frac_plot,
   width = 7,
   height = 5,
   dpi = 300
 )
 
-count_mito_before <- ggplot2::ggplot(
-  sobj[[]],
-  ggplot2::aes(x = nCount_RNA, y = percent.mt, colour = Sample)
-) +
-  ggplot2::geom_point(alpha = 0.05, size = 0.15) +
-  ggplot2::geom_vline(xintercept = 100, linetype = "dashed") +
-  ggplot2::geom_hline(yintercept = 20, linetype = "dashed") +
+qc_summary_plot <- qc_md |>
+  dplyr::group_by(Sample) |>
+  dplyr::select(
+    barcode,
+    Sample,
+    nCount_RNA,
+    nFeature_RNA,
+    percent.mt,
+    percent.ribo
+  ) |>
+  tidyr::pivot_longer(
+    cols = c(nCount_RNA, nFeature_RNA, percent.mt, percent.ribo),
+    names_to = "metric",
+    values_to = "value"
+  ) |>
+  ggplot2::ggplot(
+    ggplot2::aes(x = Sample, y = value, fill = Sample)
+  ) +
+  gghalves::geom_half_violin(side = "r") +
+  gghalves::geom_half_boxplot(side = "l") +
+  ggplot2::facet_wrap(~metric, scales = "free", ncol = 2) +
   ggplot2::labs(
-    title = "QC before filtering: counts versus mitochondrial proportion",
-    caption = "Complete 37-feature mixed-label mitochondrial proportion; the >20% sparse extreme tail is excluded."
+    x = "Sample",
+    y = "Value",
+    title = "QC metrics for cells called by emptyDrops"
+  ) +
+  ESPI::theme_stone() +
+  ggplot2::theme(
+    axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+    legend.position = "none"
   )
-ggplot2::ggsave(
-  file.path(figure_dir, "count_vs_mito_before_filter.png"),
-  count_mito_before,
+
+ggsave(
+  file.path(figure_dir, "sample_qc_summary.png"),
+  qc_summary_plot,
   width = 7,
   height = 5,
   dpi = 300
 )
 
-qc_violin_after <- Seurat::VlnPlot(
-  sobj_filtered,
-  features = c("nCount_RNA", "nFeature_RNA", "percent.mt", "percent.ribo"),
-  group.by = "Sample",
-  pt.size = 0,
-  ncol = 2
+qc_summary_table <- qc_md |>
+  group_by(Sample) |>
+  summarize(
+    n_cells = n(),
+
+    counts_q01 = quantile(nCount_RNA, 0.01),
+    counts_q05 = quantile(nCount_RNA, 0.05),
+    counts_median = median(nCount_RNA),
+    counts_q95 = quantile(nCount_RNA, 0.95),
+    counts_q99 = quantile(nCount_RNA, 0.99),
+
+    features_q01 = quantile(nFeature_RNA, 0.01),
+    features_q05 = quantile(nFeature_RNA, 0.05),
+    features_median = median(nFeature_RNA),
+    features_q95 = quantile(nFeature_RNA, 0.95),
+    features_q99 = quantile(nFeature_RNA, 0.99),
+
+    mt_median = median(percent.mt),
+    mt_q90 = quantile(percent.mt, 0.90),
+    mt_q95 = quantile(percent.mt, 0.95),
+    mt_q99 = quantile(percent.mt, 0.99),
+
+    ribo_median = median(percent.ribo),
+    ribo_q05 = quantile(percent.ribo, 0.05),
+    ribo_q95 = quantile(percent.ribo, 0.95),
+
+    .groups = "drop"
+  )
+
+write.table(
+  qc_summary_table,
+  file.path(table_dir, "sample_qc_summary.tsv"),
+  sep = "\t",
+  row.names = FALSE,
+  quote = FALSE
 )
-ggplot2::ggsave(
-  file.path(figure_dir, "qc_metrics_after_filter.png"),
-  qc_violin_after,
+
+qc_thresholds <- qc_md |>
+  group_by(Sample) |>
+  summarize(
+    min_count_mad = 10^(median(log10(nCount_RNA)) -
+      mad_multiplier * mad(log10(nCount_RNA))),
+    min_feature_mad = 10^(median(log10(nFeature_RNA)) -
+      mad_multiplier * mad(log10(nFeature_RNA))),
+    max_percent_mt_mad = median(percent.mt) +
+      mad_multiplier * mad(percent.mt),
+    .groups = "drop"
+  )
+readr::write_tsv(
+  qc_thresholds,
+  file.path(table_dir, "sample_qc_mad_thresholds.tsv")
+)
+
+qc_md <- qc_md |>
+  left_join(qc_thresholds, by = "Sample")
+
+count_sample_qc_plot <- ggplot(qc_md, aes(x = nCount_RNA)) +
+  geom_histogram() +
+  geom_vline(aes(xintercept = min_count_mad), linetype = "dashed") +
+  scale_x_log10() +
+  facet_wrap(~Sample, scales = "free_y") +
+  theme_stone()
+
+ggsave(
+  plot = count_sample_qc_plot,
+  filename = file.path(figure_dir, "count_sample_qc_plot.png"),
   width = 10,
-  height = 8,
+  height = 6,
   dpi = 300
 )
 
-barcode_rank_plot_after <- ggplot2::ggplot(
-  barcode_rank_after,
-  ggplot2::aes(
-    x = nCount_RNA,
-    y = barcode_rank,
-    colour = Sample,
-    group = Sample
-  )
+feature_sample_qc_plot <- ggplot(qc_md, aes(x = nFeature_RNA)) +
+  geom_histogram() +
+  geom_vline(aes(xintercept = min_feature_mad), linetype = "dashed") +
+  scale_x_log10() +
+  facet_wrap(~Sample, scales = "free_y") +
+  theme_stone()
+
+ggsave(
+  plot = feature_sample_qc_plot,
+  filename = file.path(figure_dir, "feature_sample_qc_plot.png"),
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+mt_sample_qc_plot <- ggplot(qc_md, aes(x = percent.mt)) +
+  geom_histogram() +
+  geom_vline(aes(xintercept = max_percent_mt_mad), linetype = "dashed") +
+  facet_wrap(~Sample, scales = "free_y") +
+  theme_stone()
+
+ggsave(
+  plot = mt_sample_qc_plot,
+  filename = file.path(figure_dir, "mt_sample_qc_plot.png"),
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+# ggplot(qc_md, aes(x = nCount_RNA, color = Sample)) +
+#   geom_density() +
+#   scale_x_continuous(
+#     transform = scales::log10_trans(),
+#     guide = "axis_logticks",
+#     labels = scales::label_number(big.mark = ",")
+#   ) +
+#   theme_stone() +
+#   labs(
+#     x = "UMI count",
+#     y = "Density",
+#     color = "Sample"
+#   )
+
+# ggplot(qc_md, aes(x = nFeature_RNA, color = Sample)) +
+#   geom_density() +
+#   scale_x_continuous(
+#     transform = scales::log10_trans(),
+#     guide = "axis_logticks",
+#     labels = scales::label_number(big.mark = ",")
+#   ) +
+#   theme_stone() +
+#   labs(
+#     x = "Feature count",
+#     y = "Density",
+#     color = "Sample"
+#   )
+
+count_feature_mt_sample_scatter <- ggplot(
+  qc_md,
+  aes(x = nCount_RNA, y = nFeature_RNA, color = percent.mt < max_percent_mt_mad)
 ) +
-  ggplot2::geom_line(alpha = 0.7, linewidth = 0.3) +
-  ggplot2::scale_x_log10(labels = scales::label_number(big.mark = ",")) +
-  ggplot2::annotation_logticks(sides = "b") +
-  ggplot2::scale_y_log10() +
-  ggplot2::labs(
-    title = "Barcode-rank QC after filtering",
-    x = "UMI counts per cell",
-    y = "Barcode rank within sample",
-    caption = "Ranks are calculated independently within each sample; zero-UMI cells are omitted only for log-scale plotting."
-  )
-ggplot2::ggsave(
-  file.path(figure_dir, "barcode_rank_after_filter.png"),
-  barcode_rank_plot_after,
-  width = 7,
-  height = 5,
+  geom_point(alpha = 0.5, size = 0.5) +
+  scale_x_log10(labels = scales::label_number(big.mark = ",")) +
+  scale_y_log10(labels = scales::label_number(big.mark = ",")) +
+  geom_vline(aes(xintercept = min_count_mad), linetype = "dashed") +
+  geom_hline(aes(yintercept = min_feature_mad), linetype = "dashed") +
+  facet_wrap(~Sample) +
+  # scale_color_viridis_b(
+  #   breaks = c(5, 20),
+  #   oob = scales::squish_infinite
+  # ) +
+  theme_stone()
+
+ggsave(
+  plot = count_feature_mt_sample_scatter,
+  filename = file.path(figure_dir, "count_feature_mt_sample_scatter.png"),
+  width = 10,
+  height = 6,
   dpi = 300
 )
 
-count_feature_after <- ggplot2::ggplot(
-  sobj_filtered[[]],
-  ggplot2::aes(x = nCount_RNA, y = nFeature_RNA, colour = Sample)
-) +
-  ggplot2::geom_point(alpha = 0.2, size = 0.3) +
-  ggplot2::geom_vline(xintercept = 100, linetype = "dashed") +
-  ggplot2::geom_hline(yintercept = 50, linetype = "dashed") +
-  ggplot2::labs(
-    title = "QC after filtering: counts versus features",
-    caption = "All displayed cells meet the complexity and <=20% mitochondrial thresholds."
-  )
-ggplot2::ggsave(
-  file.path(figure_dir, "count_vs_feature_after_filter.png"),
-  count_feature_after,
-  width = 7,
-  height = 5,
+feature_vs_mt <- qc_md |>
+  mutate(
+    mt_pass = percent.mt < max_percent_mt_mad,
+    feature_pass = nFeature_RNA > min_feature_mad,
+    pass_both = mt_pass & feature_pass
+  ) |>
+  group_by(Sample) |>
+  mutate(
+    frac_pass = mean(pass_both),
+    strip_lab = paste0(
+      Sample,
+      ", ",
+      round(unique(frac_pass) * 100),
+      "% pass both"
+    )
+  ) |>
+  ungroup() |>
+  ggplot(aes(x = nFeature_RNA, y = percent.mt)) +
+  geom_point(size = 0.5) +
+  scale_x_log10(labels = scales::label_number(big.mark = ",")) +
+  geom_vline(aes(xintercept = min_feature_mad), linetype = "dashed") +
+  geom_hline(aes(yintercept = max_percent_mt_mad), linetype = "dashed") +
+  facet_wrap(~strip_lab) +
+  theme_stone()
+
+ggsave(
+  plot = feature_vs_mt,
+  filename = file.path(figure_dir, "feature_vs_mt.png"),
+  width = 10,
+  height = 6,
   dpi = 300
 )
 
-count_mito_after <- ggplot2::ggplot(
-  sobj_filtered[[]],
-  ggplot2::aes(x = nCount_RNA, y = percent.mt, colour = Sample)
-) +
-  ggplot2::geom_point(alpha = 0.2, size = 0.3) +
-  ggplot2::geom_vline(xintercept = 100, linetype = "dashed") +
-  ggplot2::geom_hline(yintercept = 20, linetype = "dashed") +
-  ggplot2::labs(
-    title = "QC after filtering: counts versus mitochondrial proportion",
-    caption = "Complete 37-feature mixed-label mitochondrial proportion; all displayed cells meet the <=20% threshold."
-  )
-ggplot2::ggsave(
-  file.path(figure_dir, "count_vs_mito_after_filter.png"),
-  count_mito_after,
-  width = 7,
-  height = 5,
-  dpi = 300
-)
+## Now set flags for each threshold
+sobj[[]] <- sobj[[]] |>
+  left_join(qc_thresholds, by = "Sample")
 
-saveRDS(sobj_filtered, output_path)
-message(
-  "QC retained ",
-  ncol(sobj_filtered),
-  "/",
-  ncol(sobj),
-  " cells across ",
-  length(unique(sobj_filtered$Sample)),
-  " samples. Saved filtered object to ",
-  output_path,
-  ". Next step: Rscript scripts/03-preprocess.R --input ",
-  output_path,
-  " --normalization <log1p|pflog>."
+sobj$fail_low_counts <- sobj$nCount_RNA < sobj$min_count_mad
+sobj$fail_low_features <- sobj$nFeature_RNA < sobj$min_feature_mad
+sobj$fail_high_mt <- sobj$percent.mt > sobj$max_percent_mt_mad
+
+sobj$pass_qc <- TRUE
+sobj$pass_qc <- sobj$pass_qc &
+  !sobj$fail_low_counts &
+  !sobj$fail_low_features &
+  !sobj$fail_high_mt
+
+sobj_filtered <- subset(sobj, subset = pass_qc)
+
+saveRDS(sobj, file.path(INPUT_OBJECT_DIR, "sobj_raw_with_qc.rds"))
+saveRDS(sobj_filtered, file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds"))
+
+sobj_qc_summary_table <- sobj[[]] |>
+  dplyr::filter(is_cell) |>
+  dplyr::group_by(Sample) |>
+  dplyr::summarize(
+    called_cells = dplyr::n(),
+    low_counts = sum(fail_low_counts),
+    low_features = sum(fail_low_features),
+    high_mt = sum(fail_high_mt),
+    failed_any = sum(!pass_qc),
+    retained = sum(pass_qc)
+  )
+
+readr::write_tsv(
+  sobj_qc_summary_table,
+  file.path(table_dir, "sobj_qc_summary_by_sample.tsv")
 )

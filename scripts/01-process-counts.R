@@ -52,7 +52,7 @@ metadata <- utils::read.delim(
   stringsAsFactors = FALSE
 )
 
-missing_columns <- setdiff(required_metadata_columns, colnames(metadata))
+missing_columns <- base::setdiff(required_metadata_columns, colnames(metadata))
 if (length(missing_columns) > 0) {
   stop(
     "Sample metadata is missing required columns: ",
@@ -83,7 +83,7 @@ count_directories <- list.files(
 count_directories <- count_directories[
   dir.exists(file.path(raw_counts_dir, count_directories))
 ]
-if (!setequal(metadata$Sample, count_directories)) {
+if (!base::setequal(metadata$Sample, count_directories)) {
   stop(
     "10X count folder names do not match Sample metadata IDs.",
     call. = FALSE
@@ -118,8 +118,8 @@ seurat_object <- Seurat::CreateSeuratObject(
   counts = tenx_counts,
   project = "ESPI",
   meta.data = cell_metadata,
-  min.cells = 0,
-  min.features = 0
+  min.cells = 1,
+  min.features = 1
 )
 
 # ---- output ----
