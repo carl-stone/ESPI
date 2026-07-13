@@ -86,6 +86,20 @@ INPUT_OBJECT_DIR <- file.path(OBJECT_DIR, "input")
 #' @export
 CURRENT_OBJECT_DIR <- file.path(OBJECT_DIR, "current")
 
+# Resolve the configured source object for a preprocessing run. The current
+# artifact directory represents one selected source at a time.
+analysis_input_path <- function(source = c("legacy", "counts-qc")) {
+  source <- match.arg(source)
+  switch(
+    source,
+    legacy = file.path(
+      INPUT_OBJECT_DIR,
+      "pipseq_processed_matrix_with_egfp.rds"
+    ),
+    `counts-qc` = file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds")
+  )
+}
+
 #' Preprocessing data artifact directory.
 #' @export
 PREPROCESSING_DATA_DIR <- file.path(DATA_DIR, "preprocessing")

@@ -530,3 +530,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: Preserve the diagnostic-versus-calling boundary whenever QC visualizations are added.
+
+### [2026-07-12] Source selection belongs at preprocessing
+
+**Tags**: scripts, workflow, data-lineage, reproducibility
+
+**Category**: Pipeline interface
+
+**What happened**: The counts-derived QC object and the established object first converge at preprocessing; later stages already consume branch artifacts from the current object directory.
+
+**Why it matters**: Adding source choices downstream would duplicate state and allow mixed-source artifacts.
+
+**Resolution**: Select the source once with `--input-source legacy|counts-qc`, retain `--input` for custom objects, and regenerate current branches before continuing.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Keep source selection and provenance metadata at the preprocessing seam.

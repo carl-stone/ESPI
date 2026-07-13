@@ -1,13 +1,13 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-09
+Last audit: 2026-07-12
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 6 sections | 2026-07-09 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit, Cross-References |
-| decisions.md | 40 entries (large — read selectively) | 2026-07-09 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
-| learnings.md | 33 entries (large — read selectively) | 2026-07-09 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
-| log/ | 46 sessions | 2026-07-09 | espi (46) |
+| decisions.md | 41 entries (large — read selectively) | 2026-07-12 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
+| learnings.md | 34 entries (large — read selectively) | 2026-07-12 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
+| log/ | 48 sessions | 2026-07-12 | espi (48) |
 | findings/ | 5 findings across 2 topics | 2026-07-04 | population-structure, condition-response |
 
 ## Local skills
@@ -15,7 +15,7 @@ See `.living/skills/` for project-specific skill packs.
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-07-09 (heuristic)
+Last summarized: 2026-07-12 (heuristic)
 
 ## Tag clusters
 
@@ -24,10 +24,12 @@ Last summarized: 2026-07-09 (heuristic)
 - **plotting** (18 entries) — D-27, D-29, D-31, D-32, D-33
 - **hooks** (15 entries) — D-13, D-14, D-15, D-16, D-30
 - **notebook** (13 entries) — D-26, D-27, D-28, D-29, D-33
-- **provenance** (12 entries) — L-33, D-30, D-38, D-39, D-40
+- **provenance** (13 entries) — D-30, D-38, D-39, D-40, D-41
 
 ## Most recent (10)
 
+- [2026-07-12] L-34: Source selection belongs at preprocessing
+- [2026-07-12] D-41: Select preprocessing source at the pipeline entrypoint
 - [2026-07-09] L-27: APFS case-insensitive paths can hide justfile casing mistakes
 - [2026-07-09] L-28: Treat load_all as normal package loading
 - [2026-07-09] L-29: Raw sample files may sit below the user-described input root
@@ -36,8 +38,6 @@ Last summarized: 2026-07-09 (heuristic)
 - [2026-07-09] L-32: A `^mt-` match can be a partial mitochondrial metric
 - [2026-07-09] L-33: Keep barcode-rank plots diagnostic
 - [2026-07-09] D-36: Use just as the ESPI command interface
-- [2026-07-09] D-37: Derive raw-count inputs from `DATA_ROOT_DIR` and stop at an in-memory object
-- [2026-07-09] D-38: Persist the raw Seurat object at the user-chosen input path
 
 ## By tag
 
@@ -46,12 +46,12 @@ Last summarized: 2026-07-09 (heuristic)
 - `plotting`: L-5, L-6, L-18, L-24, L-25, L-26, L-33, D-8, D-20, D-21, D-22, D-23, D-24, D-27, D-29, D-31, D-32, D-33
 - `hooks`: L-1, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, D-12, D-13, D-14, D-15, D-16, D-30
 - `notebook`: L-2, L-7, L-16, L-25, D-20, D-21, D-22, D-23, D-26, D-27, D-28, D-29, D-33
-- `provenance`: L-20, L-21, L-22, L-23, L-30, L-31, L-32, L-33, D-30, D-38, D-39, D-40
-- `data-lineage`: L-12, L-29, L-30, L-31, L-32, D-15, D-37, D-38, D-39, D-40
-- `reproducibility`: L-9, L-10, L-11, L-27, D-5, D-9, D-12, D-36, D-37, D-38
+- `provenance`: L-20, L-21, L-22, L-23, L-30, L-31, L-32, L-33, D-30, D-38, D-39, D-40, D-41
+- `data-lineage`: L-12, L-29, L-30, L-31, L-32, L-34, D-15, D-37, D-38, D-39, D-40, D-41
+- `reproducibility`: L-9, L-10, L-11, L-27, L-34, D-5, D-9, D-12, D-36, D-37, D-38, D-41
+- `scripts`: L-29, L-30, L-34, D-5, D-9, D-36, D-37, D-38, D-39, D-41
 - `differential-expression`: L-9, L-18, L-24, D-10, D-17, D-20, D-32, D-34, D-35
 - `differential-detection`: L-14, L-15, L-18, L-24, D-17, D-18, D-32, D-35
-- `scripts`: L-29, L-30, D-5, D-9, D-36, D-37, D-38, D-39
 - `omp`: L-12, L-13, D-13, D-14, D-15, D-16, D-30
 - `session-logs`: L-10, L-20, L-21, L-22, L-23, D-28, D-30
 - `validation`: L-8, L-19, L-29, L-31, L-32, D-39, D-40
@@ -65,6 +65,7 @@ Last summarized: 2026-07-09 (heuristic)
 - `clustering`: L-4, D-5, D-6, D-11
 - `todo`: L-23, D-27, D-34, D-35
 - `umap`: L-25, L-26, D-21, D-33
+- `workflow`: L-28, L-30, L-33, L-34
 - `abundance`: D-24, D-25, D-26
 - `conventions`: D-2, D-4, D-28
 - `filtering`: L-14, L-15, D-17
@@ -72,7 +73,6 @@ Last summarized: 2026-07-09 (heuristic)
 - `reporting`: L-16, D-6, D-28
 - `single-cell`: D-2, D-7, D-37
 - `tooling`: L-19, L-27, D-36
-- `workflow`: L-28, L-30, L-33
 - `collaboration`: D-34, D-35
 - `condition`: L-25, D-33
 - `enrichment`: D-34, D-35

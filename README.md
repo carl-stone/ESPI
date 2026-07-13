@@ -66,17 +66,25 @@ sample, droplet/empty-drop, ambient-RNA, doublet, or high-complexity
 filter, and does not replace upstream PIPseeker source-matrix selection
 or cell calling.
 
-Preprocess the QC-filtered object with an explicit input path:
+Choose one preprocessing input for an analysis run. The default `legacy`
+source is the original
+`INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds`. The
+`counts-qc` source is the counts-derived and QC-filtered
+`INPUT_OBJECT_DIR/sobj_qc_filtered.rds`:
 
 ``` sh
-Rscript scripts/preprocess-sobj.R \
-  --input INPUT_OBJECT_DIR/sobj_qc_filtered.rds \
-  --normalization pflog
+just preprocess counts-qc
 ```
 
-The equivalent `just` command is
-`just preprocess-one pflog false INPUT_OBJECT_DIR/sobj_qc_filtered.rds`.
-Repeat with the desired normalization and cell-cycle-HVG settings.
+Run a single branch with the same source choice:
+
+``` sh
+just preprocess-one pflog false counts-qc
+```
+
+Use `--input` only for another explicit Seurat object. Preprocessing
+replaces the current branch artifacts, so cluster and downstream
+commands consume the source selected for the current run.
 
 Preview clustering commands before running them, then cluster all
 preprocessed objects and summarize the clustering grid:

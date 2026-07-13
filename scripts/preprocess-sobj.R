@@ -4,14 +4,18 @@
 #
 # Usage:
 #   Rscript scripts/preprocess-sobj.R \
-#     --input <raw-seurat-object.rds> \
+#     --input <seurat-object.rds> | --input-source <legacy|counts-qc> \
 #     --normalization <log1p|pflog> \
 #     --filter-cell-cycle <true|false>
 #
 # Arguments:
 #   --input
-#     Raw Seurat object to preprocess. Defaults to
-#     INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds.
+#     Explicit Seurat object to preprocess. Cannot be combined with
+#     --input-source.
+#   --input-source
+#     Named source object: legacy selects
+#     INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds; counts-qc selects
+#     INPUT_OBJECT_DIR/sobj_qc_filtered.rds. Defaults to legacy.
 #   --normalization
 #     Normalization branch to run. Must be log1p or pflog. Defaults to log1p.
 #   --filter-cell-cycle
@@ -65,10 +69,23 @@ arg_flag <- function(name) {
   identical(arg(name), TRUE)
 }
 
-input <- arg_value(
-  "--input",
-  default = file.path(INPUT_OBJECT_DIR, "pipseq_processed_matrix_with_egfp.rds")
-)
+input <- arg_value("--input", default = NULL)
+input_source <- arg_value("--input-source", default = "legacy")
+if (!is.null(input) && !is.null(arg("--input-source"))) {
+  stop("Use either --input or --input-source, not both.", call. = FALSE)
+}
+if (!input_source %in% c("legacy", "counts-qc")) {
+  stop(
+    "--input-source must be one of legacy or counts-qc; got ",
+    input_source,
+    call. = FALSE
+  )
+}
+if (is.null(input)) {
+  input <- analysis_input_path(input_source)
+} else {
+  input_source <- "custom"
+}
 normalization <- arg_value("--normalization", default = "log1p")
 filter_cc <- arg_flag("--filter-cell-cycle") ||
   identical(
@@ -91,6 +108,7 @@ sobj <- readRDS(input)
 emit_tripwire_checkpoint(
   "raw_data_available",
   input = input,
+  input_source = input_source,
   n_cells = ncol(sobj),
   n_features = nrow(sobj)
 )
@@ -112,6 +130,7 @@ sobj[["percent.ribo"]] <- Seurat::PercentageFeatureSet(
   pattern = "^Rp[sl]"
 )
 
+sobj@misc$preprocessing$input_source <- input_source
 sobj@misc$preprocessing$normalization <- normalization
 sobj@misc$preprocessing$filtered_cell_cycle <- filter_cc
 

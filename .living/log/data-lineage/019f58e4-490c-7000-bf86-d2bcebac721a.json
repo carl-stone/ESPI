@@ -1,0 +1,58 @@
+{
+  "session_id": "019f58e4-490c-7000-bf86-d2bcebac721a",
+  "repo_root": "/Users/carlstone/ESPI",
+  "git_sha": "d973f07fd347cb3943fd8c78195ae2500e4f9d5e",
+  "started_at": "2026-07-13T00:46:55Z",
+  "ended_at": "2026-07-13T00:46:55Z",
+  "n_actions": 1,
+  "agents_seen": [
+    "main"
+  ],
+  "actions": [
+    {
+      "ts": "2026-07-13T00:46:55Z",
+      "agent_id": null,
+      "agent_type": null,
+      "bash_cmd": "Rscript scripts/preprocess-sobj.R --input-source invalid",
+      "bash_exit": null,
+      "bash_wall_s": null,
+      "script": "/Users/carlstone/ESPI/scripts/preprocess-sobj.R",
+      "script_sha256": "9a9bd18261a6fe3b152ebfe6505cbd577f043b3737a32569b88ecf2fc44f5713",
+      "script_source": "#!/usr/bin/env Rscript\n\n# Preprocess one Seurat object into one normalization branch.\n#\n# Usage:\n#   Rscript scripts/preprocess-sobj.R \\\n#     --input <seurat-object.rds> | --input-source <legacy|counts-qc> \\\n#     --normalization <log1p|pflog> \\\n#     --filter-cell-cycle <true|false>\n#\n# Arguments:\n#   --input\n#     Explicit Seurat object to preprocess. Cannot be combined with\n#     --input-source.\n#   --input-source\n#     Named source object: legacy selects\n#     INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds; counts-qc selects\n#     INPUT_OBJECT_DIR/sobj_qc_filtered.rds. Defaults to legacy.\n#   --normalization\n#     Normalization branch to run. Must be log1p or pflog. Defaults to log1p.\n#   --filter-cell-cycle\n#     If true, removes mouse_cell_cycle_genes from the HVG set before PCA.\n#     Defaults to false.\n#\n# Outputs:\n#   CURRENT_OBJECT_DIR/preprocess_<normalization>_<filter-cc|no-filter-cc>.rds\n#   QC, HVG, DimHeatmap, and elbow figures under FIGURE_DIR/preprocess.\n#\n# Next step:\n#   Run scripts/cluster-sobj.R with --input <preprocess output> and --elbow-n.\n\nsuppressPackageStartupMessages({\n  library(Seurat)\n  library(here)\n  library(scclrR)\n})\nhere::i_am(\"scripts/preprocess-sobj.R\")\nsuppressPackageStartupMessages({\n  devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)\n})\n\n# ---- parameters ----\n\nargs <- commandArgs(trailingOnly = TRUE)\narg <- function(name) {\n  i <- match(name, args)\n  if (is.na(i)) {\n    return(NULL)\n  }\n  if (i == length(args) || startsWith(args[[i + 1]], \"--\")) {\n    return(TRUE)\n  }\n  args[[i + 1]]\n}\narg_value <- function(name, default = NULL, required = FALSE) {\n  value <- arg(name)\n  if (identical(value, TRUE)) {\n    stop(\"Missing value for \", name, call. = FALSE)\n  }\n  if (is.null(value)) {\n    if (required) {\n      stop(\"Missing required argument \", name, call. = FALSE)\n    }\n    return(default)\n  }\n  value\n}\narg_flag <- function(name) {\n  identical(arg(name), TRUE)\n}\n\ninput <- arg_value(\"--input\", default = NULL)\ninput_source <- arg_value(\"--input-source\", default = \"legacy\")\nif (!is.null(input) && !is.null(arg(\"--input-source\"))) {\n  stop(\"Use either --input or --input-source, not both.\", call. = FALSE)\n}\nif (!input_source %in% c(\"legacy\", \"counts-qc\")) {\n  stop(\n    \"--input-source must be one of legacy or counts-qc; got \",\n    input_source,\n    call. = FALSE\n  )\n}\nif (is.null(input)) {\n  input <- analysis_input_path(input_source)\n} else {\n  input_source <- \"custom\"\n}\nnormalization <- arg_value(\"--normalization\", default = \"log1p\")\nfilter_cc <- arg_flag(\"--filter-cell-cycle\") ||\n  identical(\n    tolower(arg_value(\"--filter-cell-cycle\", default = \"false\")),\n    \"true\"\n  )\n\n# ---- validation ----\n\nif (!normalization %in% c(\"log1p\", \"pflog\")) {\n  stop(\"Unknown normalization: \", normalization, call. = FALSE)\n}\nif (!file.exists(input)) {\n  stop(\"Input Seurat object does not exist: \", input, call. = FALSE)\n}\n\n# ---- work ----\n\nsobj <- readRDS(input)\nemit_tripwire_checkpoint(\n  \"raw_data_available\",\n  input = input,\n  input_source = input_source,\n  n_cells = ncol(sobj),\n  n_features = nrow(sobj)\n)\nvalidate_required_metadata(sobj@meta.data, c(\"Mouse\", \"Condition\"))\n\n# Drop any pre-existing reductions from upstream Trailmaker export.\nsobj@reductions <- list()\nsobj[[\"RNA\"]] <- as(sobj[[\"RNA\"]], Class = \"Assay5\")\n\nsobj$sample_id <- paste0(\n  \"M\",\n  sobj$Mouse,\n  \"_\",\n  gsub(\"[^A-Za-z0-9]\", \"\", sobj$Condition)\n)\n\nsobj[[\"percent.ribo\"]] <- Seurat::PercentageFeatureSet(\n  sobj,\n  pattern = \"^Rp[sl]\"\n)\n\nsobj@misc$preprocessing$input_source <- input_source\nsobj@misc$preprocessing$normalization <- normalization\nsobj@misc$preprocessing$filtered_cell_cycle <- filter_cc\n\n# Plot QC diagnostics.\nsplot_qc_metrics_violin(sobj)\n\nsobj <- FindVariableFeatures(sobj, nfeatures = 2000)\n\nif (filter_cc) {\n  utils::data(\"mouse_cell_cycle_genes\", package = \"ESPI\", envir = environment())\n  VariableFeatures(sobj) <- setdiff(\n    VariableFeatures(sobj),\n    mouse_cell_cycle_genes\n  )\n}\nemit_tripwire_checkpoint(\n  \"variable_features_selected\",\n  normalization = normalization,\n  filtered_cell_cycle = filter_cc,\n  n_variable_features = length(VariableFeatures(sobj))\n)\n\n# Plot gene mean-vs-variance scatter with top 20 retained HVGs labeled.\nsplot_hvg_scatter(sobj, n_top = 20)\n\nsobj <- switch(\n  normalization,\n  log1p = run_log1p_pca(sobj, n_pcs = 50),\n  pflog = run_pflog_pca(sobj, n_pcs = 50)\n)\nemit_tripwire_checkpoint(\n  \"pca_ready\",\n  normalization = normalization,\n  filtered_cell_cycle = filter_cc,\n  n_pcs = ncol(SeuratObject::Embeddings(sobj, reduction = \"pca\"))\n)\n\nsplot_dim_heatmap(sobj)\nsplot_elbow(sobj, n_pcs = 50)\n\n# ---- output ----\n\ncc_tag <- if (filter_cc) \"filter-cc\" else \"no-filter-cc\"\nout_path <- file.path(\n  CURRENT_OBJECT_DIR,\n  sprintf(\"preprocess_%s_%s.rds\", normalization, cc_tag)\n)\n\ndir.create(CURRENT_OBJECT_DIR, recursive = TRUE, showWarnings = FALSE)\nsaveRDS(sobj, out_path)\nemit_tripwire_checkpoint(\n  \"preprocess_object_written\",\n  output = out_path,\n  normalization = normalization,\n  filtered_cell_cycle = cc_tag\n)\n\nmessage(\n  \"Saved \",\n  out_path,\n  \". Inspect the elbow plot, choose elbow_n, then run: \",\n  \"Rscript scripts/cluster-sobj.R --input \",\n  out_path,\n  \" --elbow-n <N>\"\n)\n",
+      "git_sha": "d973f07fd347cb3943fd8c78195ae2500e4f9d5e",
+      "inputs": [
+        {
+          "path": "/Users/carlstone/ESPI/input",
+          "_missing": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": "/Users/carlstone/ESPI/out_path",
+          "_missing": true
+        }
+      ],
+      "filters_detected": [],
+      "seeds_detected": []
+    }
+  ],
+  "summary": {
+    "unique_inputs": [
+      {
+        "path": "/Users/carlstone/ESPI/input",
+        "sha256": null
+      }
+    ],
+    "unique_outputs": [
+      {
+        "path": "/Users/carlstone/ESPI/out_path",
+        "sha256": null
+      }
+    ],
+    "total_wall_seconds": 0,
+    "scripts_executed": [
+      "/Users/carlstone/ESPI/scripts/preprocess-sobj.R"
+    ]
+  },
+  "extraction_warnings": []
+}

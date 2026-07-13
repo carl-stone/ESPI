@@ -4,7 +4,7 @@ ESPI's executable analysis pipeline currently lives in `scripts/` and `notebook/
 
 | Entry | Location | Type | Status | Notes |
 |-------|----------|------|--------|-------|
-| Preprocess Seurat object branches | `scripts/preprocess-sobj.R`, `scripts/preprocess-all.R` | R pipeline | active | Produces normalization and cell-cycle-filter branches plus QC/HVG/PCA diagnostics. |
+| Preprocess Seurat object branches | `scripts/preprocess-sobj.R`, `scripts/preprocess-all.R` | R pipeline | active | Produces normalization and cell-cycle-filter branches plus QC/HVG/PCA diagnostics from either the legacy source object or the counts-derived, QC-filtered object selected at preprocessing. |
 | Candidate clustering | `scripts/cluster-sobj.R`, `scripts/cluster-all.R`, `scripts/summarize-cluster-grid.R` | R pipeline | active | Produces UMAP/clustree candidate clustering outputs, a 36-row supplemental grid summary table, a 12-panel clustree grid, and a representative UMAP resolution sweep from preprocessed objects. |
 | Clustering criteria ideation | `analysis/ideas/2026-07-03-clustering-criteria-brainstorm/` | Mycelium ideation session | active | Persona-generated criteria ideas for label-blind selection of normalization, PC count, and Leiden resolution. |
 | Cluster proportion testing ideation | `analysis/ideas/2026-07-05-cluster-proportion-testing/` | Mycelium ideation session | active | Targeted statistics, causal inference, compositional, single-cell methods, and experimental design ideas for testing E-Stim-associated MG-selected cluster proportion differences using Mouse × Condition samples rather than cell-pooled Fisher tests. |

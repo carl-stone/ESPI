@@ -12,7 +12,7 @@
 #   DATA_ROOT_DIR/data/input/sobj_raw.rds
 #
 # Next step:
-#   Run scripts/preprocess-sobj.R with --input DATA_ROOT_DIR/data/input/sobj_raw.rds.
+#   Run scripts/qc-filtering.R.
 
 suppressPackageStartupMessages({
   library(Seurat)

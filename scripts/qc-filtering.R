@@ -12,7 +12,7 @@
 #   INPUT_OBJECT_DIR/sobj_qc_filtered.rds
 #
 # Next step:
-#   Run scripts/preprocess-sobj.R with --input INPUT_OBJECT_DIR/sobj_qc_filtered.rds.
+#   Run scripts/preprocess-sobj.R with --input-source counts-qc.
 
 suppressPackageStartupMessages({
   library(Seurat)

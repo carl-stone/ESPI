@@ -549,6 +549,18 @@ tripwire_cli_value_boundaries <- function(root) {
       script = file.path(root, "scripts", "preprocess-sobj.R"),
       args = c("--input", "--normalization", "pflog"),
       expected = "Missing value for --input"
+    ),
+    list(
+      label = "preprocess-sobj.R invalid --input-source",
+      script = file.path(root, "scripts", "preprocess-sobj.R"),
+      args = c("--input-source", "invalid"),
+      expected = "--input-source must be one of legacy or counts-qc"
+    ),
+    list(
+      label = "preprocess-all.R mutually exclusive input options",
+      script = file.path(root, "scripts", "preprocess-all.R"),
+      args = c("--input", "object.rds", "--input-source", "legacy"),
+      expected = "Use either --input or --input-source, not both."
     )
   )
   skipped <- character()

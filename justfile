@@ -26,17 +26,23 @@ format *paths:
         air format {{paths}}
     fi
 
-# Run all preprocessing branches
-preprocess:
-    Rscript scripts/preprocess-all.R
-
-# Run one preprocessing branch
-preprocess-one normalization="pflog" filter_cc="false" input="":
+# Run all preprocessing branches from legacy or counts-qc input
+preprocess input_source="legacy" input="":
     #!/usr/bin/env bash
     set -euo pipefail
-    args=(--normalization "{{normalization}}")
+    args=(--input-source "{{input_source}}")
     if [ -n "{{input}}" ]; then
-        args+=(--input "{{input}}")
+        args=(--input "{{input}}")
+    fi
+    Rscript scripts/preprocess-all.R "${args[@]}"
+
+# Run one preprocessing branch from legacy, counts-qc, or an explicit input
+preprocess-one normalization="pflog" filter_cc="false" input_source="legacy" input="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    args=(--normalization "{{normalization}}" --input-source "{{input_source}}")
+    if [ -n "{{input}}" ]; then
+        args=(--normalization "{{normalization}}" --input "{{input}}")
     fi
     if [ "{{filter_cc}}" = "true" ]; then
         args+=(--filter-cell-cycle)

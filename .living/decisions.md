@@ -572,3 +572,15 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: In the 22,751 complexity-passing cells, complete-mito P95/P97.5/P99 are 16.038/19.313/27.666%; the >20% tail removes 503 cells (2.211%). The cutoff is data-specific, not a scientific finding.
 
 **Consequences**: `sobj_qc_filtered.rds` retains 22,248 of 983,903 cells across S2/S3/S4/S5/S7/S8. An independent test reconstructed the exact saved cell IDs. The previous two-rRNA provenance statement remains historical but is erroneous and superseded.
+
+### [2026-07-12] Select preprocessing source at the pipeline entrypoint
+
+**Tags**: scripts, data-lineage, reproducibility, provenance
+
+**Context**: The pipeline needs to run either the established legacy Seurat object or the Seurat object reconstructed from counts and filtered by QC without changing later clustering, figure, or differential-analysis commands.
+
+**Decision**: Select `legacy` or `counts-qc` with `--input-source` in preprocessing and its wrappers. Keep `--input` for an explicit custom object. Record the selected source in preprocessing metadata; downstream stages consume the regenerated current artifacts.
+
+**Rationale**: Preprocessing is the only shared upstream seam. Selecting there keeps every downstream artifact contract unchanged and prevents parallel source-selection logic from drifting across later scripts.
+
+**Consequences**: A run replaces current branch artifacts. Regenerate preprocessing before clustering and downstream analyses whenever the source changes.
