@@ -38,7 +38,7 @@ Create the combined raw Seurat object from the six 10X directories and
 sample metadata:
 
 ``` sh
-Rscript scripts/process-counts.R
+Rscript scripts/01-process-counts.R
 ```
 
 This saves `sobj_raw.rds` at `data/input/sobj_raw.rds` beneath the Box
@@ -47,7 +47,7 @@ data root (`DATA_ROOT_DIR/data/input/sobj_raw.rds`).
 Run QC filtering before preprocessing:
 
 ``` sh
-Rscript scripts/qc-filtering.R
+Rscript scripts/02-qc-filtering.R
 ```
 
 The script writes QC figures to `FIGURE_DIR/qc/*.png`, QC tables to

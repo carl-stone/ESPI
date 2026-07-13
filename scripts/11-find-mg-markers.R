@@ -4,7 +4,7 @@
 # clustering.
 #
 # Usage:
-#   Rscript scripts/find-markers-mg-selected.R \
+#   Rscript scripts/11-find-mg-markers.R \
 #     [--input <clustered-seurat-object.rds>] \
 #     [--branch-tag <branch tag>] \
 #     [--elbow-n <positive integer>] \
@@ -46,7 +46,7 @@
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/find-markers-mg-selected.R")
+here::i_am("scripts/11-find-mg-markers.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -177,12 +177,6 @@ figure_dir <- get_arg(
 
 # ---- helpers ----
 
-assert_scalar_character <- function(x, name) {
-  if (!is.character(x) || length(x) != 1L || is.na(x) || !nzchar(x)) {
-    stop(name, " must be a non-empty character scalar.", call. = FALSE)
-  }
-}
-
 assert_positive_integer <- function(x, name) {
   if (length(x) != 1L || is.na(x) || x <= 0L) {
     stop(name, " must be a positive integer.", call. = FALSE)
@@ -201,14 +195,6 @@ assert_nonnegative_number <- function(x, name) {
   }
 }
 
-cluster_levels_for_labels <- function(values) {
-  unique_values <- unique(as.character(values))
-  if (all(grepl("^-?[0-9]+$", unique_values))) {
-    as.character(sort(as.integer(unique_values)))
-  } else {
-    sort(unique_values, method = "radix")
-  }
-}
 
 assert_absent_or_overwrite <- function(paths, overwrite) {
   existing_paths <- paths[
@@ -223,21 +209,6 @@ assert_absent_or_overwrite <- function(paths, overwrite) {
   }
 }
 
-link_notebook_png <- function(png_path) {
-  notebook_figure_dir <- here::here("notebook", "figures")
-  dir.create(notebook_figure_dir, recursive = TRUE, showWarnings = FALSE)
-  notebook_png_path <- file.path(notebook_figure_dir, basename(png_path))
-  if (
-    file.exists(notebook_png_path) || nzchar(Sys.readlink(notebook_png_path))
-  ) {
-    unlink(notebook_png_path)
-  }
-  link_created <- file.symlink(png_path, notebook_png_path)
-  if (!isTRUE(link_created)) {
-    stop("Failed to link notebook figure: ", notebook_png_path, call. = FALSE)
-  }
-  notebook_png_path
-}
 
 read_identity_map <- function(path, cluster_levels, cluster_values) {
   if (!file.exists(path)) {

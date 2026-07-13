@@ -3,7 +3,7 @@
 # Generate supplemental clustering grid summaries and figures.
 #
 # Usage:
-#   Rscript scripts/summarize-cluster-grid.R
+#   Rscript scripts/05-summarize-clusters.R
 #
 # Arguments:
 #   None.
@@ -21,7 +21,7 @@
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/summarize-cluster-grid.R")
+here::i_am("scripts/05-summarize-clusters.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })

@@ -34,7 +34,7 @@ preprocess input_source="legacy" input="":
     if [ -n "{{input}}" ]; then
         args=(--input "{{input}}")
     fi
-    Rscript scripts/preprocess-all.R "${args[@]}"
+    Rscript scripts/03-preprocess-all.R "${args[@]}"
 
 # Run one preprocessing branch from legacy, counts-qc, or an explicit input
 preprocess-one normalization="pflog" filter_cc="false" input_source="legacy" input="":
@@ -47,7 +47,7 @@ preprocess-one normalization="pflog" filter_cc="false" input_source="legacy" inp
     if [ "{{filter_cc}}" = "true" ]; then
         args+=(--filter-cell-cycle)
     fi
-    Rscript scripts/preprocess-sobj.R "${args[@]}"
+    Rscript scripts/03-preprocess.R "${args[@]}"
 
 # Cluster every preprocessed object
 cluster elbow_n="20" input_dir="" extra_dims="" resolutions="":
@@ -63,7 +63,7 @@ cluster elbow_n="20" input_dir="" extra_dims="" resolutions="":
     if [ -n "{{resolutions}}" ]; then
         args+=(--resolutions "{{resolutions}}")
     fi
-    Rscript scripts/cluster-all.R "${args[@]}"
+    Rscript scripts/04-cluster-all.R "${args[@]}"
 
 # Print cluster commands without running them
 cluster-dry-run elbow_n="20" input_dir="" extra_dims="" resolutions="":
@@ -79,7 +79,7 @@ cluster-dry-run elbow_n="20" input_dir="" extra_dims="" resolutions="":
     if [ -n "{{resolutions}}" ]; then
         args+=(--resolutions "{{resolutions}}")
     fi
-    Rscript scripts/cluster-all.R "${args[@]}"
+    Rscript scripts/04-cluster-all.R "${args[@]}"
 
 # Cluster one preprocessed object
 cluster-one input elbow_n="20" extra_dims="" resolutions="":
@@ -92,15 +92,15 @@ cluster-one input elbow_n="20" extra_dims="" resolutions="":
     if [ -n "{{resolutions}}" ]; then
         args+=(--resolutions "{{resolutions}}")
     fi
-    Rscript scripts/cluster-sobj.R "${args[@]}"
+    Rscript scripts/04-cluster.R "${args[@]}"
 
 # Summarize full clustering grid
 summarize-clusters:
-    Rscript scripts/summarize-cluster-grid.R
+    Rscript scripts/05-summarize-clusters.R
 
 # Summarize mg-selected clustering grid
 summarize-mg-selected elbow_n="20":
-    Rscript scripts/summarize-mg-selected-grid.R --elbow-n {{elbow_n}}
+    Rscript scripts/08-summarize-mg-clusters.R --elbow-n {{elbow_n}}
 
 # Plot full-dataset marker heatmap
 marker-heatmap dims="50" resolution="0.3" input="" layer="pflog" out_dir="":
@@ -113,7 +113,7 @@ marker-heatmap dims="50" resolution="0.3" input="" layer="pflog" out_dir="":
     if [ -n "{{out_dir}}" ]; then
         args+=(--out-dir "{{out_dir}}")
     fi
-    Rscript scripts/big-heatmap-plot.R "${args[@]}"
+    Rscript scripts/06-plot-marker-heatmap.R "${args[@]}"
 
 # Plot cluster marker heatmaps
 cluster-marker-heatmaps dims="50" resolution="0.3" input="" layer="pflog" slot="data" n_perm="2000" out_dir="":
@@ -126,7 +126,7 @@ cluster-marker-heatmaps dims="50" resolution="0.3" input="" layer="pflog" slot="
     if [ -n "{{out_dir}}" ]; then
         args+=(--out-dir "{{out_dir}}")
     fi
-    Rscript scripts/plot-cluster-marker-heatmaps.R "${args[@]}"
+    Rscript scripts/10-plot-cluster-marker-heatmaps.R "${args[@]}"
 
 # Run mg-selected marker ranking
 mg-markers input="" branch_tag="pflog_mg_selected_no_filter_cc" elbow_n="20" dims="30" resolution="0.3" assay="" layer="data" counts_layer="counts" top_n="5" min_pct="0.10" logfc_threshold="0.25" min_diff_pct="0" min_cells_group="3" cluster_map="" table_dir="" figure_dir="" confirm_no_merge="false" overwrite="false":
@@ -140,7 +140,7 @@ mg-markers input="" branch_tag="pflog_mg_selected_no_filter_cc" elbow_n="20" dim
     if [ -n "{{figure_dir}}" ]; then args+=(--figure-dir "{{figure_dir}}"); fi
     if [ "{{confirm_no_merge}}" = "true" ]; then args+=(--confirm-no-merge); fi
     if [ "{{overwrite}}" = "true" ]; then args+=(--overwrite); fi
-    Rscript scripts/find-markers-mg-selected.R "${args[@]}"
+    Rscript scripts/11-find-mg-markers.R "${args[@]}"
 
 # Run default mg-selected marker ranking without a cluster merge map
 mg-markers-no-merge:
@@ -153,7 +153,7 @@ mg-figures input="" branch_tag="pflog_mg_selected_no_filter_cc" elbow_n="20" dim
     args=(--branch-tag "{{branch_tag}}" --elbow-n "{{elbow_n}}" --dims "{{dims}}" --resolution "{{resolution}}" --layer "{{layer}}")
     if [ -n "{{input}}" ]; then args+=(--input "{{input}}"); fi
     if [ -n "{{feature_list}}" ]; then args+=(--feature-list "{{feature_list}}"); fi
-    Rscript scripts/plot-mg-selected-figures.R "${args[@]}"
+    Rscript scripts/09-plot-mg-figures.R "${args[@]}"
 
 # Run mg-selected DE and enrichment
 mg-de input="" cluster_column="cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3" condition_col="" control_label="" estim_label="" counts_layer="counts" deg_dir="" enrichment_dir="" lfc_shrink_type="normal" overwrite="false":
@@ -167,7 +167,7 @@ mg-de input="" cluster_column="cluster_pflog_mg_selected_no_filter_cc_dims30_res
     if [ -n "{{deg_dir}}" ]; then args+=(--deg-dir "{{deg_dir}}"); fi
     if [ -n "{{enrichment_dir}}" ]; then args+=(--enrichment-dir "{{enrichment_dir}}"); fi
     if [ "{{overwrite}}" = "true" ]; then args+=(--overwrite); fi
-    Rscript scripts/run-mg-selected-de.R "${args[@]}"
+    Rscript scripts/12-run-mg-de.R "${args[@]}"
 
 # Re-run default mg-selected DE and replace existing outputs
 mg-de-overwrite:

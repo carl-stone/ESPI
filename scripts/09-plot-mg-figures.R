@@ -3,7 +3,7 @@
 # Generate representative mg-selected UMAP figures.
 #
 # Usage:
-#   Rscript scripts/plot-mg-selected-figures.R \
+#   Rscript scripts/09-plot-mg-figures.R \
 #     [--input <clustered-seurat-object.rds>] \
 #     [--branch-tag <branch tag>] \
 #     [--elbow-n <positive integer>] \
@@ -26,7 +26,7 @@
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/plot-mg-selected-figures.R")
+here::i_am("scripts/09-plot-mg-figures.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -243,30 +243,6 @@ load_umap_feature_list <- function(path) {
   features
 }
 
-link_notebook_png <- function(png_path) {
-  notebook_figure_dir <- here::here("notebook", "figures")
-  dir.create(notebook_figure_dir, recursive = TRUE, showWarnings = FALSE)
-  notebook_png_path <- file.path(notebook_figure_dir, basename(png_path))
-  if (
-    file.exists(notebook_png_path) || nzchar(Sys.readlink(notebook_png_path))
-  ) {
-    unlink(notebook_png_path)
-  }
-  link_created <- file.symlink(png_path, notebook_png_path)
-  if (!isTRUE(link_created)) {
-    stop("Failed to link notebook figure: ", notebook_png_path, call. = FALSE)
-  }
-  notebook_png_path
-}
-
-cluster_levels_for_labels <- function(values) {
-  unique_values <- unique(as.character(values))
-  if (all(grepl("^-?[0-9]+$", unique_values))) {
-    as.character(sort(as.integer(unique_values)))
-  } else {
-    sort(unique_values, method = "radix")
-  }
-}
 
 feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
   embeddings <- SeuratObject::Embeddings(sobj, reduction = reduction)

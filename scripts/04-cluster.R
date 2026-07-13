@@ -3,7 +3,7 @@
 # Cluster one preprocessed normalization branch across a candidate grid.
 #
 # Usage:
-#   Rscript scripts/cluster-sobj.R \
+#   Rscript scripts/04-cluster.R \
 #     --input <preprocessed-seurat-object.rds> \
 #     --elbow-n <positive integer> \
 #     --extra-dims <comma-separated integers> \
@@ -30,7 +30,7 @@ suppressPackageStartupMessages({
   library(Seurat)
   library(here)
 })
-here::i_am("scripts/cluster-sobj.R")
+here::i_am("scripts/04-cluster.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })

@@ -4,7 +4,7 @@
 # differential detection, and enrichment follow-up analyses.
 #
 # Usage:
-#   Rscript scripts/run-mg-selected-de.R \
+#   Rscript scripts/12-run-mg-de.R \
 #     --input <mg-selected-clustered-seurat-object.rds> \
 #     --cluster-column <cluster metadata column> \
 #     --condition-col <condition metadata column> \
@@ -38,7 +38,7 @@
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/run-mg-selected-de.R")
+here::i_am("scripts/12-run-mg-de.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -223,11 +223,6 @@ safe_component <- function(x) {
   ifelse(nzchar(x), x, "missing")
 }
 
-assert_scalar_character <- function(x, name) {
-  if (!is.character(x) || length(x) != 1 || is.na(x) || !nzchar(x)) {
-    stop(name, " must be a non-empty character scalar.", call. = FALSE)
-  }
-}
 
 assert_no_missing_metadata <- function(meta, columns) {
   missing_columns <- setdiff(columns, colnames(meta))

@@ -23,7 +23,7 @@ script_path <- function() {
 find_repo_root <- function() {
   markers <- c(
     "analysis_labels.yml",
-    file.path("scripts", "cluster-sobj.R"),
+    file.path("scripts", "04-cluster.R"),
     file.path("notebook", "sc_analysis.qmd")
   )
   cwd <- normalizePath(getwd(), winslash = "/", mustWork = TRUE)
@@ -268,9 +268,9 @@ tripwire_branch_artifact_collision <- function(root) {
   # Seurat artifact names must also avoid hyphens that Seurat rejects for
   # reduction names.
   slug <- "branch-artifact-collision"
-  path <- file.path(root, "scripts", "cluster-sobj.R")
+  path <- file.path(root, "scripts", "04-cluster.R")
   if (!file.exists(path)) {
-    return(fail(slug, "scripts/cluster-sobj.R is missing."))
+    return(fail(slug, "scripts/04-cluster.R is missing."))
   }
   lines <- read_text(path)
   code_lines <- strip_inline_comment(lines)
@@ -409,9 +409,9 @@ tripwire_cluster_wrapper_contract <- function(root) {
   # orchestrator with a non-executing preview path, not a shell loop depending
   # on exported state.
   slug <- "cluster-wrapper-contract"
-  path <- file.path(root, "scripts", "cluster-all.R")
+  path <- file.path(root, "scripts", "04-cluster-all.R")
   if (!file.exists(path)) {
-    return(fail(slug, "scripts/cluster-all.R is missing."))
+    return(fail(slug, "scripts/04-cluster-all.R is missing."))
   }
   lines <- read_text(path)
   code_lines <- strip_inline_comment(lines)
@@ -460,7 +460,7 @@ tripwire_cluster_wrapper_contract <- function(root) {
     code,
     perl = TRUE
   )
-  builds_rscript_commands <- grepl("cluster-sobj.R", code, fixed = TRUE) &&
+  builds_rscript_commands <- grepl("04-cluster.R", code, fixed = TRUE) &&
     grepl("\\b(Rscript|system2)[[:space:]]*\\(?", code, perl = TRUE)
   has_nonexecuting_preview <- has_preview_arg &&
     prints_commands &&
@@ -539,26 +539,26 @@ tripwire_cli_value_boundaries <- function(root) {
 
   commands <- list(
     list(
-      label = "cluster-all.R --dry-run --elbow-n",
-      script = file.path(root, "scripts", "cluster-all.R"),
+      label = "04-cluster-all.R --dry-run --elbow-n",
+      script = file.path(root, "scripts", "04-cluster-all.R"),
       args = c("--dry-run", "--elbow-n"),
       expected = "Missing value for --elbow-n"
     ),
     list(
-      label = "preprocess-sobj.R --input --normalization pflog",
-      script = file.path(root, "scripts", "preprocess-sobj.R"),
+      label = "03-preprocess.R --input --normalization pflog",
+      script = file.path(root, "scripts", "03-preprocess.R"),
       args = c("--input", "--normalization", "pflog"),
       expected = "Missing value for --input"
     ),
     list(
-      label = "preprocess-sobj.R invalid --input-source",
-      script = file.path(root, "scripts", "preprocess-sobj.R"),
+      label = "03-preprocess.R invalid --input-source",
+      script = file.path(root, "scripts", "03-preprocess.R"),
       args = c("--input-source", "invalid"),
       expected = "--input-source must be one of legacy or counts-qc"
     ),
     list(
-      label = "preprocess-all.R mutually exclusive input options",
-      script = file.path(root, "scripts", "preprocess-all.R"),
+      label = "03-preprocess-all.R mutually exclusive input options",
+      script = file.path(root, "scripts", "03-preprocess-all.R"),
       args = c("--input", "object.rds", "--input-source", "legacy"),
       expected = "Use either --input or --input-source, not both."
     )
@@ -568,8 +568,8 @@ tripwire_cli_value_boundaries <- function(root) {
     commands <- c(
       commands,
       list(list(
-        label = "cluster-sobj.R --input <valid-preprocess-object.rds> --elbow-n",
-        script = file.path(root, "scripts", "cluster-sobj.R"),
+        label = "04-cluster.R --input <valid-preprocess-object.rds> --elbow-n",
+        script = file.path(root, "scripts", "04-cluster.R"),
         args = c("--input", preprocess_input, "--elbow-n"),
         expected = "Missing value for --elbow-n"
       ))
@@ -578,7 +578,7 @@ tripwire_cli_value_boundaries <- function(root) {
     skipped <- c(
       skipped,
       paste(
-        "cluster-sobj.R valueless --elbow-n subcase skipped because",
+        "04-cluster.R valueless --elbow-n subcase skipped because",
         preprocess_input,
         "does not exist"
       )
@@ -758,9 +758,9 @@ tripwire_missing_counts_file <- function(root) {
   # Scientific boundary: an explicit missing input must abort instead of silently
   # falling back to a default object or stale cache.
   slug <- "missing-counts-file"
-  script <- file.path(root, "scripts", "preprocess-sobj.R")
+  script <- file.path(root, "scripts", "03-preprocess.R")
   if (!file.exists(script)) {
-    return(fail(slug, "scripts/preprocess-sobj.R is missing."))
+    return(fail(slug, "scripts/03-preprocess.R is missing."))
   }
   rscript <- Sys.which("Rscript")
   if (identical(unname(rscript), "")) {
@@ -827,9 +827,9 @@ tripwire_heatmap_missing_input <- function(root) {
   # input instead of falling back to a default Seurat object or writing partial
   # figure/table/notebook artifacts.
   slug <- "heatmap-missing-input"
-  script <- file.path(root, "scripts", "plot-cluster-marker-heatmaps.R")
+  script <- file.path(root, "scripts", "10-plot-cluster-marker-heatmaps.R")
   if (!file.exists(script)) {
-    return(fail(slug, "scripts/plot-cluster-marker-heatmaps.R is missing."))
+    return(fail(slug, "scripts/10-plot-cluster-marker-heatmaps.R is missing."))
   }
   rscript <- Sys.which("Rscript")
   if (identical(unname(rscript), "")) {
@@ -1259,12 +1259,12 @@ tripwire_metadata_contract <- function(root) {
   # pseudobulk sample identity; missing or drifting metadata changes the biology.
   slug <- "metadata-contract"
   labels_path <- file.path(root, "analysis_labels.yml")
-  preprocess_path <- file.path(root, "scripts", "preprocess-sobj.R")
+  preprocess_path <- file.path(root, "scripts", "03-preprocess.R")
   if (!file.exists(labels_path)) {
     return(fail(slug, "analysis_labels.yml is missing."))
   }
   if (!file.exists(preprocess_path)) {
-    return(fail(slug, "scripts/preprocess-sobj.R is missing."))
+    return(fail(slug, "scripts/03-preprocess.R is missing."))
   }
 
   yml <- read_text(labels_path)
@@ -1401,7 +1401,7 @@ tripwire_label_firewall <- function(root) {
     ))
   }
 
-  paths <- file.path(root, "scripts", c("preprocess-sobj.R", "cluster-sobj.R"))
+  paths <- file.path(root, "scripts", c("03-preprocess.R", "04-cluster.R"))
   missing <- paths[!file.exists(paths)]
   if (length(missing) > 0) {
     return(fail(
@@ -1535,7 +1535,7 @@ tripwire_toy_contrast_direction <- function(root) {
     ))
   }
 
-  de_path <- file.path(root, "scripts", "run-mg-selected-de.R")
+  de_path <- file.path(root, "scripts", "12-run-mg-de.R")
   if (file.exists(de_path)) {
     de_txt <- squash(read_text(de_path))
     required_patterns <- c(

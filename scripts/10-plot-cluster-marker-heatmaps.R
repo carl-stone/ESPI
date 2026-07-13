@@ -3,7 +3,7 @@
 # Generate per-cluster marker module and p27 enrichment heatmaps.
 #
 # Usage:
-#   Rscript scripts/plot-cluster-marker-heatmaps.R \
+#   Rscript scripts/10-plot-cluster-marker-heatmaps.R \
 #     [--input <clustered-seurat-object.rds>] \
 #     [--dims <positive integer>] \
 #     [--resolution <resolution string>] \
@@ -42,12 +42,12 @@
 #
 # The cluster metadata column is derived from the input object as
 # cluster_<sobj@misc$clustering$branch_tag>_dims<dims>_res<resolution>.
-# The input object must have been produced by scripts/cluster-sobj.R.
+# The input object must have been produced by scripts/04-cluster.R.
 
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/plot-cluster-marker-heatmaps.R")
+here::i_am("scripts/10-plot-cluster-marker-heatmaps.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -181,7 +181,7 @@ if (
 ) {
   stop(
     "Input object is missing a valid sobj@misc$clustering$branch_tag; ",
-    "run scripts/cluster-sobj.R first.",
+    "run scripts/04-cluster.R first.",
     call. = FALSE
   )
 }

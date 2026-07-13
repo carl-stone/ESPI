@@ -2,7 +2,7 @@
 
 # Run every current preprocessing branch.
 #
-#   Rscript scripts/preprocess-all.R \
+#   Rscript scripts/03-preprocess-all.R \
 #     [--input <seurat-object.rds> | --input-source <legacy|counts-qc>]
 #
 # Arguments:
@@ -19,20 +19,20 @@
 #   PFlog with cell-cycle-HVG filtering
 #
 # Outputs:
-#   Delegates to scripts/preprocess-sobj.R, which writes preprocessed Seurat
+#   Delegates to scripts/03-preprocess.R, which writes preprocessed Seurat
 #   objects to CURRENT_OBJECT_DIR and preprocessing figures to FIGURE_DIR.
 
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/preprocess-all.R")
+here::i_am("scripts/03-preprocess-all.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
 
 # ---- parameters ----
 
-preprocess_script <- here::here("scripts", "preprocess-sobj.R")
+preprocess_script <- here::here("scripts", "03-preprocess.R")
 
 args <- commandArgs(trailingOnly = TRUE)
 arg <- function(name) {

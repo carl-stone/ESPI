@@ -34,7 +34,7 @@ First create the combined raw Seurat object from the six 10X directories and
 sample metadata:
 
 ```sh
-Rscript scripts/process-counts.R
+Rscript scripts/01-process-counts.R
 ```
 
 This writes `data/input/sobj_raw.rds` beneath the Box data root
@@ -43,7 +43,7 @@ This writes `data/input/sobj_raw.rds` beneath the Box data root
 Run QC filtering before preprocessing:
 
 ```sh
-Rscript scripts/qc-filtering.R
+Rscript scripts/02-qc-filtering.R
 ```
 
 The script writes QC figures to `FIGURE_DIR/qc/*.png`, QC tables to
@@ -76,7 +76,7 @@ just preprocess-one pflog false counts-qc
 ```
 
 An explicit alternative object remains available through
-`Rscript scripts/preprocess-sobj.R --input /path/to/object.rds --normalization pflog`.
+`Rscript scripts/03-preprocess.R --input /path/to/object.rds --normalization pflog`.
 Preprocessing replaces the current branch artifacts, so clustering and all
 downstream commands consume the source selected for the current run.
 

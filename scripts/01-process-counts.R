@@ -3,7 +3,7 @@
 # Read six 10X count directories and sample metadata into one combined Seurat object.
 #
 # Usage:
-#   Rscript scripts/process-counts.R
+#   Rscript scripts/01-process-counts.R
 #
 # Arguments:
 #   None. Input paths derive from DATA_ROOT_DIR.
@@ -12,13 +12,13 @@
 #   DATA_ROOT_DIR/data/input/sobj_raw.rds
 #
 # Next step:
-#   Run scripts/qc-filtering.R.
+#   Run scripts/02-qc-filtering.R.
 
 suppressPackageStartupMessages({
   library(Seurat)
   library(here)
 })
-here::i_am("scripts/process-counts.R")
+here::i_am("scripts/01-process-counts.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })

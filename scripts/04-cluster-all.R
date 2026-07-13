@@ -3,7 +3,7 @@
 # Cluster every preprocessed branch in an input directory.
 #
 # Usage:
-#   Rscript scripts/cluster-all.R \
+#   Rscript scripts/04-cluster-all.R \
 #     --elbow-n <positive integer> \
 #     --input-dir <directory> \
 #     --extra-dims <comma-separated integers> \
@@ -17,21 +17,21 @@
 #     Directory containing preprocess_*.rds inputs. Defaults to
 #     CURRENT_OBJECT_DIR.
 #   --extra-dims
-#     Additional PC counts to cluster. Forwarded to cluster-sobj.R. Defaults
+#     Additional PC counts to cluster. Forwarded to 04-cluster.R. Defaults
 #     there to 30,50.
 #   --resolutions
-#     Leiden resolutions to cluster. Forwarded to cluster-sobj.R. Defaults
+#     Leiden resolutions to cluster. Forwarded to 04-cluster.R. Defaults
 #     there to 0.3,0.5,0.8.
 #   --dry-run
 #     Print the Rscript commands that would run, without executing them.
 #
 # Outputs:
-#   Delegates to scripts/cluster-sobj.R for every preprocess_*.rds input.
+#   Delegates to scripts/04-cluster.R for every preprocess_*.rds input.
 
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/cluster-all.R")
+here::i_am("scripts/04-cluster-all.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -73,7 +73,7 @@ resolutions <- arg_value("--resolutions", default = NULL)
 dry_run <- arg_flag("--dry-run")
 
 input_dir <- normalizePath(input_dir, winslash = "/", mustWork = FALSE)
-cluster_script <- here::here("scripts", "cluster-sobj.R")
+cluster_script <- here::here("scripts", "04-cluster.R")
 rscript <- file.path(R.home("bin"), "Rscript")
 
 # ---- validation ----

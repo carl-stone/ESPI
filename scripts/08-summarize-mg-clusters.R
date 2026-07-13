@@ -3,7 +3,7 @@
 # Summarize and plot the mg-selected PFlog clustering grid.
 #
 # Usage:
-#   Rscript scripts/summarize-mg-selected-grid.R [--elbow-n <positive integer>]
+#   Rscript scripts/08-summarize-mg-clusters.R [--elbow-n <positive integer>]
 #
 # Inputs:
 #   CURRENT_OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow<N>.rds
@@ -17,7 +17,7 @@
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/summarize-mg-selected-grid.R")
+here::i_am("scripts/08-summarize-mg-clusters.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -227,21 +227,6 @@ collect_mg_selected_summary <- function(objects, branches) {
   summary
 }
 
-link_notebook_png <- function(png_path) {
-  notebook_figure_dir <- here::here("notebook", "figures")
-  dir.create(notebook_figure_dir, recursive = TRUE, showWarnings = FALSE)
-  notebook_png_path <- file.path(notebook_figure_dir, basename(png_path))
-  if (
-    file.exists(notebook_png_path) || nzchar(Sys.readlink(notebook_png_path))
-  ) {
-    unlink(notebook_png_path)
-  }
-  link_created <- file.symlink(png_path, notebook_png_path)
-  if (!isTRUE(link_created)) {
-    stop("Failed to link notebook figure: ", notebook_png_path, call. = FALSE)
-  }
-  notebook_png_path
-}
 
 save_mg_selected_resolution_sweeps <- function(objects, branches) {
   out_dir <- file.path(FIGURE_DIR, "mg_selected")

@@ -584,3 +584,11 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Preprocessing is the only shared upstream seam. Selecting there keeps every downstream artifact contract unchanged and prevents parallel source-selection logic from drifting across later scripts.
 
 **Consequences**: A run replaces current branch artifacts. Regenerate preprocessing before clustering and downstream analyses whenever the source changes.
+
+### [2026-07-12] Number executable pipeline stages
+
+**Tags**: scripts, workflow, reproducibility
+
+**Decision**: Prefix each executable stage with its pipeline order. Keep all-branch preprocessing and clustering as numbered companion scripts because they preserve an explicit all-branch interface and clustering's dry-run contract.
+
+**Consequences**: Documentation, recipes, and tripwires use numbered script paths. Retain `R/` helpers that carry substantial, reusable, testable scientific computation; inline the one-call input-source path selector in preprocessing.

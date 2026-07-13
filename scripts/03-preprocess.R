@@ -3,7 +3,7 @@
 # Preprocess one Seurat object into one normalization branch.
 #
 # Usage:
-#   Rscript scripts/preprocess-sobj.R \
+#   Rscript scripts/03-preprocess.R \
 #     --input <seurat-object.rds> | --input-source <legacy|counts-qc> \
 #     --normalization <log1p|pflog> \
 #     --filter-cell-cycle <true|false>
@@ -27,14 +27,14 @@
 #   QC, HVG, DimHeatmap, and elbow figures under FIGURE_DIR/preprocess.
 #
 # Next step:
-#   Run scripts/cluster-sobj.R with --input <preprocess output> and --elbow-n.
+#   Run scripts/04-cluster.R with --input <preprocess output> and --elbow-n.
 
 suppressPackageStartupMessages({
   library(Seurat)
   library(here)
   library(scclrR)
 })
-here::i_am("scripts/preprocess-sobj.R")
+here::i_am("scripts/03-preprocess.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -82,7 +82,11 @@ if (!input_source %in% c("legacy", "counts-qc")) {
   )
 }
 if (is.null(input)) {
-  input <- analysis_input_path(input_source)
+  input <- if (identical(input_source, "legacy")) {
+    file.path(INPUT_OBJECT_DIR, "pipseq_processed_matrix_with_egfp.rds")
+  } else {
+    file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds")
+  }
 } else {
   input_source <- "custom"
 }
@@ -192,7 +196,7 @@ message(
   "Saved ",
   out_path,
   ". Inspect the elbow plot, choose elbow_n, then run: ",
-  "Rscript scripts/cluster-sobj.R --input ",
+  "Rscript scripts/04-cluster.R --input ",
   out_path,
   " --elbow-n <N>"
 )

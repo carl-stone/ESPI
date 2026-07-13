@@ -3,7 +3,7 @@
 # Generate a per-cell marker heatmap for the manuscript.
 #
 # Usage:
-#   Rscript scripts/big-heatmap-plot.R \
+#   Rscript scripts/06-plot-marker-heatmap.R \
 #     --input <clustered-seurat-object.rds> \
 #     --dims <positive integer> \
 #     --resolution <resolution string> \
@@ -31,12 +31,12 @@
 #
 # The cluster metadata column is derived from the input object as
 # cluster_<sobj@misc$clustering$branch_tag>_dims<dims>_res<resolution>.
-# The input object must have been produced by scripts/cluster-sobj.R.
+# The input object must have been produced by scripts/04-cluster.R.
 
 suppressPackageStartupMessages({
   library(here)
 })
-here::i_am("scripts/big-heatmap-plot.R")
+here::i_am("scripts/06-plot-marker-heatmap.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -122,7 +122,7 @@ if (
 ) {
   stop(
     "Input object is missing a valid sobj@misc$clustering$branch_tag; ",
-    "run scripts/cluster-sobj.R first.",
+    "run scripts/04-cluster.R first.",
     call. = FALSE
   )
 }

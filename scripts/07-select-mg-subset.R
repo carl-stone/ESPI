@@ -1,14 +1,14 @@
 #!/usr/bin/env Rscript
 
 # Select and preprocess the Müller glia-enriched cell subset from a clustered
-# source object. The output objects are ready for scripts/cluster-sobj.R.
+# source object. The output objects are ready for scripts/04-cluster.R.
 
 suppressPackageStartupMessages({
   library(Seurat)
   library(here)
   library(scclrR)
 })
-here::i_am("scripts/filter-mg-subset.R")
+here::i_am("scripts/07-select-mg-subset.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })

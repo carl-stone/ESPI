@@ -4,7 +4,7 @@
 # meeting conservative complexity and mitochondrial-quality thresholds, and save the filtered Seurat v5 object.
 #
 # Usage:
-#   Rscript scripts/qc-filtering.R
+#   Rscript scripts/02-qc-filtering.R
 #
 # Outputs:
 #   FIGURE_DIR/qc/*.png
@@ -12,13 +12,13 @@
 #   INPUT_OBJECT_DIR/sobj_qc_filtered.rds
 #
 # Next step:
-#   Run scripts/preprocess-sobj.R with --input-source counts-qc.
+#   Run scripts/03-preprocess.R with --input-source counts-qc.
 
 suppressPackageStartupMessages({
   library(Seurat)
   library(here)
 })
-here::i_am("scripts/qc-filtering.R")
+here::i_am("scripts/02-qc-filtering.R")
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
 })
@@ -365,7 +365,7 @@ message(
   length(unique(sobj_filtered$Sample)),
   " samples. Saved filtered object to ",
   output_path,
-  ". Next step: Rscript scripts/preprocess-sobj.R --input ",
+  ". Next step: Rscript scripts/03-preprocess.R --input ",
   output_path,
   " --normalization <log1p|pflog>."
 )
