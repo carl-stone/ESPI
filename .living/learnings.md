@@ -546,3 +546,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: Keep source selection and provenance metadata at the preprocessing seam.
+
+### [2026-07-12] PFlog PCA diagnostics must use the PCA source layer
+
+**Tags**: pflog, plotting, preprocessing, seurat
+
+**Category**: Assay-layer contract
+
+**What happened**: `Seurat::DimHeatmap()` defaults to `scale.data`, which is absent from PFlog PCA objects and caused count-derived PFlog preprocessing to fail.
+
+**Why it matters**: The PFlog branch has a valid PCA reduction but stores its diagnostic expression values in the `pflog` layer.
+
+**Resolution**: Read `misc$preprocessing$pca_source_layer`, validate it, and pass it to `DimHeatmap(slot = ...)`. PFlog preprocessing also materializes the standard log-normalized `data` layer used intentionally by descriptive `FindAllMarkers()` output.
+
+**mitigation_type**: code
+
+**structural_mitigation_candidate**: Treat preprocessing metadata as the authoritative assay-layer contract for downstream diagnostic plots.

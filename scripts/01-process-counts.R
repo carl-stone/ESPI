@@ -62,6 +62,10 @@ if (length(missing_columns) > 0) {
 }
 metadata <- metadata[, required_metadata_columns, drop = FALSE]
 
+# Raw metadata contains an optional space between `+` and `EStim`; use the
+# declared treatment label consistently in all downstream contrasts.
+metadata$Condition <- sub("\\+\\s+EStim$", "+EStim", trimws(metadata$Condition))
+
 if (any(is.na(metadata$Sample) | !nzchar(trimws(metadata$Sample)))) {
   stop("Sample metadata contains missing or empty Sample IDs.", call. = FALSE)
 }

@@ -137,6 +137,16 @@ splot_dim_heatmap <- function(sobj) {
   out_dir <- file.path(FIGURE_DIR, "preprocess")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
+  pca_source_layer <- sobj@misc$preprocessing$pca_source_layer
+  if (
+    !is.character(pca_source_layer) ||
+      length(pca_source_layer) != 1 ||
+      is.na(pca_source_layer) ||
+      !nzchar(pca_source_layer)
+  ) {
+    stop("Missing PCA source layer in preprocessing metadata.", call. = FALSE)
+  }
+
   plot <- Seurat::DimHeatmap(
     sobj,
     dims = 1:6,
@@ -144,6 +154,7 @@ splot_dim_heatmap <- function(sobj) {
     balanced = TRUE,
     fast = FALSE,
     combine = TRUE,
+    slot = pca_source_layer,
     ncol = 2
   )
   ggplot2::ggsave(

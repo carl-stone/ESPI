@@ -592,3 +592,25 @@ Append-only log of non-obvious decisions and their rationale.
 **Decision**: Prefix each executable stage with its pipeline order. Keep all-branch preprocessing and clustering as numbered companion scripts because they preserve an explicit all-branch interface and clustering's dry-run contract.
 
 **Consequences**: Documentation, recipes, and tripwires use numbered script paths. Retain `R/` helpers that carry substantial, reusable, testable scientific computation; inline the one-call input-source path selector in preprocessing.
+
+### [2026-07-12] Use 20 PCs and Leiden resolution 0.3 for the counts-derived PFlog run
+
+**Tags**: clustering, pflog, mg-selected, reproducibility
+
+**Context**: The counts-derived QC-filtered object was rebuilt through the PFlog preprocessing and clustering grids. The full source candidate grid contained 13, 29, and 37 clusters at 20, 30, and 50 PCs respectively at resolution 0.3; the MG-selected grid contained 19, 36, and 32 clusters.
+
+**Decision**: Use the no-cell-cycle-HVG PFlog candidate with 20 PCs and Leiden resolution 0.3 for source-cluster filtering and downstream MG-selected figures, marker ranking, pseudobulk DE/DD, and enrichment. Retain 30- and 50-PC candidates as sensitivity outputs.
+
+**Rationale**: Twenty PCs are past the elbow and preserve broad separated groups without the additional fragmentation seen at higher PC counts or higher resolutions.
+
+**Consequences**: Source clusters 10 (microglia) and 13 (p27-high) are excluded; no source cluster met the configured photoreceptor exclusion criterion. Notebook paths and cluster references use `dims20_res0.3`.
+
+### [2026-07-12] Canonicalize the E-Stim condition label at count ingestion
+
+**Tags**: metadata, contrast, data-lineage, reproducibility
+
+**Context**: Raw sample metadata uses `p27CKO + EStim`, while the analysis contract declares `p27CKO +EStim`. The mismatch blocked condition-aware figures and pseudobulk DE.
+
+**Decision**: In `scripts/01-process-counts.R`, normalize only the optional whitespace between `+` and `EStim` before creating the Seurat object.
+
+**Consequences**: Counts-derived objects use exactly `p27CKO` and `p27CKO +EStim`, matching `analysis_labels.yml` and the DE contrast.

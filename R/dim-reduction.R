@@ -62,6 +62,7 @@ run_pflog_pca <- function(sobj, n_pcs = 50) {
     stop("VariableFeatures(sobj) is empty.", call. = FALSE)
   }
   filtered_cell_cycle <- isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)
+  sobj <- Seurat::NormalizeData(sobj)
 
   sobj <- scclrR::pflog(sobj)
   pflog_layer <- SeuratObject::LayerData(sobj[[assay]], layer = "pflog")
