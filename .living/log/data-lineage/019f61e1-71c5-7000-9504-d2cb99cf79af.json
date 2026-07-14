@@ -1,0 +1,126 @@
+{
+  "session_id": "019f61e1-71c5-7000-9504-d2cb99cf79af",
+  "repo_root": "/Users/carlstone/ESPI",
+  "git_sha": "4eb945902abb1b70b5da640995bdfcfb5751d44b",
+  "started_at": "2026-07-14T20:32:58Z",
+  "ended_at": "2026-07-14T20:36:50Z",
+  "n_actions": 2,
+  "agents_seen": [
+    "main"
+  ],
+  "actions": [
+    {
+      "ts": "2026-07-14T20:32:58Z",
+      "agent_id": null,
+      "agent_type": null,
+      "bash_cmd": "Rscript tools/run-tripwires.R",
+      "bash_exit": null,
+      "bash_wall_s": null,
+      "script": "/Users/carlstone/ESPI/tools/run-tripwires.R",
+      "script_sha256": "5a2f724008ebef9d8fde4293dea79a78e6deaa4c897f4b3791a0bbde11da8154",
+      "script_source": null,
+      "git_sha": "4eb945902abb1b70b5da640995bdfcfb5751d44b",
+      "inputs": [
+        {
+          "path": "/Users/carlstone/ESPI/metadata_path",
+          "_missing": true
+        },
+        {
+          "path": "/Users/carlstone/ESPI/drop_ledger",
+          "_missing": true
+        },
+        {
+          "path": "/Users/carlstone/ESPI/path",
+          "_missing": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": "/Users/carlstone/ESPI",
+          "size_bytes": 1376,
+          "sha256": null
+        }
+      ],
+      "filters_detected": [
+        "lines[seq.int(2L, end[[1L]",
+        "explicit_candidates[file.exists(explicit_candidates)]",
+        "figure_paths[file.exists(figure_paths)]",
+        "target_paths[file.exists(target_paths)]",
+        "log_lines[seq.int(files_start[[1L]",
+        "validator_files[file.exists(validator_files)]",
+        "code_paths[file.exists(code_paths)]"
+      ],
+      "seeds_detected": []
+    },
+    {
+      "ts": "2026-07-14T20:36:50Z",
+      "agent_id": null,
+      "agent_type": null,
+      "bash_cmd": "Rscript tools/run-tripwires.R",
+      "bash_exit": null,
+      "bash_wall_s": null,
+      "script": "/Users/carlstone/ESPI/tools/run-tripwires.R",
+      "script_sha256": "7ea88781b7954a0a6043a22ec20cc9a54ded2f1eb6cc17fe9657fc96770198f5",
+      "script_source": null,
+      "git_sha": "4eb945902abb1b70b5da640995bdfcfb5751d44b",
+      "inputs": [
+        {
+          "path": "/Users/carlstone/ESPI/metadata_path",
+          "_missing": true
+        },
+        {
+          "path": "/Users/carlstone/ESPI/drop_ledger",
+          "_missing": true
+        },
+        {
+          "path": "/Users/carlstone/ESPI/path",
+          "_missing": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": "/Users/carlstone/ESPI",
+          "size_bytes": 1376,
+          "sha256": null
+        }
+      ],
+      "filters_detected": [
+        "lines[seq.int(2L, end[[1L]",
+        "explicit_candidates[file.exists(explicit_candidates)]",
+        "figure_paths[file.exists(figure_paths)]",
+        "target_paths[file.exists(target_paths)]",
+        "log_lines[seq.int(files_start[[1L]",
+        "validator_files[file.exists(validator_files)]",
+        "code_paths[file.exists(code_paths)]"
+      ],
+      "seeds_detected": []
+    }
+  ],
+  "summary": {
+    "unique_inputs": [
+      {
+        "path": "/Users/carlstone/ESPI/metadata_path",
+        "sha256": null
+      },
+      {
+        "path": "/Users/carlstone/ESPI/drop_ledger",
+        "sha256": null
+      },
+      {
+        "path": "/Users/carlstone/ESPI/path",
+        "sha256": null
+      }
+    ],
+    "unique_outputs": [
+      {
+        "path": "/Users/carlstone/ESPI",
+        "sha256": null
+      }
+    ],
+    "total_wall_seconds": 0,
+    "scripts_executed": [
+      "/Users/carlstone/ESPI/tools/run-tripwires.R"
+    ]
+  },
+  "extraction_warnings": []
+}

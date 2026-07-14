@@ -716,3 +716,43 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The orchestration module owns stage order, paths, chosen identifiers, output validation, report rendering, and QA behind two human inputs.
 
 **Consequences**: A complete counts-derived run executes 24 validated stages through notebook rendering and tripwires. Legacy and explicit-object plans contain 22 stages because they skip count ingestion and QC. Protected statistical outputs require explicit overwrite intent.
+
+### [2026-07-14] Remove differential detection and report primary DE with a volcano plot
+
+**Tags**: differential-expression, mg-selected, plotting, reproducibility
+
+**Context**: The MG-selected condition analysis combined DESeq2 differential expression with a muscat differential-detection workflow and a joint effect-size scatter. The differential-detection branch added a separate gene universe and output contract without contributing to the retained condition-response interpretation.
+
+**Decision**: Remove differential detection completely. Keep the six-sample primary DESeq2 model, the paired-mouse DE sensitivity, marker overlap, and enrichment. Report the primary model with a volcano plot using shrunken log2 fold change and adjusted P value, and label the ten most significant genes deterministically.
+
+**Alternatives considered**: Keeping DD as a sensitivity analysis would preserve extra outputs but retain the dependency and mixed gene-universe interpretation. Keeping the joint scatter without DD would not provide a standard significance view.
+
+**Rationale**: A DE-only contract is simpler and matches the retained scientific claim. The primary-model volcano communicates effect direction and FDR evidence directly, while paired DE remains available as a sensitivity table.
+
+**Consequences**: `muscat`, `pbDS`, detection tables, DD report values, and the DE/DD scatter are removed from active code, contracts, documentation, and artifacts. `mg_selected_de_volcano.(png|pdf)` and its notebook link replace the scatter. This decision supersedes earlier active DD implementation and plotting decisions while preserving their historical record.
+
+### [2026-07-14] Permute condition labels only after preserving sample identity
+
+**Tags**: tripwires, label-permutation, preprocessing, reproducibility
+
+**Context**: `scripts/03-preprocess.R` validates `Mouse` and `Condition`, then derives `sample_id` from both fields before blind HVG and PCA work. Permuting `Condition` in the input object would also change the derived identity and could test metadata inconsistency rather than label leakage.
+
+**Decision**: Restrict condition permutation to explicit tripwire mode after `sample_id` derivation. Permute globally across intact sample units while preserving `sample_id`, `Mouse`, cells, counts, and all other metadata. Require a checkpoint log and `STOP_AFTER_CHECKPOINT=blind_qc_complete`; skip pre-checkpoint figure writes and compare exact retained-HVG and PCA-standard-deviation fingerprints.
+
+**Alternatives considered**: Permuting the input metadata before preprocessing would conflate label leakage with sample-identity validation. Cell-level permutation would destroy sample structure. Allowing the seed environment variable without a test-mode guard could silently alter a production run.
+
+**Rationale**: The metamorphic test should change only the interpretation label while leaving every blind-analysis input invariant. The strict guard and stop boundary prevent permuted labels or scratch diagnostics from reaching production outputs.
+
+**Consequences**: `label-permutation` now executes two guarded scratch runs and passes only when the blind fingerprints match and production paths remain unchanged. Missing metadata reconciliation and provenance semantics also run as executable tripwires.
+
+### [2026-07-14] Balance volcano labels by effect direction
+
+**Tags**: differential-expression, plotting, mg-selected
+
+**Context**: Ranking one pooled set of volcano labels by adjusted P value favored the stronger negative-expression signal and did not summarize both response directions evenly.
+
+**Decision**: Label up to 20 genes with positive shrunken log2 fold change and 20 genes with negative shrunken log2 fold change. Rank each direction independently by raw DESeq2 P value, then by absolute effect size and gene name for deterministic ties. Keep the y-axis and significance colors based on adjusted P values.
+
+**Rationale**: Separate ranking guarantees representation of both directions without changing the FDR-based visual evidence.
+
+**Consequences**: The primary-model volcano now carries at most 40 labels, balanced by fold-change direction; notebook prose distinguishes raw-P-value label ranking from adjusted-P-value plotting and significance.

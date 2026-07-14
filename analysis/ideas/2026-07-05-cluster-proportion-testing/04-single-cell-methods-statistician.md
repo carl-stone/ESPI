@@ -4,7 +4,7 @@
 
 ### Motivation
 
-Test whether E-Stim changes MG-selected cluster proportions using the same biological unit used for DE/DD: one observation per Mouse × Condition sample. This converts the current pooled Fisher/CLR pattern into an inferential workflow that does not treat cells as independent replicates.
+Test whether E-Stim changes MG-selected cluster proportions using the same biological unit used for DE: one observation per Mouse × Condition sample. This converts the current pooled Fisher/CLR pattern into an inferential workflow that does not treat cells as independent replicates.
 
 ### Connection to Existing Data
 

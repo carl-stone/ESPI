@@ -256,7 +256,7 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
       call. = FALSE
     )
   }
-  if (!setequal(rownames(embeddings), rownames(sobj@meta.data))) {
+  if (!base::setequal(rownames(embeddings), rownames(sobj@meta.data))) {
     stop(
       "UMAP reduction cells do not match Seurat metadata rows: ",
       reduction,
@@ -315,7 +315,7 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
         color = .data[["scaled_expression"]]
       )
     ) +
-      ggplot2::geom_point(size = 0.25, stroke = 0) +
+      ggplot2::geom_point(size = 0.5, stroke = 0) +
       ggplot2::scale_color_gradient(
         low = "grey85",
         high = palette_dotplot_pair[[2L]],
@@ -400,7 +400,7 @@ if (anyNA(condition_values) || any(!nzchar(condition_values))) {
   )
 }
 expected_condition_values <- c(CTRL_LABEL, ESTIM_LABEL)
-unexpected_condition_values <- setdiff(
+unexpected_condition_values <- base::setdiff(
   unique(condition_values),
   expected_condition_values
 )
@@ -425,7 +425,7 @@ if (!expression_layer %in% available_layers) {
     call. = FALSE
   )
 }
-missing_features <- setdiff(features, rownames(sobj))
+missing_features <- base::setdiff(features, rownames(sobj))
 if (length(missing_features) > 0L) {
   stop(
     "UMAP feature gene(s) missing from the Seurat object: ",
@@ -443,7 +443,7 @@ cluster_plot <- Seurat::DimPlot(
   reduction = reduction,
   group.by = cluster_column,
   label = TRUE,
-  pt.size = 0.25,
+  pt.size = 0.5,
   stroke.size = 0
 ) +
   ggplot2::ggtitle(sprintf(
@@ -477,7 +477,7 @@ condition_plot <- Seurat::DimPlot(
   reduction = reduction,
   group.by = CONDITION_COL,
   label = FALSE,
-  pt.size = 0.25,
+  pt.size = 0.5,
   stroke.size = 0
 ) +
   ggplot2::scale_color_manual(

@@ -1,0 +1,9 @@
+{
+  "session_id": "019f61e1-71c5-7000-9504-d2cb99cf79af",
+  "exit_code": 0,
+  "wall_seconds": 1,
+  "events_file_size": 2006,
+  "output_path": "/Users/carlstone/ESPI/.living/log/data-lineage/019f61e1-71c5-7000-9504-d2cb99cf79af.json",
+  "log_tail": "extract_data_lineage: wrote /Users/carlstone/ESPI/.living/log/data-lineage/019f61e1-71c5-7000-9504-d2cb99cf79af.json (2 actions, 3 inputs, 1 outputs, 0 warnings)\n",
+  "dispatched_at": "2026-07-14T20:36:58.050235Z"
+}

@@ -1642,21 +1642,17 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "degs/mg_selected/deseq2_full_results.tsv",
       "degs/mg_selected/deseq2_significant_degs.tsv",
       "degs/mg_selected/deseq2_marker_overlap.tsv",
-      "degs/mg_selected/detection_full_results.tsv",
-      "degs/mg_selected/detection_marker_overlap.tsv",
       "degs/mg_selected/deseq2_paired_sensitivity_full_results.tsv",
       "degs/mg_selected/deseq2_paired_sensitivity_significant_degs.tsv",
       "degs/mg_selected/deseq2_paired_sensitivity_marker_overlap.tsv",
-      "degs/mg_selected/detection_paired_sensitivity_full_results.tsv",
-      "degs/mg_selected/detection_paired_sensitivity_marker_overlap.tsv",
       "degs/mg_selected/numbers.json",
       "enrichment/mg_selected/go_bp_ora_up.tsv",
       "enrichment/mg_selected/go_bp_ora_down.tsv",
       "enrichment/mg_selected/go_bp_gsea.tsv",
       "enrichment/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv",
-      "figures/mg_selected/mg_selected_de_dd_effect_scatter.png",
-      "figures/mg_selected/mg_selected_de_dd_effect_scatter.pdf",
-      "notebook/figures/mg_selected_de_dd_effect_scatter.png"
+      "figures/mg_selected/mg_selected_de_volcano.png",
+      "figures/mg_selected/mg_selected_de_volcano.pdf",
+      "notebook/figures/mg_selected_de_volcano.png"
     )
 
     mg_marker_command <- stage_records[["mg-markers"]]$command
@@ -1736,7 +1732,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           invocation$label,
           "mg-de",
           paste(
-            "all protected MG DE/DD outputs",
+            "all protected MG DE outputs",
             paste(expected_de_outputs, collapse = ", ")
           ),
           stage_records[["mg-de"]]$expects
@@ -2466,6 +2462,198 @@ tripwire_missing_counts_file <- function(root) {
     "preprocess-sobj.R returns non-zero for a deliberately missing --input path and surfaces the missing-file boundary."
   )
 }
+# Execute script 01 against read-only count-directory links and a metadata
+# fixture with one sample removed. The explicit output path keeps Box artifacts
+# out of this fault injection.
+tripwire_missing_metadata_sample <- function(root) {
+  slug <- "missing-metadata-sample"
+  script <- file.path(root, "scripts", "01-process-counts.R")
+  rscript <- Sys.which("Rscript")
+  if (!file.exists(script)) {
+    return(fail(slug, "scripts/01-process-counts.R is missing."))
+  }
+  if (identical(unname(rscript), "")) {
+    return(fail(
+      slug,
+      "Rscript is unavailable, so metadata reconciliation cannot be executed."
+    ))
+  }
+
+  data_root <- Sys.getenv("DATA_ROOT_DIR", unset = "")
+  if (!nzchar(data_root)) {
+    data_root <- file.path(
+      path.expand("~/Library/CloudStorage/Box-Box"),
+      "megan_sc_data"
+    )
+  }
+  raw_dir <- file.path(data_root, "data", "input", "Raw Matrices")
+  metadata_path <- file.path(raw_dir, "Sample_Metadata_MS1.txt")
+  if (!dir.exists(raw_dir) || !file.exists(metadata_path)) {
+    return(skip(
+      slug,
+      "Scratch reconciliation requires the production six-sample Raw Matrices directory and Sample_Metadata_MS1.txt."
+    ))
+  }
+
+  metadata <- tryCatch(
+    utils::read.delim(
+      metadata_path,
+      sep = "\t",
+      header = TRUE,
+      quote = "",
+      comment.char = "",
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    ),
+    error = function(e) NULL
+  )
+  if (
+    is.null(metadata) || nrow(metadata) < 2L || !"Sample" %in% names(metadata)
+  ) {
+    return(skip(
+      slug,
+      "Production metadata is unavailable or does not contain at least two Sample rows."
+    ))
+  }
+  samples <- as.character(metadata$Sample)
+  sample_dirs <- file.path(raw_dir, samples)
+  if (any(!dir.exists(sample_dirs))) {
+    return(skip(
+      slug,
+      "Production count directories do not reconcile with metadata, so the fault injection has no valid baseline."
+    ))
+  }
+
+  scratch <- tempfile("espi-missing-metadata-")
+  dir.create(scratch, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(scratch, recursive = TRUE, force = TRUE), add = TRUE)
+  scratch_raw <- file.path(scratch, "Raw Matrices")
+  dir.create(scratch_raw, recursive = TRUE, showWarnings = FALSE)
+  for (sample in samples) {
+    file.symlink(
+      normalizePath(
+        file.path(raw_dir, sample),
+        winslash = "/",
+        mustWork = TRUE
+      ),
+      file.path(scratch_raw, sample)
+    )
+  }
+  missing_sample <- samples[[1L]]
+  utils::write.table(
+    metadata[-1L, , drop = FALSE],
+    file.path(scratch_raw, "Sample_Metadata_MS1.txt"),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE,
+    col.names = TRUE
+  )
+  checkpoint_log <- file.path(scratch, "checkpoints.tsv")
+  drop_ledger <- file.path(scratch, "drops.tsv")
+  output_path <- file.path(scratch, "sobj_raw.rds")
+  env_names <- c("CHECKPOINT_LOG", "DROP_LEDGER", "STOP_AFTER_CHECKPOINT")
+  old_env <- Sys.getenv(env_names, unset = NA_character_)
+  on.exit(
+    for (i in seq_along(env_names)) {
+      if (is.na(old_env[[i]])) {
+        Sys.unsetenv(env_names[[i]])
+      } else {
+        Sys.setenv(structure(old_env[[i]], names = env_names[[i]]))
+      }
+    },
+    add = TRUE
+  )
+  Sys.setenv(
+    CHECKPOINT_LOG = checkpoint_log,
+    DROP_LEDGER = drop_ledger,
+    STOP_AFTER_CHECKPOINT = "samples_reconciled"
+  )
+  output <- tryCatch(
+    system2(
+      rscript,
+      c(
+        script,
+        "--raw-counts-dir",
+        shQuote(scratch_raw),
+        "--metadata",
+        shQuote(file.path(scratch_raw, "Sample_Metadata_MS1.txt")),
+        "--output",
+        shQuote(output_path)
+      ),
+      stdout = TRUE,
+      stderr = TRUE,
+      env = c(
+        paste0("CHECKPOINT_LOG=", checkpoint_log),
+        paste0("DROP_LEDGER=", drop_ledger),
+        "STOP_AFTER_CHECKPOINT=samples_reconciled"
+      )
+    ),
+    warning = function(w) structure(conditionMessage(w), status = 1L),
+    error = function(e) structure(conditionMessage(e), status = 1L)
+  )
+  status <- attr(output, "status")
+  if (is.null(status)) {
+    status <- 0L
+  }
+  checkpoint_text <- if (file.exists(checkpoint_log)) {
+    read_text(checkpoint_log)
+  } else {
+    character()
+  }
+  has_reconciled <- any(grepl(
+    "\tsamples_reconciled\t",
+    checkpoint_text,
+    fixed = TRUE
+  ))
+  ledger_ok <- FALSE
+  if (file.exists(drop_ledger)) {
+    ledger <- tryCatch(
+      utils::read.delim(
+        drop_ledger,
+        sep = "\t",
+        quote = "\"",
+        stringsAsFactors = FALSE
+      ),
+      error = function(e) NULL
+    )
+    if (
+      !is.null(ledger) &&
+        all(c("sample_id", "reason", "allowed_by_policy") %in% names(ledger))
+    ) {
+      allowed <- tolower(trimws(as.character(ledger$allowed_by_policy)))
+      ledger_ok <- any(allowed %in% c("false", "0", "no"))
+    }
+  }
+  if (!ledger_ok && file.exists(drop_ledger)) {
+    ledger_ok <- length(read_text(drop_ledger)) > 1L &&
+      any(grepl(
+        "FALSE",
+        read_text(drop_ledger),
+        ignore.case = TRUE,
+        fixed = TRUE
+      ))
+  }
+  if (!identical(as.integer(status), 0L) && !has_reconciled && ledger_ok) {
+    return(pass(
+      slug,
+      sprintf(
+        "Missing metadata sample %s fails reconciliation, emits no samples_reconciled checkpoint, and records disallowed ledger evidence.",
+        missing_sample
+      )
+    ))
+  }
+  fail(
+    slug,
+    sprintf(
+      "Expected non-zero reconciliation failure with no samples_reconciled checkpoint and disallowed ledger evidence (exit=%s, checkpoint=%s, ledger=%s, ledger_file=%s).",
+      status,
+      has_reconciled,
+      ledger_ok,
+      file.exists(drop_ledger)
+    )
+  )
+}
+
 
 tripwire_heatmap_missing_input <- function(root) {
   # Operational boundary: heatmap plotting must fail at the explicit missing
@@ -2759,142 +2947,373 @@ tripwire_p27_rng_state_preservation <- function(root) {
 }
 
 tripwire_mycelium_provenance_semantics <- function(root) {
-  # Provenance boundary: review F5 is scoped to the heatmap session records.
-  # Broader historical Mycelium registry backfill is a separate task, so older
-  # blank/file-list-only rows outside this review must not fail this tripwire.
   slug <- "mycelium-provenance-semantics"
   registry <- file.path(root, ".living", "log", "LOG_REGISTRY.md")
-  scoped_session_ids <- c("2026-07-05-007", "2026-07-05-008")
+
+  validate_registry <- function(
+    registry_path,
+    session_ids,
+    strict_ids = character()
+  ) {
+    if (!file.exists(registry_path)) {
+      return(sprintf("%s is missing", basename(registry_path)))
+    }
+    registry_lines <- read_text(registry_path)
+    table_lines <- grep("^\\|", registry_lines)
+    if (length(table_lines) < 3L) {
+      return(sprintf(
+        "%s does not contain a markdown table",
+        basename(registry_path)
+      ))
+    }
+    header <- parse_markdown_table_row(registry_lines[[table_lines[[1L]]]])
+    required <- c(
+      "Session ID",
+      "Summary",
+      "Key Outputs",
+      "Status",
+      "Tags",
+      "Log",
+      "Duration",
+      "Files Changed"
+    )
+    missing_columns <- setdiff(required, header)
+    if (length(missing_columns) > 0L) {
+      return(paste(
+        "registry is missing required column(s):",
+        paste(missing_columns, collapse = ", ")
+      ))
+    }
+    rows <- list()
+    problems <- character()
+    for (line_no in table_lines[-seq_len(2L)]) {
+      fields <- parse_markdown_table_row(registry_lines[[line_no]])
+      if (length(fields) != length(header)) {
+        next
+      }
+      row <- stats::setNames(fields, header)
+      if (row[["Session ID"]] %in% session_ids) {
+        rows[[row[["Session ID"]]]] <- list(row = row, line_no = line_no)
+      }
+    }
+    missing_ids <- setdiff(session_ids, names(rows))
+    if (length(missing_ids) > 0L) {
+      problems <- c(
+        problems,
+        paste("missing registry row(s):", paste(missing_ids, collapse = ", "))
+      )
+    }
+    repo_root <- dirname(dirname(dirname(registry_path)))
+    for (session_id in intersect(session_ids, names(rows))) {
+      entry <- rows[[session_id]]
+      row <- entry$row
+      line_no <- entry$line_no
+      strict <- session_id %in% strict_ids
+      if (!identical(tolower(trimws(row[["Status"]])), "complete")) {
+        problems <- c(
+          problems,
+          sprintf("L%d %s status is not complete", line_no, session_id)
+        )
+      }
+      for (field in c("Summary", "Key Outputs", "Tags")) {
+        value <- trimws(row[[field]])
+        if (!nzchar(value) || identical(value, "—")) {
+          problems <- c(
+            problems,
+            sprintf("L%d %s has empty %s", line_no, session_id, field)
+          )
+        }
+      }
+      if (is_file_list_only_summary(row[["Summary"]])) {
+        problems <- c(
+          problems,
+          sprintf("L%d %s summary is file-list-only", line_no, session_id)
+        )
+      }
+      log_target <- extract_markdown_link_target(row[["Log"]])
+      if (is.na(log_target) || !nzchar(log_target)) {
+        problems <- c(
+          problems,
+          sprintf("L%d %s lacks a linked log", line_no, session_id)
+        )
+        next
+      }
+      log_path <- file.path(dirname(registry_path), log_target)
+      if (!file.exists(log_path)) {
+        problems <- c(
+          problems,
+          sprintf(
+            "L%d %s linked log is missing: %s",
+            line_no,
+            session_id,
+            log_target
+          )
+        )
+        next
+      }
+      log_lines <- read_text(log_path)
+      for (field in c("ended", "duration_minutes", "files_changed")) {
+        value <- frontmatter_scalar(log_lines, field)
+        if (is.na(value) || !nzchar(value) || identical(value, "NA")) {
+          problems <- c(
+            problems,
+            sprintf(
+              "L%d %s linked log lacks populated frontmatter %s",
+              line_no,
+              session_id,
+              field
+            )
+          )
+        }
+      }
+      duration_match <- regexec(
+        "([0-9]+)[[:space:]]*m",
+        row[["Duration"]],
+        perl = TRUE
+      )
+      duration_hit <- regmatches(row[["Duration"]], duration_match)[[1L]]
+      front_duration <- suppressWarnings(as.numeric(frontmatter_scalar(
+        log_lines,
+        "duration_minutes"
+      )))
+      if (
+        length(duration_hit) == 2L &&
+          is.finite(front_duration) &&
+          !identical(as.numeric(duration_hit[[2L]]), front_duration)
+      ) {
+        problems <- c(
+          problems,
+          sprintf(
+            "L%d %s duration disagrees with linked log",
+            line_no,
+            session_id
+          )
+        )
+      }
+      files_match <- regexec(
+        "^[[:space:]]*([0-9]+)",
+        row[["Files Changed"]],
+        perl = TRUE
+      )
+      files_hit <- regmatches(row[["Files Changed"]], files_match)[[1L]]
+      front_files <- suppressWarnings(as.numeric(frontmatter_scalar(
+        log_lines,
+        "files_changed"
+      )))
+      if (
+        length(files_hit) == 2L &&
+          is.finite(front_files) &&
+          !identical(as.numeric(files_hit[[2L]]), front_files)
+      ) {
+        problems <- c(
+          problems,
+          sprintf(
+            "L%d %s files_changed disagrees with linked log",
+            line_no,
+            session_id
+          )
+        )
+      }
+      if (!strict) {
+        next
+      }
+      for (section in c("Session Summary", "Key Outputs", "Status")) {
+        if (
+          !any(grepl(
+            sprintf("^##[[:space:]]+%s[[:space:]]*$", section),
+            log_lines,
+            perl = TRUE
+          ))
+        ) {
+          problems <- c(
+            problems,
+            sprintf(
+              "L%d %s linked log lacks ## %s",
+              line_no,
+              session_id,
+              section
+            )
+          )
+        }
+      }
+      files_start <- grep(
+        "^##[[:space:]]+Files Modified[[:space:]]*$",
+        log_lines,
+        perl = TRUE
+      )
+      if (length(files_start) > 0L) {
+        next_heading <- which(
+          seq_along(log_lines) > files_start[[1L]] &
+            grepl("^#{1,6}[[:space:]]+", log_lines, perl = TRUE)
+        )
+        files_end <- if (length(next_heading) > 0L) {
+          next_heading[[1L]] - 1L
+        } else {
+          length(log_lines)
+        }
+        file_lines <- log_lines[seq.int(files_start[[1L]] + 1L, files_end)]
+        for (file_line in file_lines[grepl("^[-*][[:space:]]+", file_lines)]) {
+          target <- trimws(sub("^[-*][[:space:]]+", "", file_line))
+          target <- sub("^`(.*)`$", "\\1", target)
+          deleted <- grepl(
+            "\\b(deleted|removed)\\b",
+            target,
+            ignore.case = TRUE,
+            perl = TRUE
+          )
+          target <- sub("^[Dd]eleted:[[:space:]]*", "", target)
+          if (grepl("^(local://|\\.omp/|/Users/.*/\\.omp/)", target)) {
+            next
+          }
+          target_path <- if (grepl("^/", target)) {
+            target
+          } else {
+            file.path(repo_root, target)
+          }
+          if (!deleted && !file.exists(target_path)) {
+            problems <- c(
+              problems,
+              sprintf(
+                "L%d %s lists missing modified path: %s",
+                line_no,
+                session_id,
+                target
+              )
+            )
+          }
+        }
+      } else {
+        problems <- c(
+          problems,
+          sprintf(
+            "L%d %s linked log lacks ## Files Modified",
+            line_no,
+            session_id
+          )
+        )
+      }
+      if (
+        any(grepl(
+          "\\.log-scribe-[^[:space:]]*(auth|authentication|failed)",
+          log_lines,
+          ignore.case = TRUE,
+          perl = TRUE
+        ))
+      ) {
+        problems <- c(
+          problems,
+          sprintf(
+            "L%d %s includes an authentication-failure artifact",
+            line_no,
+            session_id
+          )
+        )
+      }
+    }
+    problems
+  }
+
+  fixture_root <- tempfile("espi-provenance-fixture-")
+  fixture_log_dir <- file.path(fixture_root, ".living", "log")
+  dir.create(fixture_log_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(fixture_root, recursive = TRUE, force = TRUE), add = TRUE)
+  writeLines("known answer", file.path(fixture_root, "fixture.txt"))
+  writeLines(
+    c(
+      "---",
+      "session_id: fixture-valid",
+      "ended: 2026-07-14T00:00:00-0500",
+      "duration_minutes: 2",
+      "files_changed: 1",
+      "---",
+      "",
+      "## Session Summary",
+      "valid",
+      "",
+      "## Key Outputs",
+      "fixture",
+      "",
+      "## Status",
+      "complete",
+      "",
+      "## Files Modified",
+      "- fixture.txt"
+    ),
+    file.path(fixture_log_dir, "valid.md")
+  )
+  writeLines(
+    c(
+      "---",
+      "session_id: fixture-malformed",
+      "ended: NA",
+      "---",
+      "",
+      "## Session Log"
+    ),
+    file.path(fixture_log_dir, "malformed.md")
+  )
+  fixture_registry <- file.path(fixture_log_dir, "LOG_REGISTRY.md")
+  writeLines(
+    c(
+      "# Fixture",
+      "| Date | Session ID | Project | Branch | Duration | Files Changed | Summary | Key Outputs | Status | Tags | Log |",
+      "|------|------------|---------|--------|----------|---------------|---------|-------------|--------|------|-----|",
+      "| 2026-07-14 | fixture-valid | espi | main | 2m | 1 | valid summary | fixture output | complete | fixture | [log](valid.md) |",
+      "| 2026-07-14 | fixture-malformed | espi | main | 2m | 1 | malformed summary | fixture output | complete | fixture | [log](malformed.md) |"
+    ),
+    fixture_registry
+  )
+  fixture_problems <- validate_registry(
+    fixture_registry,
+    c("fixture-valid", "fixture-malformed"),
+    c("fixture-valid", "fixture-malformed")
+  )
+  if (!any(grepl("fixture-malformed", fixture_problems, fixed = TRUE))) {
+    return(fail(
+      slug,
+      "Known-answer malformed provenance fixture did not fail validation."
+    ))
+  }
   if (!file.exists(registry)) {
     return(fail(slug, ".living/log/LOG_REGISTRY.md is missing."))
   }
-
-  lines <- read_text(registry)
-  table_lines <- grep("^\\|", lines)
-  if (length(table_lines) < 3L) {
-    return(fail(slug, "LOG_REGISTRY.md does not contain a markdown table."))
-  }
-  header <- parse_markdown_table_row(lines[[table_lines[[1L]]]])
-  required <- c("Session ID", "Summary", "Key Outputs", "Status", "Tags", "Log")
-  missing_columns <- setdiff(required, header)
-  if (length(missing_columns) > 0L) {
-    return(fail(
-      slug,
-      paste(
-        "LOG_REGISTRY.md is missing required column(s):",
-        paste(missing_columns, collapse = ", ")
-      )
-    ))
-  }
-
-  registry_rows <- list()
-  problems <- character()
-  for (line_no in table_lines[-seq_len(2L)]) {
-    fields <- parse_markdown_table_row(lines[[line_no]])
-    if (length(fields) != length(header)) {
-      session_idx <- match("Session ID", header)
-      session_id <- if (length(fields) >= session_idx) {
-        fields[[session_idx]]
-      } else {
-        ""
+  registry_lines <- read_text(registry)
+  table_lines <- grep("^\\|", registry_lines)
+  header <- parse_markdown_table_row(registry_lines[[table_lines[[1L]]]])
+  session_idx <- match("Session ID", header)
+  status_idx <- match("Status", header)
+  enforced_ids <- character()
+  if (!is.na(session_idx) && !is.na(status_idx)) {
+    rows <- lapply(table_lines[-seq_len(2L)], function(i) {
+      fields <- parse_markdown_table_row(registry_lines[[i]])
+      if (length(fields) != length(header)) {
+        return(NULL)
       }
-      if (length(session_id) == 1L && session_id %in% scoped_session_ids) {
-        problems <- c(
-          problems,
-          sprintf(
-            "L%d %s malformed registry row has %d fields",
-            line_no,
-            session_id,
-            length(fields)
-          )
-        )
-      }
-      next
-    }
-    row <- stats::setNames(fields, header)
-    if (row[["Session ID"]] %in% scoped_session_ids) {
-      registry_rows[[row[["Session ID"]]]] <- list(row = row, line_no = line_no)
-    }
+      stats::setNames(fields, header)
+    })
+    rows <- Filter(Negate(is.null), rows)
+    ids <- vapply(rows, `[[`, character(1), "Session ID")
+    statuses <- vapply(rows, `[[`, character(1), "Status")
+    # Enforce the full semantic contract prospectively from the session that
+    # introduced it; earlier hook-generated rows remain historical records.
+    enforcement_start <- "2026-07-14-005"
+    enforced_ids <- ids[
+      grepl("^\\d{4}-\\d{2}-\\d{2}-\\d{3}$", ids) &
+        ids >= enforcement_start &
+        tolower(trimws(statuses)) == "complete"
+    ]
   }
-
-  missing_rows <- setdiff(scoped_session_ids, names(registry_rows))
-  if (length(missing_rows) > 0L) {
-    problems <- c(
-      problems,
-      sprintf(
-        "LOG_REGISTRY.md is missing review-scoped row(s): %s",
-        paste(missing_rows, collapse = ", ")
-      )
-    )
-  }
-
-  for (row_id in intersect(scoped_session_ids, names(registry_rows))) {
-    entry <- registry_rows[[row_id]]
-    row <- entry$row
-    line_no <- entry$line_no
-
-    if (!identical(tolower(trimws(row[["Status"]])), "complete")) {
-      problems <- c(
-        problems,
-        sprintf("L%d %s status is not complete", line_no, row_id)
-      )
-    }
-    for (field in c("Summary", "Key Outputs", "Tags")) {
-      value <- trimws(row[[field]])
-      if (!nzchar(value) || identical(value, "—")) {
-        problems <- c(
-          problems,
-          sprintf("L%d %s has empty %s", line_no, row_id, field)
-        )
-      }
-    }
-    if (is_file_list_only_summary(row[["Summary"]])) {
-      problems <- c(
-        problems,
-        sprintf("L%d %s summary is file-list-only", line_no, row_id)
-      )
-    }
-
-    log_target <- extract_markdown_link_target(row[["Log"]])
-    if (is.na(log_target) || !nzchar(log_target)) {
-      problems <- c(
-        problems,
-        sprintf("L%d %s lacks a linked log", line_no, row_id)
-      )
-      next
-    }
-    log_path <- file.path(dirname(registry), log_target)
-    if (!file.exists(log_path)) {
-      problems <- c(
-        problems,
-        sprintf("L%d %s linked log is missing: %s", line_no, row_id, log_target)
-      )
-      next
-    }
-    log_lines <- read_text(log_path)
-    for (field in c("ended", "duration_minutes", "files_changed")) {
-      value <- frontmatter_scalar(log_lines, field)
-      if (is.na(value) || !nzchar(value) || identical(value, "NA")) {
-        problems <- c(
-          problems,
-          sprintf(
-            "L%d %s linked log lacks populated frontmatter %s",
-            line_no,
-            row_id,
-            field
-          )
-        )
-      }
-    }
-  }
-
+  scoped_ids <- unique(c("2026-07-05-007", "2026-07-05-008", enforced_ids))
+  problems <- validate_registry(registry, scoped_ids, enforced_ids)
   if (length(problems) > 0L) {
     return(fail(slug, compact_problem_list(problems)))
   }
-
   pass(
     slug,
-    "Review-scoped LOG_REGISTRY rows 2026-07-05-007 and 2026-07-05-008 have semantic Summary/Key Outputs/Tags fields, and linked logs carry ended/duration/files_changed frontmatter."
+    sprintf(
+      "Validated %d complete review/new registry row(s), linked logs, frontmatter consistency, required sections, modified paths, and authentication-artifact exclusion.",
+      length(scoped_ids)
+    )
   )
 }
 
@@ -3027,8 +3446,6 @@ condition_in_blind_calls <- function(lines) {
 }
 
 tripwire_label_firewall <- function(root) {
-  # Scientific boundary: Condition is an interpretation label, not an input to
-  # blind HVG selection, PCA, UMAP, or clustering.
   slug <- "label-permutation"
   labels_path <- file.path(root, "analysis_labels.yml")
   if (!file.exists(labels_path)) {
@@ -3038,17 +3455,15 @@ tripwire_label_firewall <- function(root) {
     ))
   }
   yml <- read_text(labels_path)
-  treatment <- extract_yaml_scalar(yml, "treatment")
-  if (!identical(treatment, "Condition")) {
+  if (!identical(extract_yaml_scalar(yml, "treatment"), "Condition")) {
     return(fail(
       slug,
       "analysis_labels.yml must declare labels.treatment as Condition."
     ))
   }
-
   paths <- file.path(root, "scripts", c("03-preprocess.R", "04-cluster.R"))
   missing <- paths[!file.exists(paths)]
-  if (length(missing) > 0) {
+  if (length(missing) > 0L) {
     return(fail(
       slug,
       paste(
@@ -3057,21 +3472,19 @@ tripwire_label_firewall <- function(root) {
       )
     ))
   }
-
   bad_refs <- character()
   for (path in paths) {
     lines <- strip_inline_comment(read_text(path))
     blind_bad <- condition_in_blind_calls(lines)
-    if (length(blind_bad) > 0) {
+    if (length(blind_bad) > 0L) {
       bad_refs <- c(
         bad_refs,
         paste0(basename(path), " ", line_refs(lines, blind_bad))
       )
     }
-
     condition_lines <- which(grepl("Condition", lines, fixed = TRUE))
     allowed <- grepl(
-      "sample_id|metadata|required|colnames|missing|anyNA|complete\\.cases|is\\.na|nzchar|label|treatment|paste0|gsub|sobj\\$Condition",
+      "sample_id|metadata|required|colnames|missing|anyNA|complete\\.cases|is\\.na|nzchar|label|treatment|paste0|gsub|permute|sample_table|\"Condition\"|sobj\\$Condition",
       lines,
       ignore.case = TRUE,
       perl = TRUE
@@ -3080,15 +3493,14 @@ tripwire_label_firewall <- function(root) {
       condition_lines[!allowed[condition_lines]],
       blind_bad
     )
-    if (length(general_bad) > 0) {
+    if (length(general_bad) > 0L) {
       bad_refs <- c(
         bad_refs,
         paste0(basename(path), " ", line_refs(lines, general_bad))
       )
     }
   }
-
-  if (length(bad_refs) > 0) {
+  if (length(bad_refs) > 0L) {
     return(fail(
       slug,
       paste(
@@ -3098,9 +3510,245 @@ tripwire_label_firewall <- function(root) {
     ))
   }
 
-  skip(
+  path_env <- new.env(parent = globalenv())
+  path_error <- tryCatch(
+    {
+      sys.source(file.path(root, "R", "paths.R"), envir = path_env)
+      NULL
+    },
+    error = function(e) conditionMessage(e)
+  )
+  if (
+    !is.null(path_error) ||
+      !exists("INPUT_OBJECT_DIR", envir = path_env, inherits = FALSE)
+  ) {
+    return(skip(
+      slug,
+      "Static firewall passed, but production path resolution is unavailable for a scratch permutation run."
+    ))
+  }
+  input_path <- file.path(
+    get("INPUT_OBJECT_DIR", envir = path_env),
+    "sobj_qc_filtered.rds"
+  )
+  if (!file.exists(input_path)) {
+    return(skip(
+      slug,
+      "Static firewall passed, but INPUT_OBJECT_DIR/sobj_qc_filtered.rds is unavailable for a scratch permutation run."
+    ))
+  }
+  rscript <- Sys.which("Rscript")
+  script <- file.path(root, "scripts", "03-preprocess.R")
+  if (identical(unname(rscript), "")) {
+    return(fail(
+      slug,
+      "Rscript is unavailable, so label permutation cannot be executed."
+    ))
+  }
+  scratch <- tempfile("espi-label-permutation-")
+  dir.create(scratch, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(scratch, recursive = TRUE, force = TRUE), add = TRUE)
+  run_dirs <- file.path(scratch, c("baseline", "permuted"))
+  for (run_dir in run_dirs) {
+    dir.create(
+      file.path(run_dir, "seurat_objects", "input"),
+      recursive = TRUE,
+      showWarnings = FALSE
+    )
+    if (
+      !file.copy(
+        input_path,
+        file.path(run_dir, "seurat_objects", "input", "sobj_qc_filtered.rds")
+      )
+    ) {
+      return(skip(
+        slug,
+        "QC-filtered input could not be copied into both scratch workspaces."
+      ))
+    }
+  }
+  snapshots <- function(paths) {
+    out <- character()
+    for (path in paths) {
+      if (!dir.exists(path)) {
+        next
+      }
+      files <- list.files(
+        path,
+        recursive = TRUE,
+        full.names = TRUE,
+        all.files = TRUE,
+        no.. = TRUE
+      )
+      if (length(files) == 0L) {
+        next
+      }
+      info <- file.info(files)
+      keys <- normalizePath(files, winslash = "/", mustWork = FALSE)
+      out <- c(out, stats::setNames(paste(info$size, info$mtime), keys))
+    }
+    out
+  }
+  production_dirs <- c(
+    get("CURRENT_OBJECT_DIR", envir = path_env),
+    get("FIGURE_DIR", envir = path_env)
+  )
+  before <- snapshots(production_dirs)
+  run_once <- function(run_dir, checkpoint_path, seed = NULL) {
+    names_to_set <- c(
+      "DATA_ROOT_DIR",
+      "ESPI_TRIPWIRE_MODE",
+      "CHECKPOINT_LOG",
+      "STOP_AFTER_CHECKPOINT"
+    )
+    old <- Sys.getenv(
+      c(names_to_set, "ESPI_PERMUTE_CONDITION_SEED"),
+      unset = NA_character_
+    )
+    on.exit(
+      {
+        for (i in seq_along(names_to_set)) {
+          if (is.na(old[[i]])) {
+            Sys.unsetenv(names_to_set[[i]])
+          } else {
+            Sys.setenv(structure(old[[i]], names = names_to_set[[i]]))
+          }
+        }
+        if (is.na(old[[length(names_to_set) + 1L]])) {
+          Sys.unsetenv("ESPI_PERMUTE_CONDITION_SEED")
+        } else {
+          Sys.setenv(
+            ESPI_PERMUTE_CONDITION_SEED = old[[length(names_to_set) + 1L]]
+          )
+        }
+      },
+      add = TRUE
+    )
+    Sys.setenv(
+      DATA_ROOT_DIR = run_dir,
+      ESPI_TRIPWIRE_MODE = "true",
+      CHECKPOINT_LOG = checkpoint_path,
+      STOP_AFTER_CHECKPOINT = "blind_qc_complete"
+    )
+    if (is.null(seed)) {
+      Sys.unsetenv("ESPI_PERMUTE_CONDITION_SEED")
+    } else {
+      Sys.setenv(ESPI_PERMUTE_CONDITION_SEED = as.character(seed))
+    }
+    tryCatch(
+      system2(
+        rscript,
+        c(
+          script,
+          "--input",
+          file.path(run_dir, "seurat_objects", "input", "sobj_qc_filtered.rds"),
+          "--normalization",
+          "log1p"
+        ),
+        stdout = TRUE,
+        stderr = TRUE
+      ),
+      warning = function(w) structure(conditionMessage(w), status = 1L),
+      error = function(e) structure(conditionMessage(e), status = 1L)
+    )
+  }
+  baseline_log <- file.path(scratch, "baseline.tsv")
+  permuted_log <- file.path(scratch, "permuted.tsv")
+  baseline_output <- run_once(run_dirs[[1L]], baseline_log)
+  permuted_output <- run_once(run_dirs[[2L]], permuted_log, seed = 20260714L)
+  after <- snapshots(production_dirs)
+  if (!identical(before, after)) {
+    return(fail(
+      slug,
+      "Label permutation changed files beneath production CURRENT_OBJECT_DIR or FIGURE_DIR."
+    ))
+  }
+  status_of <- function(output) {
+    status <- attr(output, "status")
+    if (is.null(status)) 0L else as.integer(status)
+  }
+  if (status_of(baseline_output) != 0L || status_of(permuted_output) != 0L) {
+    return(fail(
+      slug,
+      sprintf(
+        "Scratch preprocessing failed (baseline exit=%d, permuted exit=%d).",
+        status_of(baseline_output),
+        status_of(permuted_output)
+      )
+    ))
+  }
+  parse_fingerprint <- function(path) {
+    if (!file.exists(path)) {
+      return(NULL)
+    }
+    log <- tryCatch(
+      utils::read.delim(
+        path,
+        sep = "\t",
+        quote = "\"",
+        stringsAsFactors = FALSE
+      ),
+      error = function(e) NULL
+    )
+    if (
+      is.null(log) || !"checkpoint" %in% names(log) || !"fields" %in% names(log)
+    ) {
+      return(NULL)
+    }
+    rows <- log[log$checkpoint == "blind_qc_complete", , drop = FALSE]
+    if (nrow(rows) != 1L) {
+      return(NULL)
+    }
+    fields <- strsplit(as.character(rows$fields[[1L]]), ";", fixed = TRUE)[[1L]]
+    values <- strsplit(fields, "=", fixed = TRUE)
+    parsed <- stats::setNames(
+      vapply(values, function(x) paste(x[-1L], collapse = "="), character(1)),
+      vapply(values, `[[`, character(1), 1L)
+    )
+    parsed
+  }
+  baseline <- parse_fingerprint(baseline_log)
+  permuted <- parse_fingerprint(permuted_log)
+  required <- c(
+    "fingerprint_algorithm",
+    "hvg_fingerprint",
+    "pca_sdev_fingerprint"
+  )
+  if (
+    is.null(baseline) ||
+      is.null(permuted) ||
+      any(!required %in% names(baseline)) ||
+      any(!required %in% names(permuted))
+  ) {
+    return(fail(
+      slug,
+      "Both scratch runs must emit one blind_qc_complete checkpoint with exact fingerprint fields."
+    ))
+  }
+  if (
+    !identical(baseline[["fingerprint_algorithm"]], "exact-v1") ||
+      !identical(permuted[["fingerprint_algorithm"]], "exact-v1")
+  ) {
+    return(fail(
+      slug,
+      "blind_qc_complete must declare fingerprint_algorithm=exact-v1."
+    ))
+  }
+  if (
+    !identical(baseline[["hvg_fingerprint"]], permuted[["hvg_fingerprint"]]) ||
+      !identical(
+        baseline[["pca_sdev_fingerprint"]],
+        permuted[["pca_sdev_fingerprint"]]
+      )
+  ) {
+    return(fail(
+      slug,
+      "Condition permutation changed the declared blind HVG or PCA fingerprints."
+    ))
+  }
+  pass(
     slug,
-    "Static firewall passed: Condition is confined to metadata/sample_id boundaries in early scripts. Full label permutation is skipped because the project has no scratch-output hook for safe blind HVG/PCA/UMAP reruns."
+    "Static firewall passed and original/permuted scratch runs produced identical exact-v1 HVG and PCA fingerprints without production writes."
   )
 }
 
@@ -3277,6 +3925,7 @@ main <- function() {
     tripwire_branch_artifact_collision,
     tripwire_report_values_freshness,
     tripwire_missing_counts_file,
+    tripwire_missing_metadata_sample,
     tripwire_heatmap_missing_input,
     tripwire_p27_rng_state_preservation,
     tripwire_mycelium_provenance_semantics,

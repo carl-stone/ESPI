@@ -157,8 +157,11 @@ just tripwires
 ```
 
 The tripwire runner uses `analysis_labels.yml` for label and contrast
-declarations and exits non-zero only for `FAIL` rows. `SKIP` rows mark checks
-that need future pipeline stages or scratch-output instrumentation.
+declarations and exits non-zero for `FAIL` rows. It exercises missing input
+and metadata failures, report freshness, provenance semantics, contrast
+direction, and a guarded scratch-only label permutation. The permutation runs
+after `sample_id` derivation, preserves sample identity, skips figure writes,
+and stops at `blind_qc_complete`.
 
 ## Required R Packages
 
@@ -183,7 +186,6 @@ Suggested:
 
 - `biomaRt`
 - `devtools`
-- `muscat`
 
 ## Data and Output Paths
 

@@ -627,3 +627,51 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: test
 
 **structural_mitigation_candidate**: Keep one public-interface tripwire that executes recipes rather than inspecting the justfile.
+
+### [2026-07-14] Label-permutation tripwires must preserve derived sample identity
+
+**Tags**: tripwires, label-permutation, preprocessing, sample-identity
+
+**Category**: Metamorphic testing
+
+**What happened**: ESPI derives `sample_id` from `Mouse` and `Condition` before blind preprocessing. Permuting `Condition` in the input would therefore change both the interpretation label and sample identity; pre-checkpoint plotting would also write production figures unless explicitly suppressed.
+
+**Why it matters**: A metamorphic test is interpretable only when the tested label is the sole changed input. Otherwise a failure can reflect invalid metadata or side effects rather than label leakage into HVG/PCA.
+
+**Resolution**: Derive and preserve `sample_id` first, then permute `Condition` across intact sample units only in a strictly guarded tripwire mode. Require a checkpoint log and stop boundary, skip figure writes, fix the PCA seed, and compare exact blind-output fingerprints.
+
+**mitigation_type**: test
+
+**structural_mitigation_candidate**: Keep scientific label perturbations behind explicit test-mode guards and assert that identity, counts, non-label metadata, and production paths remain unchanged.
+
+### [2026-07-14] Anchored Markdown wrappers must be removed as a pair
+
+**Tags**: provenance, markdown, parsing, tripwires
+
+**Category**: Text parsing
+
+**What happened**: The provenance validator used `sub("^`|`$", "", target)` on backtick-wrapped paths. Because `sub()` replaces only the first match, it removed the opening backtick and left the closing one, making every valid path appear missing.
+
+**Why it matters**: Alternation between start and end anchors does not express paired-wrapper removal when the replacement function stops after one match.
+
+**Resolution**: Match the complete wrapped token with `^`(.*)`$` and replace it with the captured interior. The finalized provenance tripwire then validated all current strict rows.
+
+**mitigation_type**: test
+
+**structural_mitigation_candidate**: Include wrapped and unwrapped path fixtures in Markdown provenance parsers.
+
+### [2026-07-14] Volcano label ranking and significance encoding can use different statistics
+
+**Tags**: differential-expression, plotting, p-value, fdr
+
+**Category**: Statistical communication
+
+**What happened**: The volcano uses adjusted P values for its y-axis and significance colors, while the requested top-gene labels use raw P values ranked separately within positive and negative fold-change directions.
+
+**Why it matters**: Describing labels only as “most significant” hides which statistic and grouping rule selected them.
+
+**Resolution**: Retain both `pvalue` and `padj` in the plot data, state each role explicitly in the caption, and use deterministic effect-size and gene-name tie-breakers.
+
+**mitigation_type**: documentation
+
+**structural_mitigation_candidate**: Keep selection-statistic wording beside plot captions whenever ranking differs from the displayed significance scale.

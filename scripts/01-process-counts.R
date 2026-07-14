@@ -4,12 +4,20 @@
 #
 # Usage:
 #   Rscript scripts/01-process-counts.R
+#   Rscript scripts/01-process-counts.R \
+#     [--raw-counts-dir <path>] [--metadata <path>] [--output <path>]
 #
 # Arguments:
-#   None. Input paths derive from DATA_ROOT_DIR.
+#   --raw-counts-dir
+#     Optional expert/test-only override for the directory containing the
+#     per-sample 10X count directories.
+#   --metadata
+#     Optional expert/test-only override for the sample metadata file.
+#   --output
+#     Optional expert/test-only override for the output Seurat RDS path.
 #
 # Outputs:
-#   DATA_ROOT_DIR/data/input/sobj_raw.rds
+#   DATA_ROOT_DIR/data/input/sobj_raw.rds (or the explicit --output path)
 #
 # Next step:
 #   Run scripts/02-qc-filtering.R.
@@ -25,8 +33,53 @@ suppressPackageStartupMessages({
 
 # ---- parameters ----
 
-raw_counts_dir <- file.path(DATA_ROOT_DIR, "data", "input", "Raw Matrices")
-metadata_path <- file.path(raw_counts_dir, "Sample_Metadata_MS1.txt")
+arguments <- commandArgs(trailingOnly = TRUE)
+value_flags <- c("--raw-counts-dir", "--metadata", "--output")
+parsed_arguments <- list()
+argument_index <- 1L
+while (argument_index <= length(arguments)) {
+  argument <- arguments[[argument_index]]
+  if (!argument %in% value_flags) {
+    stop("Unknown argument: ", argument, ".", call. = FALSE)
+  }
+  if (!is.null(parsed_arguments[[argument]])) {
+    stop("Duplicate argument: ", argument, ".", call. = FALSE)
+  }
+  if (
+    argument_index == length(arguments) ||
+      startsWith(arguments[[argument_index + 1L]], "--")
+  ) {
+    stop("Missing value for ", argument, ".", call. = FALSE)
+  }
+  parsed_arguments[[argument]] <- arguments[[argument_index + 1L]]
+  if (!nzchar(arguments[[argument_index + 1L]])) {
+    stop("Empty value for ", argument, ".", call. = FALSE)
+  }
+  argument_index <- argument_index + 2L
+}
+
+default_raw_counts_dir <- file.path(
+  DATA_ROOT_DIR,
+  "data",
+  "input",
+  "Raw Matrices"
+)
+raw_counts_dir <- if (is.null(parsed_arguments[["--raw-counts-dir"]])) {
+  default_raw_counts_dir
+} else {
+  parsed_arguments[["--raw-counts-dir"]]
+}
+metadata_path <- if (is.null(parsed_arguments[["--metadata"]])) {
+  file.path(raw_counts_dir, "Sample_Metadata_MS1.txt")
+} else {
+  parsed_arguments[["--metadata"]]
+}
+output_path <- if (is.null(parsed_arguments[["--output"]])) {
+  file.path(DATA_ROOT_DIR, "data", "input", "sobj_raw.rds")
+} else {
+  parsed_arguments[["--output"]]
+}
+output_supplied <- !is.null(parsed_arguments[["--output"]])
 required_metadata_columns <- c("Sample", "Mouse", "Condition")
 
 # ---- validation ----
@@ -52,26 +105,24 @@ metadata <- utils::read.delim(
   stringsAsFactors = FALSE
 )
 
-missing_columns <- base::setdiff(required_metadata_columns, colnames(metadata))
-if (length(missing_columns) > 0) {
-  stop(
-    "Sample metadata is missing required columns: ",
-    paste(missing_columns, collapse = ", "),
-    call. = FALSE
-  )
-}
-metadata <- metadata[, required_metadata_columns, drop = FALSE]
+# Validate required columns and values before normalizing treatment labels.
+validate_required_metadata(metadata, required_metadata_columns)
 
 # Raw metadata contains an optional space between `+` and `EStim`; use the
 # declared treatment label consistently in all downstream contrasts.
 metadata$Condition <- sub("\\+\\s+EStim$", "+EStim", trimws(metadata$Condition))
+metadata <- metadata[, required_metadata_columns, drop = FALSE]
 
-if (any(is.na(metadata$Sample) | !nzchar(trimws(metadata$Sample)))) {
-  stop("Sample metadata contains missing or empty Sample IDs.", call. = FALSE)
-}
 if (anyDuplicated(metadata$Sample)) {
   stop("Sample metadata contains duplicate Sample IDs.", call. = FALSE)
 }
+
+emit_tripwire_checkpoint(
+  "raw_data_available",
+  raw_counts_dir = raw_counts_dir,
+  metadata_path = metadata_path,
+  n_metadata_rows = nrow(metadata)
+)
 
 count_directories <- list.files(
   raw_counts_dir,
@@ -84,11 +135,26 @@ count_directories <- count_directories[
   dir.exists(file.path(raw_counts_dir, count_directories))
 ]
 if (!base::setequal(metadata$Sample, count_directories)) {
+  mismatched_samples <- sort(unique(c(
+    base::setdiff(metadata$Sample, count_directories),
+    base::setdiff(count_directories, metadata$Sample)
+  )))
+  write_tripwire_drop_ledger(
+    sample_ids = mismatched_samples,
+    stage = "samples_reconciled",
+    reason = "10X count folder names do not match Sample metadata IDs",
+    allowed = FALSE
+  )
   stop(
     "10X count folder names do not match Sample metadata IDs.",
     call. = FALSE
   )
 }
+emit_tripwire_checkpoint(
+  "samples_reconciled",
+  n_samples = nrow(metadata),
+  sample_ids = paste(sort(metadata$Sample), collapse = ",")
+)
 
 # ---- work ----
 
@@ -134,13 +200,13 @@ message(
   " samples."
 )
 
-saveRDS(
-  seurat_object,
-  file.path(DATA_ROOT_DIR, "data", "input", "sobj_raw.rds")
-)
+if (output_supplied) {
+  dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
+}
+saveRDS(seurat_object, output_path)
 
 message(
   "Saved raw Seurat object to ",
-  file.path(DATA_ROOT_DIR, "data", "input", "sobj_raw.rds"),
+  output_path,
   ". Next step: preprocess this file."
 )

@@ -1098,13 +1098,9 @@ de_protected_outputs <- c(
       "deseq2_full_results.tsv",
       "deseq2_significant_degs.tsv",
       "deseq2_marker_overlap.tsv",
-      "detection_full_results.tsv",
-      "detection_marker_overlap.tsv",
       "deseq2_paired_sensitivity_full_results.tsv",
       "deseq2_paired_sensitivity_significant_degs.tsv",
       "deseq2_paired_sensitivity_marker_overlap.tsv",
-      "detection_paired_sensitivity_full_results.tsv",
-      "detection_paired_sensitivity_marker_overlap.tsv",
       "numbers.json"
     )
   ),
@@ -1120,13 +1116,13 @@ de_protected_outputs <- c(
   file.path(
     de_figure_dir,
     c(
-      "mg_selected_de_dd_effect_scatter.png",
-      "mg_selected_de_dd_effect_scatter.pdf"
+      "mg_selected_de_volcano.png",
+      "mg_selected_de_volcano.pdf"
     )
   ),
   file.path(
     here::here("notebook", "figures"),
-    "mg_selected_de_dd_effect_scatter.png"
+    "mg_selected_de_volcano.png"
   )
 )
 

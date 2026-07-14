@@ -7,7 +7,12 @@
 #     --input <seurat-object.rds> | --input-source <legacy|counts-qc> \
 #     --normalization <log1p|pflog> \
 #     --filter-cell-cycle <true|false>
-#
+# Test-only label permutation:
+#   ESPI_PERMUTE_CONDITION_SEED=<integer>
+#     Requires ESPI_TRIPWIRE_MODE=true, CHECKPOINT_LOG, and
+#     STOP_AFTER_CHECKPOINT=blind_qc_complete. The permutation is applied only
+#     after metadata validation and sample_id derivation, and no persistent
+#     output is written in this mode.
 # Arguments:
 #   --input
 #     Explicit Seurat object to preprocess. Cannot be combined with
@@ -96,6 +101,55 @@ filter_cc <- arg_flag("--filter-cell-cycle") ||
     tolower(arg_value("--filter-cell-cycle", default = "false")),
     "true"
   )
+permute_condition_seed_text <- Sys.getenv(
+  "ESPI_PERMUTE_CONDITION_SEED",
+  unset = ""
+)
+tripwire_mode <- identical(
+  Sys.getenv("ESPI_TRIPWIRE_MODE", unset = ""),
+  "true"
+)
+permute_condition <- !identical(permute_condition_seed_text, "")
+permute_condition_seed <- NULL
+if (permute_condition) {
+  if (!grepl("^[+]?[0-9]+$", permute_condition_seed_text)) {
+    stop(
+      "ESPI_PERMUTE_CONDITION_SEED must be a non-empty non-negative integer.",
+      call. = FALSE
+    )
+  }
+  parsed_seed <- suppressWarnings(as.numeric(permute_condition_seed_text))
+  if (
+    length(parsed_seed) != 1L ||
+      !is.finite(parsed_seed) ||
+      parsed_seed != floor(parsed_seed) ||
+      parsed_seed > .Machine$integer.max
+  ) {
+    stop(
+      "ESPI_PERMUTE_CONDITION_SEED must be a non-empty non-negative integer.",
+      call. = FALSE
+    )
+  }
+  permute_condition_seed <- as.integer(parsed_seed)
+  if (
+    !tripwire_mode ||
+      identical(Sys.getenv("CHECKPOINT_LOG", unset = ""), "") ||
+      !identical(
+        Sys.getenv("STOP_AFTER_CHECKPOINT", unset = ""),
+        "blind_qc_complete"
+      )
+  ) {
+    stop(
+      paste(
+        "ESPI_PERMUTE_CONDITION_SEED requires",
+        "ESPI_TRIPWIRE_MODE=true, a non-empty CHECKPOINT_LOG, and",
+        "STOP_AFTER_CHECKPOINT=blind_qc_complete.",
+        "Refusing to mutate production labels."
+      ),
+      call. = FALSE
+    )
+  }
+}
 
 # ---- validation ----
 
@@ -128,6 +182,119 @@ sobj$sample_id <- paste0(
   "_",
   gsub("[^A-Za-z0-9]", "", sobj$Condition)
 )
+if (permute_condition) {
+  metadata_before <- sobj[[]]
+  cell_sample_ids <- as.character(metadata_before$sample_id)
+  sample_table <- unique(data.frame(
+    sample_id = cell_sample_ids,
+    Mouse = as.character(metadata_before$Mouse),
+    Condition = as.character(metadata_before$Condition),
+    stringsAsFactors = FALSE
+  ))
+  if (nrow(sample_table) != length(unique(cell_sample_ids))) {
+    stop(
+      "Cannot permute Condition: sample_id maps to multiple Mouse × Condition samples.",
+      call. = FALSE
+    )
+  }
+
+  if (length(unique(sample_table$Condition)) < 2L) {
+    stop(
+      "Cannot permute Condition: at least two labels are required.",
+      call. = FALSE
+    )
+  }
+  set.seed(permute_condition_seed)
+  permuted_by_sample <- sample(sample_table$Condition)
+  if (identical(permuted_by_sample, sample_table$Condition)) {
+    rotation <- c(seq.int(2L, nrow(sample_table)), 1L)
+    permuted_by_sample <- sample_table$Condition[rotation]
+  }
+  if (identical(permuted_by_sample, sample_table$Condition)) {
+    stop(
+      "Condition permutation did not change any sample-level labels.",
+      call. = FALSE
+    )
+  }
+  if (
+    !setequal(
+      unique(permuted_by_sample),
+      unique(sample_table$Condition)
+    )
+  ) {
+    stop(
+      "Condition permutation changed the represented label set.",
+      call. = FALSE
+    )
+  }
+
+  permuted_condition <- as.character(metadata_before$Condition)
+  for (sample_row in seq_len(nrow(sample_table))) {
+    cell_rows <- which(
+      cell_sample_ids == sample_table$sample_id[[sample_row]]
+    )
+    permuted_condition[cell_rows] <- permuted_by_sample[[sample_row]]
+  }
+  if (is.factor(metadata_before$Condition)) {
+    permuted_condition <- factor(
+      permuted_condition,
+      levels = levels(metadata_before$Condition)
+    )
+  }
+  sobj$Condition <- permuted_condition
+
+  metadata_after <- sobj[[]]
+  other_metadata_columns <- setdiff(
+    colnames(metadata_before),
+    "Condition"
+  )
+  other_metadata_unchanged <- all(vapply(
+    other_metadata_columns,
+    function(column) {
+      identical(metadata_before[[column]], metadata_after[[column]])
+    },
+    logical(1)
+  ))
+  if (
+    !identical(rownames(metadata_before), rownames(metadata_after)) ||
+      !identical(
+        colnames(metadata_before),
+        colnames(metadata_after)
+      ) ||
+      !other_metadata_unchanged
+  ) {
+    stop(
+      "Condition permutation changed cell identities or non-Condition metadata.",
+      call. = FALSE
+    )
+  }
+  if (
+    !identical(
+      as.character(metadata_before$sample_id),
+      as.character(metadata_after$sample_id)
+    ) ||
+      !identical(
+        as.character(metadata_before$Mouse),
+        as.character(metadata_after$Mouse)
+      )
+  ) {
+    stop(
+      "Condition permutation changed sample_id or Mouse metadata.",
+      call. = FALSE
+    )
+  }
+  condition_counts <- tapply(
+    as.character(metadata_after$Condition),
+    as.character(metadata_after$sample_id),
+    function(values) length(unique(values))
+  )
+  if (any(condition_counts != 1L)) {
+    stop(
+      "Condition permutation did not preserve sample-level labels.",
+      call. = FALSE
+    )
+  }
+}
 
 sobj[["percent.ribo"]] <- Seurat::PercentageFeatureSet(
   sobj,
@@ -138,8 +305,15 @@ sobj@misc$preprocessing$input_source <- input_source
 sobj@misc$preprocessing$normalization <- normalization
 sobj@misc$preprocessing$filtered_cell_cycle <- filter_cc
 
-# Plot QC diagnostics.
-splot_qc_metrics_violin(sobj)
+if (!tripwire_mode) {
+  splot_qc_metrics_violin(sobj)
+}
+if (tripwire_mode) {
+  # Keep baseline and permutation tripwire runs on the same deterministic RNG
+  # stream without changing the production path when test mode is unset.
+  set.seed(SEED)
+}
+
 
 sobj <- FindVariableFeatures(sobj, nfeatures = 2000)
 
@@ -157,8 +331,9 @@ emit_tripwire_checkpoint(
   n_variable_features = length(VariableFeatures(sobj))
 )
 
-# Plot gene mean-vs-variance scatter with top 20 retained HVGs labeled.
-splot_hvg_scatter(sobj, n_top = 20)
+if (!tripwire_mode) {
+  splot_hvg_scatter(sobj, n_top = 20)
+}
 
 sobj <- switch(
   normalization,
@@ -170,6 +345,26 @@ emit_tripwire_checkpoint(
   normalization = normalization,
   filtered_cell_cycle = filter_cc,
   n_pcs = ncol(SeuratObject::Embeddings(sobj, reduction = "pca"))
+)
+emit_tripwire_checkpoint(
+  "blind_qc_complete",
+  fingerprint_algorithm = "exact-v1",
+  hvg_fingerprint = paste(
+    sort(SeuratObject::VariableFeatures(sobj)),
+    collapse = ","
+  ),
+  pca_sdev_fingerprint = paste(
+    as.character(
+      round(
+        SeuratObject::Stdev(sobj[["pca"]]),
+        digits = 10
+      )
+    ),
+    collapse = ","
+  ),
+  normalization = normalization,
+  filtered_cell_cycle = filter_cc,
+  plots_skipped = tripwire_mode
 )
 
 splot_dim_heatmap(sobj)

@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-# Run mg-selected pseudobulk differential expression, muscat edgeR_NB_optim
-# differential detection, and enrichment follow-up analyses.
+# Run mg-selected pseudobulk differential expression and enrichment follow-up
+# analyses.
 #
 # Usage:
 #   Rscript scripts/12-run-mg-de.R \
@@ -15,25 +15,19 @@
 #   CURRENT_OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds
 #   cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5
 #
-#
-# Differential detection uses `muscat::pbDS(method = "DD")`, equivalent to
-# `muscat::pbDD()`, on pseudobulk detected-cell counts with the published
-# edgeR_NB_optim workflow.
 # Outputs:
 #   DEG_DIR/mg_selected/pseudobulk_sample_summary.tsv
 #   DEG_DIR/mg_selected/design_summary.tsv
 #   DEG_DIR/mg_selected/deseq2_full_results.tsv
 #   DEG_DIR/mg_selected/deseq2_significant_degs.tsv
 #   DEG_DIR/mg_selected/deseq2_marker_overlap.tsv
-#   DEG_DIR/mg_selected/detection_full_results.tsv
-#   DEG_DIR/mg_selected/detection_marker_overlap.tsv
 #   DEG_DIR/mg_selected/*paired_sensitivity*.tsv when feasible, or explicit
 #     skipped TSVs when not feasible
 #   ENRICHMENT_DIR/mg_selected/go_bp_ora_{up,down}.tsv
 #   ENRICHMENT_DIR/mg_selected/go_bp_gsea.tsv
 #   ENRICHMENT_DIR/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv
-#   FIGURE_DIR/mg_selected/mg_selected_de_dd_effect_scatter.(png|pdf)
-#   notebook/figures/mg_selected_de_dd_effect_scatter.png symlink
+#   FIGURE_DIR/mg_selected/mg_selected_de_volcano.(png|pdf)
+#   notebook/figures/mg_selected_de_volcano.png symlink
 
 suppressPackageStartupMessages({
   library(here)
@@ -99,12 +93,10 @@ if (length(unknown_flags) > 0) {
 
 required_packages <- c(
   "DESeq2",
-  "muscat",
-  "SingleCellExperiment",
-  "SummarizedExperiment",
   "clusterProfiler",
   "org.Mm.eg.db",
   "ggplot2",
+  "ggrepel",
   "Matrix",
   "SeuratObject"
 )
@@ -143,18 +135,18 @@ enrichment_dir <- get_arg(
   file.path(ENRICHMENT_DIR, "mg_selected")
 )
 figure_dir <- file.path(FIGURE_DIR, "mg_selected")
-de_dd_effect_scatter_png_path <- file.path(
+volcano_png_path <- file.path(
   figure_dir,
-  "mg_selected_de_dd_effect_scatter.png"
+  "mg_selected_de_volcano.png"
 )
-de_dd_effect_scatter_pdf_path <- file.path(
+volcano_pdf_path <- file.path(
   figure_dir,
-  "mg_selected_de_dd_effect_scatter.pdf"
+  "mg_selected_de_volcano.pdf"
 )
-de_dd_effect_scatter_notebook_png_path <- here::here(
+volcano_notebook_png_path <- here::here(
   "notebook",
   "figures",
-  basename(de_dd_effect_scatter_png_path)
+  basename(volcano_png_path)
 )
 lfc_shrink_type <- get_arg(cli_args, "--lfc-shrink-type", "normal")
 overwrite_outputs <- "--overwrite" %in% cli_args
@@ -421,122 +413,130 @@ write_marker_overlap <- function(
   invisible(overlap)
 }
 
-build_de_dd_effect_data <- function(de_table, detection_table, design_label) {
-  de_effects <- de_table[, c("gene", "log2FoldChange", "padj"), drop = FALSE]
-  colnames(de_effects) <- c("gene", "de_log2_fold_change", "de_padj")
-  detection_effects <- detection_table[,
-    c("gene", "logFC", "padj"),
-    drop = FALSE
-  ]
-  colnames(detection_effects) <- c("gene", "dd_log2_fold_change", "dd_padj")
-
-  joined <- merge(
-    de_effects,
-    detection_effects,
-    by = "gene",
-    all = FALSE,
-    sort = FALSE
-  )
-  joined <- joined[
-    !is.na(joined$de_log2_fold_change) &
-      !is.na(joined$dd_log2_fold_change),
-    ,
-    drop = FALSE
-  ]
-
-  marker_genes <- unique(unlist(cell_type_marker_genes, use.names = FALSE))
-  joined$curated_marker <- joined$gene %in% marker_genes
-
-  de_significant <- !is.na(joined$de_padj) & joined$de_padj < 0.05
-  dd_significant <- !is.na(joined$dd_padj) & joined$dd_padj < 0.05
-  joined$fdr_category <- ifelse(
-    de_significant & dd_significant,
-    "both",
-    ifelse(
-      de_significant,
-      "DE only",
-      ifelse(dd_significant, "DD only", "neither")
-    )
-  )
-  joined$fdr_category <- factor(
-    joined$fdr_category,
-    levels = c("neither", "DE only", "DD only", "both")
-  )
-  joined$design <- factor(
-    design_label,
-    levels = c("All samples by condition", "Paired mice by condition")
-  )
-  joined
-}
-
-plot_de_dd_effect_scatter <- function(plot_data) {
-  if (nrow(plot_data) == 0L) {
+build_de_volcano_data <- function(de_table) {
+  required_columns <- c("gene", "log2FoldChange", "pvalue", "padj")
+  missing_columns <- setdiff(required_columns, colnames(de_table))
+  if (length(missing_columns) > 0L) {
     stop(
-      "No genes had both DESeq2 and muscat DD effects after joining on gene.",
+      "DE table is missing required volcano column(s): ",
+      paste(missing_columns, collapse = ", "),
       call. = FALSE
     )
   }
 
+  plot_data <- de_table[, required_columns, drop = FALSE]
   plot_data <- plot_data[
-    order(plot_data$fdr_category != "neither", plot_data$fdr_category),
+    !is.na(plot_data$gene) &
+      nzchar(as.character(plot_data$gene)) &
+      is.finite(plot_data$log2FoldChange) &
+      is.finite(plot_data$pvalue) &
+      is.finite(plot_data$padj),
     ,
     drop = FALSE
   ]
-  label_data <- plot_data[
-    plot_data$curated_marker & plot_data$fdr_category != "neither",
-    ,
-    drop = FALSE
-  ]
+  if (nrow(plot_data) == 0L) {
+    stop(
+      "No genes with finite log2FoldChange, pvalue, and padj values for DE volcano.",
+      call. = FALSE
+    )
+  }
 
+  plot_data$neg_log10_padj <- -log10(
+    pmax(plot_data$padj, .Machine$double.xmin)
+  )
+  plot_data$significance <- "Not significant"
+  significant <- plot_data$padj < 0.05
+  plot_data$significance[significant & plot_data$log2FoldChange > 0] <-
+    "Increased"
+  plot_data$significance[significant & plot_data$log2FoldChange < 0] <-
+    "Decreased"
+  plot_data$significance <- factor(
+    plot_data$significance,
+    levels = c("Not significant", "Increased", "Decreased")
+  )
+
+  plot_data$label <- NA_character_
+  direction_indices <- list(
+    positive = which(plot_data$log2FoldChange > 0),
+    negative = which(plot_data$log2FoldChange < 0)
+  )
+  for (indices in direction_indices) {
+    if (length(indices) == 0L) {
+      next
+    }
+    label_indices <- indices[
+      order(
+        plot_data$pvalue[indices],
+        -abs(plot_data$log2FoldChange[indices]),
+        as.character(plot_data$gene[indices])
+      )
+    ][seq_len(min(20L, length(indices)))]
+    plot_data$label[label_indices] <- as.character(
+      plot_data$gene[label_indices]
+    )
+  }
+
+  plot_data
+}
+
+plot_de_volcano <- function(plot_data) {
+  if (nrow(plot_data) == 0L) {
+    stop("No genes available for DE volcano.", call. = FALSE)
+  }
+  label_data <- plot_data[!is.na(plot_data$label), , drop = FALSE]
   plot <- ggplot2::ggplot(
     plot_data,
     ggplot2::aes(
-      x = .data[["de_log2_fold_change"]],
-      y = .data[["dd_log2_fold_change"]]
+      x = .data[["log2FoldChange"]],
+      y = .data[["neg_log10_padj"]]
     )
   ) +
-    ggplot2::geom_hline(yintercept = 0, linewidth = 0.25, color = "grey70") +
-    ggplot2::geom_vline(xintercept = 0, linewidth = 0.25, color = "grey70") +
+    ggplot2::geom_hline(
+      yintercept = -log10(0.05),
+      linewidth = 0.25,
+      color = "grey70"
+    ) +
+    ggplot2::geom_vline(
+      xintercept = 0,
+      linewidth = 0.25,
+      color = "grey70"
+    ) +
     ggplot2::geom_point(
-      ggplot2::aes(color = .data[["fdr_category"]]),
+      ggplot2::aes(color = .data[["significance"]]),
       alpha = 0.55,
       size = 0.8
     ) +
     ggplot2::scale_color_manual(
       values = c(
-        "neither" = unname(palette_analysis_three[["mid"]]),
-        "DE only" = unname(palette_analysis_three[["low"]]),
-        "DD only" = unname(palette_analysis_three[["high"]]),
-        "both" = "#4daf4a"
+        "Not significant" = unname(palette_analysis_three[["mid"]]),
+        "Increased" = unname(palette_analysis_three[["high"]]),
+        "Decreased" = unname(palette_analysis_three[["low"]])
       ),
-      name = "FDR < 0.05",
       drop = FALSE
     ) +
     ggplot2::labs(
-      title = "MG-selected DE and differential detection effects",
-      subtitle = "Inner join on gene; genes missing either effect are omitted.",
-      x = sprintf("Differential expression log2 FC %s", CONTRAST_DISPLAY_LABEL),
-      y = sprintf("Differential detection log2 FC %s", CONTRAST_DISPLAY_LABEL)
+      title = "MG-selected differential expression",
+      x = sprintf("Shrunken log2 FC %s", CONTRAST_DISPLAY_LABEL),
+      y = expression(-log[10]("adjusted p-value")),
+      color = NULL
     ) +
     ggplot2::theme_bw(base_size = 10) +
-    ggplot2::theme(
-      panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right"
-    )
+    ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
 
   if (nrow(label_data) > 0L) {
     plot <- plot +
       ggrepel::geom_text_repel(
         data = label_data,
-        ggplot2::aes(label = .data[["gene"]]),
+        ggplot2::aes(label = .data[["label"]]),
         size = 2.2,
         seed = 275,
+        box.padding = 0.4,
+        point.padding = 0.2,
+        force = 2,
+        max.time = 5,
+        max.overlaps = Inf,
         show.legend = FALSE
       )
-  }
-
-  if (length(unique(plot_data$design)) > 1L) {
-    plot <- plot + ggplot2::facet_wrap(stats::as.formula("~ design"))
   }
 
   plot
@@ -657,111 +657,6 @@ run_deseq2 <- function(
   )
 }
 
-run_detection_muscat_dd <- function(
-  counts,
-  cell_metadata,
-  sample_table,
-  detection_fraction,
-  design_formula,
-  design_label
-) {
-  # counts: raw gene x cell dgCMatrix / Matrix, colnames match rownames(cell_metadata).
-  # cell_metadata: data.frame with rownames = cell barcodes; must carry the columns
-  #   `pseudobulk_sample_id` (character; identifies the Mouse x Condition sample) and
-  #   `condition` (factor with levels c(CONTROL_LEVEL, ESTIM_LEVEL)); may carry `mouse`.
-  # sample_table: rownames = pseudobulk sample IDs used as columns of DD outputs;
-  #   columns must include `condition` (factor), and for the paired design `mouse`.
-  # detection_fraction: gene x sample matrix used to fill mean detected fractions.
-  # design_formula: RHS-only formula, e.g. ~condition or ~mouse + condition.
-  # design_label: character label written into the output `design` column.
-
-  sample_ids <- rownames(sample_table)
-  keep_cells <- cell_metadata$pseudobulk_sample_id %in% sample_ids
-  cell_metadata <- cell_metadata[keep_cells, , drop = FALSE]
-  counts <- counts[, keep_cells, drop = FALSE]
-
-  cluster_id <- factor(rep("mg_selected", ncol(counts)))
-  sample_id <- factor(cell_metadata$pseudobulk_sample_id, levels = sample_ids)
-  group_id <- factor(
-    as.character(cell_metadata$condition),
-    levels = c(CONTROL_LEVEL, ESTIM_LEVEL)
-  )
-
-  col_data <- S4Vectors::DataFrame(
-    cluster_id = cluster_id,
-    sample_id = sample_id,
-    group_id = group_id
-  )
-  rownames(col_data) <- colnames(counts)
-
-  sce <- SingleCellExperiment::SingleCellExperiment(
-    assays = list(counts = counts),
-    colData = col_data
-  )
-
-  sce <- muscat::prepSCE(
-    sce,
-    kid = "cluster_id",
-    sid = "sample_id",
-    gid = "group_id",
-    drop = FALSE
-  )
-
-  pb <- muscat::aggregateData(
-    sce,
-    assay = "counts",
-    fun = "num.detected",
-    by = c("cluster_id", "sample_id")
-  )
-
-  design <- stats::model.matrix(design_formula, data = sample_table)
-  assert_full_rank(design, paste("muscat DD", design_label))
-  coef_name <- tail(colnames(design), 1L)
-  if (!identical(coef_name, "conditionestim")) {
-    stop(
-      "Expected muscat DD coefficient 'conditionestim' as the last design column; got: ",
-      coef_name,
-      call. = FALSE
-    )
-  }
-  contrast <- limma::makeContrasts(contrasts = coef_name, levels = design)
-
-  res <- muscat::pbDS(
-    pb,
-    method = "DD",
-    design = design,
-    contrast = contrast,
-    min_cells = 0L,
-    filter = "none",
-    verbose = FALSE
-  )
-
-  tbl <- res$table[[coef_name]][["mg_selected"]]
-  genes <- tbl$gene
-  control_samples <- rownames(sample_table)[
-    sample_table$condition == CONTROL_LEVEL
-  ]
-  estim_samples <- rownames(sample_table)[sample_table$condition == ESTIM_LEVEL]
-
-  data.frame(
-    gene = genes,
-    logFC = tbl$logFC,
-    logCPM = tbl$logCPM,
-    F = tbl[["F"]],
-    pvalue = tbl$p_val,
-    padj = tbl$p_adj.loc,
-    mean_detected_fraction_control = rowMeans(
-      as.matrix(detection_fraction[genes, control_samples, drop = FALSE])
-    ),
-    mean_detected_fraction_estim = rowMeans(
-      as.matrix(detection_fraction[genes, estim_samples, drop = FALSE])
-    ),
-    contrast = CONTRAST_DIRECTION,
-    design = design_label,
-    method = "muscat_edgeR_NB_optim",
-    stringsAsFactors = FALSE
-  )
-}
 
 map_genes_to_entrez <- function(symbols) {
   symbols <- unique(symbols[!is.na(symbols) & nzchar(symbols)])
@@ -1131,21 +1026,17 @@ output_paths <- c(
   file.path(deg_dir, "deseq2_full_results.tsv"),
   file.path(deg_dir, "deseq2_significant_degs.tsv"),
   file.path(deg_dir, "deseq2_marker_overlap.tsv"),
-  file.path(deg_dir, "detection_full_results.tsv"),
-  file.path(deg_dir, "detection_marker_overlap.tsv"),
   file.path(deg_dir, "deseq2_paired_sensitivity_full_results.tsv"),
   file.path(deg_dir, "deseq2_paired_sensitivity_significant_degs.tsv"),
   file.path(deg_dir, "deseq2_paired_sensitivity_marker_overlap.tsv"),
-  file.path(deg_dir, "detection_paired_sensitivity_full_results.tsv"),
-  file.path(deg_dir, "detection_paired_sensitivity_marker_overlap.tsv"),
   file.path(deg_dir, "numbers.json"),
   file.path(enrichment_dir, "go_bp_ora_up.tsv"),
   file.path(enrichment_dir, "go_bp_ora_down.tsv"),
   file.path(enrichment_dir, "go_bp_gsea.tsv"),
   file.path(enrichment_dir, "go_bp_gsea_symbol_entrez_mapping.tsv"),
-  de_dd_effect_scatter_png_path,
-  de_dd_effect_scatter_pdf_path,
-  de_dd_effect_scatter_notebook_png_path
+  volcano_png_path,
+  volcano_pdf_path,
+  volcano_notebook_png_path
 )
 assert_output_paths_clear(output_paths, overwrite_outputs)
 
@@ -1189,46 +1080,11 @@ de_marker_overlap <- write_marker_overlap(
   padj_column = "padj"
 )
 
-# ---- differential detection ----
-
-detected_counts <- do.call(
-  cbind,
-  lapply(sample_ids, function(id) {
-    Matrix::rowSums(counts[, pseudobulk_sample_id == id, drop = FALSE] > 0)
-  })
-)
-rownames(detected_counts) <- rownames(counts)
-colnames(detected_counts) <- sample_ids
-detection_fraction <- sweep(detected_counts, 2, sample_table$n_cells, "/")
-
-cell_metadata <- meta
-cell_metadata$pseudobulk_sample_id <- pseudobulk_sample_id
-cell_metadata$condition <- condition
-cell_metadata$mouse <- factor(mouse)
-
-full_detection <- run_detection_muscat_dd(
-  counts = counts,
-  cell_metadata = cell_metadata,
-  sample_table = sample_table,
-  detection_fraction = detection_fraction,
-  design_formula = ~condition,
-  design_label = "primary_unpaired_condition"
-)
-write_tsv(full_detection, file.path(deg_dir, "detection_full_results.tsv"))
-detection_marker_overlap <- write_marker_overlap(
-  full_detection,
-  full_detection$gene,
-  file.path(deg_dir, "detection_marker_overlap.tsv"),
-  padj_column = "padj"
-)
-
 # ---- paired sensitivity analyses ----
 
 paired_status <- "skipped"
 paired_reason <- "fewer than two mice have both control and estim samples"
 paired_de_n_degs <- NA_integer_
-paired_detection_n_hits <- NA_integer_
-paired_detection_n_tested <- NA_integer_
 
 if (length(paired_mice) >= 2L) {
   paired_sample_table <- sample_table[
@@ -1274,42 +1130,9 @@ if (length(paired_mice) >= 2L) {
       file.path(deg_dir, "deseq2_paired_sensitivity_marker_overlap.tsv"),
       padj_column = "padj"
     )
-
-    paired_cell_metadata <- cell_metadata[
-      cell_metadata$mouse %in% paired_mice,
-      ,
-      drop = FALSE
-    ]
-    paired_detection_fraction <- detection_fraction[,
-      rownames(paired_sample_table),
-      drop = FALSE
-    ]
-
-    paired_full_detection <- run_detection_muscat_dd(
-      counts = counts[, rownames(paired_cell_metadata), drop = FALSE],
-      cell_metadata = paired_cell_metadata,
-      sample_table = paired_sample_table,
-      detection_fraction = paired_detection_fraction,
-      design_formula = ~ mouse + condition,
-      design_label = "paired_mouse_condition_sensitivity"
-    )
-    write_tsv(
-      paired_full_detection,
-      file.path(deg_dir, "detection_paired_sensitivity_full_results.tsv")
-    )
-    write_marker_overlap(
-      paired_full_detection,
-      paired_full_detection$gene,
-      file.path(deg_dir, "detection_paired_sensitivity_marker_overlap.tsv"),
-      padj_column = "padj"
-    )
     paired_status <- "run"
     paired_reason <- "paired sensitivity used mice with both control and estim samples"
     paired_de_n_degs <- nrow(paired_sig_de)
-    paired_detection_n_tested <- nrow(paired_full_detection)
-    paired_detection_n_hits <- sum(
-      !is.na(paired_full_detection$padj) & paired_full_detection$padj < 0.05
-    )
   } else {
     paired_reason <- paste0(
       "paired sensitivity design was not full rank; columns=",
@@ -1340,129 +1163,74 @@ if (!identical(paired_status, "run")) {
     n_mapped_genes = 0L,
     min_required = 0L
   )
-  write_reason_tsv(
-    file.path(deg_dir, "detection_paired_sensitivity_full_results.tsv"),
-    paired_reason,
-    n_input_genes = nrow(counts),
-    n_mapped_genes = 0L,
-    min_required = 0L
-  )
-  write_reason_tsv(
-    file.path(deg_dir, "detection_paired_sensitivity_marker_overlap.tsv"),
-    paired_reason,
-    n_input_genes = nrow(counts),
-    n_mapped_genes = 0L,
-    min_required = 0L
-  )
 }
 
-# ---- DE vs differential detection effect scatter ----
+# ---- DE volcano ----
 
-de_dd_plot_data <- build_de_dd_effect_data(
-  full_de,
-  full_detection,
-  "All samples by condition"
-)
-if (identical(paired_status, "run")) {
-  paired_de_dd_plot_data <- build_de_dd_effect_data(
-    paired_full_de,
-    paired_full_detection,
-    "Paired mice by condition"
-  )
-  de_dd_plot_data <- rbind(de_dd_plot_data, paired_de_dd_plot_data)
-}
-
-de_dd_effect_scatter <- plot_de_dd_effect_scatter(de_dd_plot_data)
-de_dd_effect_scatter_width <- if (identical(paired_status, "run")) 9 else 5.5
+volcano_data <- build_de_volcano_data(full_de)
+volcano <- plot_de_volcano(volcano_data)
 dir.create(
-  dirname(de_dd_effect_scatter_png_path),
+  dirname(volcano_png_path),
   recursive = TRUE,
   showWarnings = FALSE
 )
 ggplot2::ggsave(
-  filename = de_dd_effect_scatter_png_path,
-  plot = de_dd_effect_scatter,
-  width = de_dd_effect_scatter_width,
-  height = 4.8,
+  filename = volcano_png_path,
+  plot = volcano,
+  width = 7,
+  height = 6.5,
   dpi = 300
 )
 ggplot2::ggsave(
-  filename = de_dd_effect_scatter_pdf_path,
-  plot = de_dd_effect_scatter,
-  width = de_dd_effect_scatter_width,
-  height = 4.8
+  filename = volcano_pdf_path,
+  plot = volcano,
+  width = 7,
+  height = 6.5
 )
 
 dir.create(
-  dirname(de_dd_effect_scatter_notebook_png_path),
+  dirname(volcano_notebook_png_path),
   recursive = TRUE,
   showWarnings = FALSE
 )
 if (
-  file.exists(de_dd_effect_scatter_notebook_png_path) ||
-    nzchar(Sys.readlink(de_dd_effect_scatter_notebook_png_path))
+  file.exists(volcano_notebook_png_path) ||
+    nzchar(Sys.readlink(volcano_notebook_png_path))
 ) {
-  unlink(de_dd_effect_scatter_notebook_png_path)
+  unlink(volcano_notebook_png_path)
 }
 link_created <- file.symlink(
-  de_dd_effect_scatter_png_path,
-  de_dd_effect_scatter_notebook_png_path
+  volcano_png_path,
+  volcano_notebook_png_path
 )
 if (!isTRUE(link_created)) {
   stop(
     "Failed to link notebook figure: ",
-    de_dd_effect_scatter_notebook_png_path,
+    volcano_notebook_png_path,
     call. = FALSE
   )
 }
-message(
-  "Wrote MG-selected DE/DD effect scatter PNG: ",
-  de_dd_effect_scatter_png_path
-)
-message(
-  "Wrote MG-selected DE/DD effect scatter PDF: ",
-  de_dd_effect_scatter_pdf_path
-)
-message("Linked notebook figure: ", de_dd_effect_scatter_notebook_png_path)
+message("Wrote MG-selected DE volcano PNG: ", volcano_png_path)
+message("Wrote MG-selected DE volcano PDF: ", volcano_pdf_path)
+message("Linked notebook figure: ", volcano_notebook_png_path)
 
 design_summary <- data.frame(
-  analysis = c(
-    "deseq2_primary",
-    "detection_primary",
-    "deseq2_paired_sensitivity",
-    "detection_paired_sensitivity"
-  ),
-  design = c(
-    "~ condition",
-    "~ condition",
-    "~ mouse + condition",
-    "~ mouse + condition"
-  ),
-  method = c(
-    "deseq2_wald",
-    "muscat_edgeR_NB_optim",
-    "deseq2_wald",
-    "muscat_edgeR_NB_optim"
-  ),
-  status = c("run", "run", paired_status, paired_status),
+  analysis = c("deseq2_primary", "deseq2_paired_sensitivity"),
+  design = c("~ condition", "~ mouse + condition"),
+  method = c("deseq2_wald", "deseq2_wald"),
+  status = c("run", paired_status),
   contrast = CONTRAST_DIRECTION,
   limitation = c(
     "uses all Mouse × Condition samples; mouse pairing is not modeled",
-    "muscat edgeR_NB_optim: internal 90% detection filter and CDR-style offset applied per Mouse x Condition sample",
-    paired_reason,
     paired_reason
   ),
   included_mice = c(
     paste(unique(sample_table$Mouse), collapse = ","),
-    paste(unique(sample_table$Mouse), collapse = ","),
-    paste(paired_mice, collapse = ","),
     paste(paired_mice, collapse = ",")
   ),
   unmatched_mice = paste(unique(unmatched_mice), collapse = ","),
   n_samples = c(
     nrow(sample_table),
-    nrow(sample_table),
-    sum(sample_table$Mouse %in% paired_mice),
     sum(sample_table$Mouse %in% paired_mice)
   ),
   source_input = input_path,
@@ -1517,27 +1285,19 @@ reportable_values <- list(
   n_samples = nrow(sample_table),
   n_cells = ncol(counts),
   n_tested_genes = length(primary_de$tested_genes),
-  n_detection_tested_genes = nrow(full_detection),
   n_degs = nrow(sig_de),
   n_marker_degs = sum(de_marker_overlap$significant, na.rm = TRUE),
-  n_detection_marker_hits = sum(
-    detection_marker_overlap$significant,
-    na.rm = TRUE
-  ),
   n_unmatched_mice = length(unique(unmatched_mice)),
   source_input = input_path,
   cluster_column = cluster_column,
   counts_layer = counts_layer,
   gsea_seed = GSEA_SEED,
   lfc_shrink_type = primary_de$shrink_type,
-  dd_method = "muscat_edgeR_NB_optim",
   primary_design = "~ condition",
   paired_sensitivity_design = "~ mouse + condition",
   paired_sensitivity_included_mice = paste(paired_mice, collapse = ","),
   paired_sensitivity_status = paired_status,
-  paired_sensitivity_n_degs = paired_de_n_degs,
-  paired_sensitivity_detection_tested_genes = paired_detection_n_tested,
-  paired_sensitivity_detection_hits = paired_detection_n_hits
+  paired_sensitivity_n_degs = paired_de_n_degs
 )
 register_or_write_numbers(reportable_values, deg_dir)
 

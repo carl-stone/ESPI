@@ -30,8 +30,7 @@ Imports:
     SingleCellExperiment
 Suggests:
     biomaRt,
-    devtools,
-    muscat
+    devtools
 Remotes:
     cleartools/scclrR,
     erocoar/gghalves

@@ -1,7 +1,7 @@
 # MG-selected write-up plan
 
 Date: 2026-07-13
-Status: implemented/current — the notebook write-up reflects the current rendered clustering and DE/DD results; interpretation limits remain in force.
+Status: implemented/current — the notebook write-up reflects the current rendered clustering and DE/enrichment results; interpretation limits remain in force.
 
 ## Results to carry forward
 
@@ -17,7 +17,7 @@ Status: implemented/current — the notebook write-up reflects the current rende
   - Higher with E-Stim: `Glul` (log2FC 0.7699, padj 1.77e-05), `Ccn1` (0.6032, 0.00477), `Hes6` (0.5455, 0.0231), `Grm6` (0.5605, 0.00789), and `Scgn` (0.5280, 0.0222).
   - Lower with E-Stim: `Mcm2` (-0.9848, 1.01e-06), `Mcm6` (-0.3845, 0.0252), `Pcna` (-0.6768, 0.00133), and `Rcvrn` (-0.5370, 0.00858).
 - Paired sensitivity found 141 FDR-significant genes and preserves `Glul` (log2FC 0.7695, padj 0.00258), `Ccn1` (0.6544, 0.0192), `Mcm2` (-0.8331, 0.00162), and `Mcm6` (-0.9746, 0.000221); it also flags `Serpina3n` (0.6097, 0.0412), but does not preserve `Hes6`, `Pcna`, `Grm6`, `Scgn`, or `Rcvrn` at FDR < 0.05.
-- Primary differential detection tested 35,388 genes and found no FDR-significant genes or marker-list hits. Paired sensitivity tested 33,799 genes and found 43 FDR-significant genes but no marker-list hits. Interpret curated marker changes as pseudobulk abundance shifts, not binary on/off detection shifts.
+- Primary-model volcano uses only `full_de`: x is shrunken `log2FoldChange`, y is `-log10(pmax(padj, .Machine$double.xmin))`, significance is `padj < 0.05` without an FC cutoff, levels are Not significant/Increased/Decreased, and deterministic labels are the top 10 significant genes by padj ascending, absolute shrunken log2FC descending, then gene name ascending. Outputs are `figures/mg_selected/mg_selected_de_volcano.png/.pdf` and `notebook/figures/mg_selected_de_volcano.png` (`fig-mg-selected-de-volcano`).
 - Upregulated ORA terms include apoptotic signaling and growth/stress-associated terms, but top terms also include narrow/redundant Nat8 acetylation and developmental/smooth-muscle/placenta labels that need cautious wording.
 - Downregulated ORA and GSEA are dominated by cell cycle, chromosome segregation, nuclear division, and DNA replication.
 - GSEA also shows positive NES terms related to catabolic metabolism, cellular respiration, mitochondrial organization, and macroautophagy.
@@ -33,10 +33,9 @@ E-Stim pushes the p27-low/negative MG-enriched branch toward a stress/reactive M
 3. **Cluster filtering is thresholded.** Microglia/photoreceptor exclusion depends on module-score top class, top-score threshold, and score margin. This is defensible but should be framed as an operational selection rule.
 4. **Marker-list dependence.** `AddModuleScore()` reflects the curated marker list. Ambiguous or sparse marker lists can shift cluster labels.
 5. **Cell-cycle signal dominates.** Cell-cycle HVGs were retained in the chosen branch, and the strongest DE/enrichment signature is cell-cycle downregulation. This may be biology, composition, or both; do not over-interpret as a specific cell-cycle mechanism without validation.
-6. **Pseudobulk abundance vs detection.** Primary detection testing found no FDR-significant genes. The paired sensitivity found 43 genes overall but no curated marker hits. Curated marker changes are quantitative abundance shifts within detected expression, not clear changes in the fraction of expressing cells.
-7. **Low-count neuronal marker caution.** `Grm6` is significant in the primary model but has low counts and does not survive paired sensitivity. Present it as suggestive rod-bipolar-associated signal, not a strong fate-conversion claim.
-8. **GO/GSEA redundancy and warnings.** GO terms are highly redundant, and GSEA emitted warnings about a small mapping failure rate, ties, and a few problematic pathways. Use GO as a compact summary of DEG themes, not independent validation.
-9. **No `Cdkn1b`-retained sensitivity branch yet.** Strong claims about p27 biology need a sensitivity branch that keeps `Cdkn1b`-high clusters and compares conclusions.
+6. **Low-count neuronal marker caution.** `Grm6` is significant in the primary model but has low counts and does not survive paired sensitivity. Present it as suggestive rod-bipolar-associated signal, not a strong fate-conversion claim.
+7. **GO/GSEA redundancy and warnings.** GO terms are highly redundant, and GSEA emitted warnings about a small mapping failure rate, ties, and a few problematic pathways. Use GO as a compact summary of DEG themes, not independent validation.
+8. **No `Cdkn1b`-retained sensitivity branch yet.** Strong claims about p27 biology need a sensitivity branch that keeps `Cdkn1b`-high clusters and compares conclusions.
 
 ## Notebook write-up status: implemented/current
 
@@ -61,29 +60,23 @@ Current message:
   - Primary-only/suggestive: `Hes6`, `Pcna`, `Grm6`, `Scgn`, `Rcvrn`.
   - Paired-only marker signal worth noting: `Serpina3n`.
 
-### 4. Detection-analysis sentence immediately after marker DE — implemented/current
 
-Current sentence:
-
-> Primary differential detection did not identify FDR-significant genes, including among curated markers. The paired sensitivity identified 43 genes overall but no curated marker hits. The curated marker shifts should therefore be read as pseudobulk abundance changes rather than clear changes in the fraction of cells expressing each marker.
-
-### 5. Guarded GO/GSEA theme summary — implemented/current
+### 4. Guarded GO/GSEA theme summary — implemented/current
 
 - The current downregulated summary emphasizes chromosome segregation, DNA replication, nuclear division, and cell-cycle checkpoint terms; this is the cleanest enrichment result.
 - The current upregulated summary uses stress/growth/apoptotic signaling plus metabolism/mitochondrial/catabolic GSEA themes and avoids leaning on placenta/smooth-muscle labels as biology.
 - GO redundancy and GSEA warnings are retained as a caveat because these are secondary summaries.
 
-### 6. Interpretive limits — retained/current
+### 5. Interpretive limits — retained/current
 
 The interpretation limits remain explicit:
 
 - p27-low/negative branch only.
 - limited replicate structure.
-- no detection-fraction hits.
 - no `Cdkn1b`-retained sensitivity yet.
 - neuronal-like markers are suggestive, not proof of reprogramming.
 
-### 7. Optional next analysis before manuscript claims
+### 6. Optional next analysis before manuscript claims
 
 If we want stronger claims, run a `Cdkn1b`-retained sensitivity branch and compare:
 

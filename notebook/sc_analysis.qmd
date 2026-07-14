@@ -260,23 +260,9 @@ FDR-significant in the paired sensitivity. `Serpina3n` is significant only in
 the paired sensitivity, so I treat it as paired-subset support for activated
 Müller glia rather than a primary all-sample marker hit.
 
-The differential-detection (DD) analysis tests changes in the fraction of cells
-with non-zero expression per gene, using the pseudobulk `edgeR_NB_optim`
-workflow through `muscat::pbDS(method = "DD")`. Primary DD tested 35,388 genes
-and found no FDR-significant genes or marker-list hits, so the primary evidence
-does not support condition-level changes in detection for curated marker genes.
-The paired sensitivity DD tested 33,799 genes and found 43 FDR-significant
-genes, with no marker-list hits. Because this result uses only mice 10 and 3 and
-is not supported by primary DD, I treat it as a within-paired-mice sensitivity
-signal, not a general all-sample DD conclusion.
+The primary-model volcano plot summarizes the `full_de` table from the all-sample `~ condition` DESeq2 model. The x-axis is the shrunken `log2FoldChange` (positive values indicate higher expression with E-Stim), and the y-axis is `-log10(pmax(padj, .Machine$double.xmin))`. Genes are significant when `padj < 0.05`, without a fold-change cutoff. Colors encode the three direction/significance levels: **Not significant**, **Increased** (significant with positive shrunken log2 fold change), and **Decreased** (significant with negative shrunken log2 fold change). Labels show the top 20 increased and top 20 decreased genes, selected independently within each direction and ranked by raw p-value ascending, with absolute shrunken log2 fold change and gene name as deterministic tie-breakers. The plot uses only the primary `full_de` results; the paired DE sensitivity remains summarized above.
 
-The DE/DD scatterplot compares condition effects for genes tested in both the DE
-and DD analyses for each design, because the two workflows test different gene
-universes. Points are genes, the x-axis shows the DE effect size, the y-axis
-shows the DD effect size, color shows the FDR significance category (neither, DE
-only, DD only, or both), and some points carry gene-name text labels.
-
-![DE and DD effect-size comparison for genes tested in both analyses. Points are genes; x shows the DE effect size, y shows the DD effect size, color shows the FDR significance category (neither, DE only, DD only, or both), and some points carry gene-name text labels.](figures/mg_selected_de_dd_effect_scatter.png){#fig-mg-selected-de-dd-effect-scatter}
+![Primary-model DESeq2 volcano for the MG-selected branch. The x-axis shows shrunken log2 fold change for E-Stim versus p27CKO; the y-axis shows negative log10 adjusted p-values. Colors indicate Not significant, Increased, and Decreased genes, and labels identify the top 20 increased and top 20 decreased genes ranked separately by raw p-value.](figures/mg_selected_de_volcano.png){#fig-mg-selected-de-volcano}
 
 As follow-up summaries of this selected branch, upregulated DEGs are enriched
 for stress/growth and apoptotic-signaling terms, while downregulated DEGs and
