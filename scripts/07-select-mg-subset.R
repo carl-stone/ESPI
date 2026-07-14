@@ -145,7 +145,7 @@ input_path <- arg_value(
 )
 cluster_column <- arg_value(
   "--cluster-column",
-  default = "cluster_pflog_no_filter_cc_dims50_res0.3"
+  default = "cluster_pflog_no_filter_cc_dims30_res0.3"
 )
 dims <- parse_positive_int(arg_value("--dims", default = "50"), "--dims")
 score_slot <- arg_value(

@@ -26,6 +26,7 @@
 # Defaults target the MG-selected data-layer marker run on the PFlog
 # no-filter-cc branch:
 #   CURRENT_OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds
+#   cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5
 # Marker testing defaults to the Seurat `data` layer even though the chosen
 # clustering is PFlog-derived. Seurat's default FoldChange math is not valid for
 # the PFlog layer; this script enforces pct.1 > pct.2 for retained positive
@@ -143,8 +144,8 @@ branch_tag <- get_arg(
   "pflog_mg_selected_no_filter_cc"
 )
 elbow_n <- as.integer(get_arg(cli_args, "--elbow-n", "20"))
-dims <- as.integer(get_arg(cli_args, "--dims", "30"))
-resolution <- get_arg(cli_args, "--resolution", "0.3")
+dims <- as.integer(get_arg(cli_args, "--dims", "20"))
+resolution <- get_arg(cli_args, "--resolution", "0.5")
 assay_arg <- get_arg(cli_args, "--assay", NULL)
 expression_layer <- get_arg(cli_args, "--layer", "data")
 counts_layer <- get_arg(cli_args, "--counts-layer", "counts")

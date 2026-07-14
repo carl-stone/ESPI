@@ -1927,6 +1927,365 @@ tripwire_pipeline_dry_run_contract <- function(root) {
   )
 }
 
+# Operational boundary: the public just recipes must be a thin, observable
+# interface over the same deterministic pipeline runner as the direct CLI.
+tripwire_just_public_interface <- function(root) {
+  slug <- "just-public-interface"
+  just <- Sys.which("just")
+  rscript <- Sys.which("Rscript")
+  if (identical(unname(just), "")) {
+    return(fail(
+      slug,
+      "just is unavailable, so the public recipe interface cannot be executed."
+    ))
+  }
+  if (identical(unname(rscript), "")) {
+    return(fail(
+      slug,
+      "Rscript is unavailable, so the public recipe interface cannot be executed."
+    ))
+  }
+
+  script <- file.path(root, "scripts", "run-pipeline.R")
+  if (!file.exists(script)) {
+    return(fail(slug, "scripts/run-pipeline.R is missing."))
+  }
+
+  data_root_env <- Sys.getenv("MEGAN_SC_DATA_DIR", unset = "")
+  box_path_env <- Sys.getenv("BOX_PATH", unset = "")
+  data_roots <- unique(c(
+    data_root_env,
+    if (nzchar(box_path_env)) file.path(box_path_env, "megan_sc_data") else "",
+    box_path_env,
+    file.path(path.expand("~/Library/CloudStorage/Box-Box"), "megan_sc_data"),
+    file.path(root, "data")
+  ))
+  data_roots <- data_roots[nzchar(data_roots)]
+  input_dirs <- unique(c(
+    file.path(data_roots, "seurat_objects", "input"),
+    file.path(data_roots, "input")
+  ))
+  explicit_candidates <- unique(unlist(lapply(
+    input_dirs,
+    function(path) {
+      if (!dir.exists(path)) {
+        return(character())
+      }
+      list.files(path, pattern = "\\.rds$", full.names = TRUE)
+    }
+  )))
+  explicit_candidates <- explicit_candidates[file.exists(explicit_candidates)]
+  if (length(explicit_candidates) == 0L) {
+    return(fail(
+      slug,
+      "No existing explicit RDS input was found for the public recipe exercise."
+    ))
+  }
+  explicit_input <- sort(explicit_candidates)[[1L]]
+
+  run_process <- function(program, args) {
+    output <- tryCatch(
+      suppressWarnings(system2(
+        program,
+        args,
+        stdout = TRUE,
+        stderr = TRUE
+      )),
+      error = function(error) structure(conditionMessage(error), status = 1L)
+    )
+    status <- attr(output, "status")
+    if (is.null(status)) {
+      status <- 0L
+    }
+    list(status = as.integer(status), output = unname(as.character(output)))
+  }
+
+  plan_lines <- function(output) {
+    output[grepl(
+      paste0(
+        "^(mode: dry-run|input_source: |overwrite: |",
+        "source_cluster_column: |mg_cluster_column: |mg_pca_dims: |",
+        "first_stage: |final_stage: |stage_count: |stage: |",
+        "command: |expects: )"
+      ),
+      output,
+      perl = TRUE
+    )]
+  }
+  stage_names <- function(plan) {
+    sub("^stage: ", "", plan[startsWith(plan, "stage: ")])
+  }
+  command_label <- function(label, side) {
+    paste(label, side, sep = " / ")
+  }
+
+  successful_invocations <- list(
+    list(
+      label = "counts-qc default",
+      just_args = c("--quiet", "run-dry-run"),
+      direct_args = c(shQuote(script), "--dry-run"),
+      input_source = "counts-qc",
+      overwrite = FALSE,
+      expected_stage_count = 24L
+    ),
+    list(
+      label = "legacy",
+      just_args = c("--quiet", "run-dry-run", "legacy", "false"),
+      direct_args = c(shQuote(script), "--dry-run", "--input-source", "legacy"),
+      input_source = "legacy",
+      overwrite = FALSE,
+      expected_stage_count = 22L
+    ),
+    list(
+      label = "explicit existing RDS",
+      just_args = c(
+        "--quiet",
+        "run-dry-run",
+        shQuote(explicit_input),
+        "false"
+      ),
+      direct_args = c(
+        shQuote(script),
+        "--dry-run",
+        "--input",
+        shQuote(explicit_input)
+      ),
+      input_source = "explicit",
+      overwrite = FALSE,
+      expected_stage_count = 22L
+    ),
+    list(
+      label = "counts-qc overwrite",
+      just_args = c("--quiet", "run-dry-run", "counts-qc", "true"),
+      direct_args = c(shQuote(script), "--dry-run", "--overwrite"),
+      input_source = "counts-qc",
+      overwrite = TRUE,
+      expected_stage_count = 24L
+    )
+  )
+
+  problems <- character()
+  for (invocation in successful_invocations) {
+    direct <- run_process(rscript, invocation$direct_args)
+    recipe <- run_process(just, invocation$just_args)
+    if (!identical(direct$status, 0L)) {
+      problems <- c(
+        problems,
+        sprintf(
+          "%s: direct CLI exited %d: %s",
+          command_label(invocation$label, "direct"),
+          direct$status,
+          paste(direct$output, collapse = " | ")
+        )
+      )
+      next
+    }
+    if (!identical(recipe$status, 0L)) {
+      problems <- c(
+        problems,
+        sprintf(
+          "%s: recipe exited %d: %s",
+          command_label(invocation$label, "just"),
+          recipe$status,
+          paste(recipe$output, collapse = " | ")
+        )
+      )
+      next
+    }
+
+    direct_plan <- plan_lines(direct$output)
+    recipe_plan <- plan_lines(recipe$output)
+    if (!identical(recipe_plan, direct_plan)) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": just plan differs from direct CLI contract; direct=",
+          paste(shQuote(direct_plan), collapse = ", "),
+          "; just=",
+          paste(shQuote(recipe_plan), collapse = ", ")
+        )
+      )
+      next
+    }
+
+    expected_header <- c(
+      "mode: dry-run",
+      paste0("input_source: ", invocation$input_source),
+      paste0("overwrite: ", tolower(as.character(invocation$overwrite)))
+    )
+    if (
+      length(direct_plan) < length(expected_header) ||
+        !identical(direct_plan[seq_along(expected_header)], expected_header)
+    ) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": direct CLI header does not match the expected source/overwrite contract."
+        )
+      )
+      next
+    }
+
+    observed_stages <- stage_names(direct_plan)
+    observed_count <- length(observed_stages)
+    if (!identical(observed_count, invocation$expected_stage_count)) {
+      problems <- c(
+        problems,
+        sprintf(
+          "%s: expected %d stages, got %d",
+          invocation$label,
+          invocation$expected_stage_count,
+          observed_count
+        )
+      )
+    }
+    if (
+      length(observed_stages) == 0L ||
+        !identical(
+          observed_stages[[1L]],
+          if (identical(invocation$input_source, "counts-qc")) {
+            "process-counts"
+          } else {
+            "preprocess-source"
+          }
+        )
+    ) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": source-dependent first stage is wrong: ",
+          paste(observed_stages, collapse = ", ")
+        )
+      )
+    }
+    has_counts_stages <- all(
+      c("process-counts", "qc-filtering") %in% observed_stages
+    )
+    if (
+      identical(invocation$input_source, "counts-qc") &&
+        !isTRUE(has_counts_stages)
+    ) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": counts-qc plan is missing process-counts/qc-filtering stages."
+        )
+      )
+    }
+    if (
+      !identical(invocation$input_source, "counts-qc") &&
+        isTRUE(has_counts_stages)
+    ) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": legacy/explicit plan unexpectedly includes counts-qc stages."
+        )
+      )
+    }
+    if (
+      length(observed_stages) < 3L ||
+        !identical(
+          tail(observed_stages, 3L),
+          c("mg-de", "render-notebook", "tripwires")
+        )
+    ) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": final stages are not mg-de/render-notebook/tripwires: ",
+          paste(tail(observed_stages, 3L), collapse = ", ")
+        )
+      )
+    }
+  }
+
+  invalid <- run_process(
+    just,
+    c("--quiet", "run-dry-run", "counts-qc", "not-a-boolean")
+  )
+  if (identical(invalid$status, 0L)) {
+    problems <- c(
+      problems,
+      "invalid overwrite value was accepted by just run-dry-run."
+    )
+  } else if (
+    !any(grepl("overwrite", invalid$output, ignore.case = TRUE)) ||
+      !any(grepl("true|false", invalid$output, ignore.case = TRUE))
+  ) {
+    problems <- c(
+      problems,
+      paste0(
+        "invalid overwrite value failed without an overwrite boolean diagnostic: ",
+        paste(invalid$output, collapse = " | ")
+      )
+    )
+  }
+
+  listing <- run_process(just, c("--list"))
+  if (!identical(listing$status, 0L)) {
+    problems <- c(
+      problems,
+      paste0(
+        "just --list exited ",
+        listing$status,
+        ": ",
+        paste(listing$output, collapse = " | ")
+      )
+    )
+  } else {
+    recipe_lines <- listing$output[grepl(
+      "^[[:space:]]+[A-Za-z0-9_-]+([[:space:]]|$)",
+      listing$output,
+      perl = TRUE
+    )]
+    recipe_names <- sub(
+      "^[[:space:]]+([A-Za-z0-9_-]+).*",
+      "\\1",
+      recipe_lines
+    )
+    required_names <- c("run", "run-dry-run", "preprocess", "preprocess-one")
+    missing_names <- setdiff(required_names, recipe_names)
+    if (length(missing_names) > 0L) {
+      problems <- c(
+        problems,
+        paste0(
+          "just --list is missing recipe(s): ",
+          paste(missing_names, collapse = ", ")
+        )
+      )
+    } else {
+      low_level_index <- min(match(
+        c("preprocess", "preprocess-one"),
+        recipe_names
+      ))
+      if (
+        match("run", recipe_names) >= low_level_index ||
+          match("run-dry-run", recipe_names) >= low_level_index
+      ) {
+        problems <- c(
+          problems,
+          "just --list places run/run-dry-run after low-level preprocessing recipes."
+        )
+      }
+    }
+  }
+
+  if (length(problems) > 0L) {
+    return(fail(slug, paste(problems, collapse = " | ")))
+  }
+  pass(
+    slug,
+    "Public just run/run-dry-run recipes match direct CLI dry-run plans for counts-qc, legacy, and an existing explicit RDS, including overwrite validation and recipe ordering."
+  )
+}
+
 tripwire_report_values_freshness <- function(root) {
   # Scientific boundary: the rendered report must not be older than the source
   # prose or figures that define the claimed HVG and DimHeatmap parameters.
@@ -2914,6 +3273,7 @@ main <- function() {
     tripwire_cluster_wrapper_contract,
     tripwire_cli_value_boundaries,
     tripwire_pipeline_dry_run_contract,
+    tripwire_just_public_interface,
     tripwire_branch_artifact_collision,
     tripwire_report_values_freshness,
     tripwire_missing_counts_file,

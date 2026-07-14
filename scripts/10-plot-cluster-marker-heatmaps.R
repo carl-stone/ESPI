@@ -14,10 +14,10 @@
 #
 # Arguments:
 #   --input
-#     Clustered Seurat object to plot. Defaults to the full-dataset clustered
-#     RDS in CURRENT_OBJECT_DIR.
+#     Clustered Seurat object to plot. Defaults to the full-dataset
+#     CURRENT_OBJECT_DIR/cluster_pflog_no_filter_cc_elbow20.rds.
 #   --dims
-#     PC count embedded in the cluster metadata column name. Defaults to 50.
+#     PC count embedded in the cluster metadata column name. Defaults to 30.
 #   --resolution
 #     Leiden resolution embedded in the cluster metadata column name. Defaults
 #     to 0.3.
@@ -115,7 +115,7 @@ if (length(missing_packages) > 0) {
 
 HEATMAP_Z_SCORE_LIMIT <- 2
 
-dims <- as.integer(get_arg(cli_args, "--dims", "50"))
+dims <- as.integer(get_arg(cli_args, "--dims", "30"))
 if (is.na(dims) || dims <= 0) {
   stop("--dims must be a positive integer.", call. = FALSE)
 }

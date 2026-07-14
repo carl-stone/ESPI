@@ -11,6 +11,9 @@
 #     [--resolution <resolution string>] \
 #     [--layer <assay layer>] \
 #     [--feature-list <data/umap_feature_list.rda>]
+# Defaults target the MG-selected no-filter-cc PFlog branch:
+#   CURRENT_OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds
+#   cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5
 #
 # Outputs:
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_umap_<branch>_dims<dims>_res<resolution>.(png|pdf)
@@ -142,12 +145,12 @@ if (length(elbow_n) != 1L || is.na(elbow_n) || elbow_n <= 0) {
   stop("--elbow-n must be a positive integer.", call. = FALSE)
 }
 
-dims <- as.integer(get_arg(cli_args, "--dims", "30"))
+dims <- as.integer(get_arg(cli_args, "--dims", "20"))
 if (length(dims) != 1L || is.na(dims) || dims <= 0) {
   stop("--dims must be a positive integer.", call. = FALSE)
 }
 
-resolution <- get_arg(cli_args, "--resolution", "0.3")
+resolution <- get_arg(cli_args, "--resolution", "0.5")
 if (
   !is.character(resolution) ||
     length(resolution) != 1L ||

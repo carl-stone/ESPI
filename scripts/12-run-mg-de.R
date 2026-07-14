@@ -13,7 +13,7 @@
 #     --overwrite
 # Defaults target the mg-selected no-filter-cc pFlog branch:
 #   CURRENT_OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds
-#   cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3
+#   cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5
 #
 #
 # Differential detection uses `muscat::pbDS(method = "DD")`, equivalent to
@@ -130,7 +130,7 @@ input_path <- get_arg(
 cluster_column <- get_arg(
   cli_args,
   "--cluster-column",
-  "cluster_pflog_mg_selected_no_filter_cc_dims30_res0.3"
+  "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5"
 )
 condition_col <- get_arg(cli_args, "--condition-col", CONDITION_COL)
 control_label <- get_arg(cli_args, "--control-label", CTRL_LABEL)
