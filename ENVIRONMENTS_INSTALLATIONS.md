@@ -28,10 +28,49 @@ just format R/<file>.R scripts/<script>.R
 just notebook
 ```
 
-## Preprocessing Pipeline
+## Routine Pipeline
 
-First create the combined raw Seurat object from the six 10X directories and
-sample metadata:
+Use the canonical wrapper for a complete analysis run:
+
+```sh
+just run [source] [overwrite]
+just run-dry-run [source] [overwrite]
+```
+
+`source` defaults to `counts-qc` and accepts `counts-qc`, `legacy`, or a
+quoted explicit RDS path. `overwrite` defaults to `false`; set it to `true`
+only when intentionally replacing protected marker or DE outputs. The
+dry-run prints the deterministic plan without changing files. A full run
+validates each stage, renders the notebook, and then runs tripwires.
+
+`counts-qc` runs count processing and QC before preprocessing the source.
+`legacy` uses the existing
+`INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds`. An explicit RDS
+path bypasses named-source selection and uses that object as the source.
+
+The current selected branches are:
+
+- **Source**: PFlog, no-cell-cycle-HVG (no-filter-CC), 30 PCs, resolution
+  0.3. The source has 4,146 cells and 9 clusters; exclude source clusters
+  2, 7, and 8, retaining 3,456 cells.
+- **MG-selected**: reselect HVGs and compute a 50-PC PCA so 20-, 30-, and
+  50-PC candidates remain available. The selected branch is PFlog,
+  no-filter-CC, 20 PCs, resolution 0.5, with 8 clusters.
+
+Current cluster columns are
+`cluster_pflog_no_filter_cc_dims30_res0.3` for the source and
+`cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` for MG-selected.
+
+## Expert Recovery and Maintenance
+
+Use the commands in this section only to recover a failed stage, inspect
+intermediate outputs, or replace a single artifact. They are not the routine
+workflow.
+
+### Raw counts and QC
+
+Create the combined raw Seurat object from the six 10X directories and sample
+metadata:
 
 ```sh
 Rscript scripts/01-process-counts.R
@@ -40,7 +79,7 @@ Rscript scripts/01-process-counts.R
 This writes `data/input/sobj_raw.rds` beneath the Box data root
 (`DATA_ROOT_DIR/data/input/sobj_raw.rds`).
 
-Run QC filtering before preprocessing:
+Run QC filtering:
 
 ```sh
 Rscript scripts/02-qc-filtering.R
@@ -52,103 +91,74 @@ The script writes QC figures to `FIGURE_DIR/qc/*.png`, QC tables to
 `INPUT_OBJECT_DIR/sobj_qc_filtered.rds`. `percent.mt` uses all 37 observed
 mitochondrial features, whose labels are mixed (including `mt-Rnr1`,
 `mt-Rnr2`, and non-`mt-` labels). `DropletUtils::emptyDrops()` supplies the
-cell-call FDR and `is_cell` flag. Called cells define sample-specific lower
-three-MAD thresholds for log10 counts and detected features and an upper
-three-MAD threshold for mitochondrial percentage. The filtered object contains
-the 4,145 cells that pass those three MAD criteria; `is_cell` remains separate
-from `pass_qc`. `percent.ribo` remains diagnostic only.
+cell-call FDR and `is_cell` flag. `scDblFinder` runs per sample on called
+barcodes above the count and feature floors and supplies doublet scores and
+singlet/doublet calls. Called singlets define sample-specific lower three-MAD
+thresholds for log10 counts and detected features and an upper three-MAD
+threshold for mitochondrial percentage. The filtered object contains the
+4,146 cells that pass those three MAD criteria; `is_cell` and `is_singlet`
+remain separate from `pass_qc`. `percent.ribo` remains diagnostic only.
 
-Choose one preprocessing input for an analysis run. The default `legacy`
-source selects the original
-`INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds`; `counts-qc` selects
-the counts-derived and QC-filtered `INPUT_OBJECT_DIR/sobj_qc_filtered.rds`:
+### Low-level preprocessing
+
+The low-level `preprocess` recipe intentionally defaults to the historical
+`legacy` source, unlike canonical `just run`, whose default is `counts-qc`:
 
 ```sh
+just preprocess
 just preprocess counts-qc
-```
-
-For one branch, use:
-
-```sh
 just preprocess-one pflog false counts-qc
 ```
 
-An explicit alternative object remains available through
-`Rscript scripts/03-preprocess.R --input /path/to/object.rds --normalization pflog`.
-Preprocessing replaces the current branch artifacts, so clustering and all
-downstream commands consume the source selected for the current run.
+Pass an explicit object when recovering another input:
 
-## Clustering Pipeline
+```sh
+Rscript scripts/03-preprocess-all.R --input-source legacy
+Rscript scripts/03-preprocess.R --input /path/to/object.rds --normalization pflog
+```
 
-Preview all current clustering commands without running clustering:
+Preprocessing replaces the current branch artifacts, so downstream recovery
+commands consume the source selected for that run.
+
+### Clustering and summaries
 
 ```sh
 just cluster-dry-run
-```
-
-Run the all-branch clustering wrapper from the repo root:
-
-```sh
 just cluster
-```
-
-Generate the supplemental cluster grid table, 12-panel clustree grid, and
-representative UMAP resolution sweep after clustered objects exist:
-
-```sh
 just summarize-clusters
+just summarize-mg-selected 20
 ```
 
-The wrapper loads ESPI path constants in R; do not rely on a shell-exported
-`CURRENT_OBJECT_DIR`. Clustered outputs use underscore branch tags such as
-`pflog_no_filter_cc` because Seurat rewrites hyphens in reduction names.
+Clustered outputs use underscore branch tags such as `pflog_no_filter_cc`
+because Seurat rewrites hyphens in reduction names. The wrapper loads ESPI
+path constants in R; do not rely on a shell-exported `CURRENT_OBJECT_DIR`.
 
-The current chosen counts-derived analysis uses the no-cell-cycle-HVG PFlog
-candidate at 20 PCs and Leiden resolution 0.3 for both the source and
-MG-selected clusterings. The MG preprocessing stage computes 50 PCs so 30- and
-50-PC sensitivity candidates remain available. Some figure, marker, and DE
-recipes retain historical 30- or 50-PC defaults; pass `20`, `0.3`, and the
-matching `dims20_res0.3` cluster column explicitly for the current analysis.
-See the end-to-end workflow in `README.Rmd` for the exact downstream command
-sequence.
-
-## Marker Annotation Figures
-
-Generate the per-cell cell type marker heatmap from the repo root:
+For direct figure or marker recovery, pass the current dimensions, resolution,
+and object explicitly:
 
 ```sh
-just marker-heatmap
+just marker-heatmap 30 0.3 /path/to/source-clustered-object.rds
+just marker-heatmap 20 0.5 /path/to/mg-selected-object.rds
+just cluster-marker-heatmaps 30 0.3 /path/to/source-clustered-object.rds
+just cluster-marker-heatmaps 20 0.5 /path/to/mg-selected-object.rds
+just mg-markers
+just mg-figures
+just mg-de
 ```
 
-The script defaults to `cluster_pflog_filter_cc_dims50_res0.3` and the PFlog
-expression layer, writes per-cell PNG/PDF outputs under `figures/annotation/`
-in the Box data root, and symlinks the PNG into `notebook/figures/`.
+### Notebook and tripwires
 
-Generate the per-cluster cell-type module and p27 enrichment heatmaps:
-
-```sh
-just cluster-marker-heatmaps 50 0.3
-just summarize-mg-selected
-just cluster-marker-heatmaps 30 0.3 /path/to/mg-selected-object.rds
-```
-
-The script writes PNG/PDF heatmaps under `figures/annotation/`, writes module
-score and p27 enrichment TSVs under `tables/annotation/`, and symlinks PNGs
-into `notebook/figures/`.
-
-
-## Tripwire Checks
-
-Run the lightweight scientific-boundary checks from the repo root:
+Render the notebook or run the lightweight scientific-boundary checks
+separately when recovering those final stages:
 
 ```sh
+just notebook
 just tripwires
 ```
 
-The runner uses `analysis_labels.yml` for label/contrast declarations and exits
-non-zero only for `FAIL` rows. `SKIP` rows mark checks that need future pipeline
-stages or scratch-output instrumentation.
-
+The tripwire runner uses `analysis_labels.yml` for label and contrast
+declarations and exits non-zero only for `FAIL` rows. `SKIP` rows mark checks
+that need future pipeline stages or scratch-output instrumentation.
 
 ## Required R Packages
 
@@ -193,14 +203,19 @@ figures/preprocess/
 figures/cluster/
 ```
 
-Notebook figures should be symlinked into `notebook/figures/` and referenced with notebook-relative paths.
+Notebook figures should be symlinked into `notebook/figures/` and referenced
+with notebook-relative paths.
 
 ## Mycelium Local Hooks
 
-Mycelium created local Claude Code hooks in `.claude/settings.local.json`. The file points at the installed plugin cache:
+Mycelium created local Claude Code hooks in `.claude/settings.local.json`. The
+file points at the installed plugin cache:
 
 ```text
 /Users/carlstone/.omp/plugins/cache/plugins/mycelium___mycelium___0.0.0/
 ```
 
-`.claude/` is gitignored because those paths are local and can break after plugin upgrades or cache cleanup. On a fresh clone or after upgrading the plugin, rerun Mycelium initialization or hook setup before expecting hooks to fire.
+`.claude/` is gitignored because those paths are local and can break after
+plugin upgrades or cache cleanup. On a fresh clone or after upgrading the
+plugin, rerun Mycelium initialization or hook setup before expecting hooks to
+fire.

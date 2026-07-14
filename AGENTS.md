@@ -18,6 +18,7 @@ Load the package with `devtools::load_all()`. Run `devtools::document()` after m
 NEVER edit README.md directly; it is generated from README.Rmd. After you edit README.Rmd, run `devtools::build_readme()` to update README.md.
 
 Update `README.Rmd`, `AGENTS.md`, and other package documentation as needed to reflect changes in the analysis pipeline.
+Routine workflow rule: use `just run [source] [overwrite]` (or `just run-dry-run [source] [overwrite]`) with defaults `counts-qc` and `false`; source may be `counts-qc`, `legacy`, or a quoted explicit RDS path. Treat `just preprocess*` and raw `Rscript` stages as expert recovery only. A full run renders the notebook, then runs tripwires.
 
 ------------------------------------------------------------------------
 

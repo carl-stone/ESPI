@@ -32,146 +32,86 @@ pak::pak("carl-stone/ESPI")
 
 ## End-to-end workflow
 
-Use `just` from the repo root for package tasks, pipeline steps, notebook
-rendering, and tripwire checks:
+Run from the repository root. Inspect the resolved contract first, then run the
+full pipeline:
 
 ```sh
-just --list
+just run-dry-run
+just run
 ```
 
-Load the package after setup or dependency changes:
+The canonical positional forms are `just run-dry-run [source] [overwrite]` and
+`just run [source] [overwrite]`; omit both arguments to use
+`source=counts-qc` and `overwrite=false`. The dry run prints the resolved
+source, overwrite setting, stage order, and expected outputs without writing.
+The full run executes that plan.
+
+`source` may be:
+
+- `counts-qc`: process the raw matrices and metadata, run QC, and continue with
+  the analysis.
+- `legacy`: use `INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds` and
+  start at preprocessing.
+- A quoted explicit Seurat RDS path, such as
+  `"/path/to/my_input.rds"`, and start at preprocessing.
+
+`overwrite` is `false` or `true`. With `false`, existing protected marker and
+DE outputs stop the run; `true` permits their replacement. A dry run never
+writes, regardless of the overwrite value. For example:
 
 ```sh
-just load
+just run-dry-run legacy false
+just run "path/to/my_input.rds" true
 ```
 
-Create the combined raw Seurat object from the six 10X directories and sample
-metadata:
-
-```sh
-Rscript scripts/01-process-counts.R
-```
-
-This saves `sobj_raw.rds` at `data/input/sobj_raw.rds` beneath the Box data
-root (`DATA_ROOT_DIR/data/input/sobj_raw.rds`).
-
-Run QC filtering before preprocessing:
-
-```sh
-Rscript scripts/02-qc-filtering.R
-```
-
-The script writes QC figures to `FIGURE_DIR/qc/*.png`, QC tables to
-`TABLE_DIR/qc/*.tsv`, the annotated raw object to
-`INPUT_OBJECT_DIR/sobj_raw_with_qc.rds`, and the filtered object to
-`INPUT_OBJECT_DIR/sobj_qc_filtered.rds`. `percent.mt` uses all 37 observed
-mitochondrial features, whose labels are mixed (including `mt-Rnr1`,
-`mt-Rnr2`, and non-`mt-` labels). `DropletUtils::emptyDrops()` supplies the
-cell-call FDR and `is_cell` flag. Called cells define sample-specific lower
+For a `counts-qc` run, `scripts/01-process-counts.R` creates the combined raw
+object and `scripts/02-qc-filtering.R` writes QC outputs. `percent.mt` uses all
+37 observed mitochondrial features, whose labels are mixed (including
+`mt-Rnr1`, `mt-Rnr2`, and non-`mt-` labels). `DropletUtils::emptyDrops()`
+supplies the cell-call FDR and `is_cell` flag. `scDblFinder` runs per sample on
+called barcodes above the count and feature floors and supplies doublet scores
+and singlet/doublet calls. Called singlets define sample-specific lower
 three-MAD thresholds for log10 counts and detected features and an upper
 three-MAD threshold for mitochondrial percentage. The saved filtered object
-contains the 4,145 cells that pass those three MAD criteria; `is_cell` remains
-separate from `pass_qc`. `percent.ribo` remains diagnostic only.
+contains 4,146 source cells that pass those three MAD criteria; `is_cell` and
+`is_singlet` remain separate from `pass_qc`. `percent.ribo` remains diagnostic
+only.
 
-Choose one preprocessing input for an analysis run. The default `legacy`
-source is the original `INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds`.
-The `counts-qc` source is the counts-derived and QC-filtered
-`INPUT_OBJECT_DIR/sobj_qc_filtered.rds`:
+The stage flow is:
 
-```sh
-just preprocess counts-qc
+```text
+counts-qc -> process counts -> QC -\
+legacy / explicit RDS -------------> preprocess -> source cluster grid
+                                      -> summarize -> select MG (PCA 50)
+                                      -> MG cluster grids -> figures/markers/DE
+                                      -> render notebook -> tripwires
 ```
 
-Run a single branch with the same source choice:
+A successful full run renders `notebook/sc_analysis.qmd` and then runs
+`tools/run-tripwires.R`; it stops if a stage or its outputs fail validation.
 
-```sh
-just preprocess-one pflog false counts-qc
-```
+Current selected identifiers and counts:
 
-Use `--input` only for another explicit Seurat object. Preprocessing replaces
-the current branch artifacts, so cluster and downstream commands consume the
-source selected for the current run.
+| Role | Selected branch and cluster column | Result |
+|---|---|---|
+| Source | `pflog_no_filter_cc`; `cluster_pflog_no_filter_cc_dims30_res0.3` | 4,146 cells; 9 clusters; exclude source clusters 2, 7, and 8; retain 3,456 |
+| MG-selected | `pflog_mg_selected_no_filter_cc`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` | MG PCA/candidate depth 50; 8 chosen clusters |
 
-Preview clustering commands before running them, then cluster all preprocessed
-objects and summarize the clustering grid:
+If a checkpoint needs recovery, use the existing low-level entry points below.
+The canonical `just run` command remains the preferred way to execute the
+complete workflow.
 
-```sh
-just cluster-dry-run
-just cluster
-just summarize-clusters
-```
+| Checkpoint | Existing recipe or script |
+|---|---|
+| Combined raw object | `Rscript scripts/01-process-counts.R` |
+| QC annotation and filtered object | `Rscript scripts/02-qc-filtering.R` |
+| Preprocessing branches | `just preprocess counts-qc` (`scripts/03-preprocess-all.R`) or `just preprocess-one` |
+| Source clustering and summary | `just cluster` (`scripts/04-cluster-all.R`), then `just summarize-clusters` |
+| MG subset selection | `Rscript scripts/07-select-mg-subset.R` with source column `cluster_pflog_no_filter_cc_dims30_res0.3` and `--dims 50` |
+| MG clustering and summary | `just cluster-one` / `just summarize-mg-selected` |
+| Figures and marker tables | `just marker-heatmap`, `just cluster-marker-heatmaps`, `just mg-figures`, `just mg-markers-no-merge` |
+| MG DE and enrichment | `just mg-de` (`scripts/12-run-mg-de.R`) |
+| Notebook and final checks | `just notebook`, then `just tripwires` |
 
-The current chosen counts-derived analysis uses the no-cell-cycle-HVG PFlog
-branch at 20 PCs and Leiden resolution 0.3. The downstream commands below
-reproduce the source and MG-selected figures, marker ranking, and Mouse ×
-Condition pseudobulk analysis. MG preprocessing computes 50 PCs so the 30- and
-50-PC sensitivity candidates remain available.
-
-```sh
-DATA_ROOT="/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data"
-OBJECT_DIR="$DATA_ROOT/seurat_objects/current"
-
-FULL_OBJECT="$OBJECT_DIR/cluster_pflog_no_filter_cc_elbow20.rds"
-MG_PREPROCESS="$OBJECT_DIR/preprocess_pflog_mg_selected_no_filter_cc.rds"
-MG_FILTER_PREPROCESS="$OBJECT_DIR/preprocess_pflog_mg_selected_filter_cc.rds"
-MG_OBJECT="$OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds"
-MG_FILTER_OBJECT="$OBJECT_DIR/cluster_pflog_mg_selected_filter_cc_elbow20.rds"
-
-Rscript scripts/07-select-mg-subset.R \
-  --input "$FULL_OBJECT" \
-  --cluster-column cluster_pflog_no_filter_cc_dims20_res0.3 \
-  --dims 50
-
-just cluster-one "$MG_PREPROCESS" 20
-just cluster-one "$MG_FILTER_PREPROCESS" 20
-just summarize-mg-selected 20
-
-just marker-heatmap 20 0.3 "$FULL_OBJECT"
-just marker-heatmap 20 0.3 "$MG_OBJECT"
-just marker-heatmap 20 0.3 "$MG_FILTER_OBJECT"
-just cluster-marker-heatmaps 20 0.3 "$FULL_OBJECT"
-just cluster-marker-heatmaps 20 0.3 "$MG_OBJECT"
-just cluster-marker-heatmaps 20 0.3 "$MG_FILTER_OBJECT"
-
-just mg-figures \
-  "$MG_OBJECT" pflog_mg_selected_no_filter_cc 20 20 0.3
-just mg-figures \
-  "$MG_FILTER_OBJECT" pflog_mg_selected_filter_cc 20 20 0.3
-
-Rscript scripts/11-find-mg-markers.R \
-  --input "$MG_OBJECT" \
-  --branch-tag pflog_mg_selected_no_filter_cc \
-  --elbow-n 20 \
-  --dims 20 \
-  --resolution 0.3 \
-  --layer data \
-  --counts-layer counts \
-  --confirm-no-merge
-
-just mg-de \
-  "$MG_OBJECT" \
-  cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3
-```
-
-The shorter MG recipes still default to historical 30- or 50-PC candidate
-columns. Pass the explicit 20-PC identifiers above for the current chosen
-analysis. Use `just --list` to inspect every parameterized figure, marker, and
-MG-selected recipe.
-
-Rebuild generated documentation and render the embedded-resource notebook after
-source or figure changes:
-
-```sh
-just document
-just readme
-just notebook
-```
-
-Run tripwire checks before handing off analysis changes:
-
-```sh
-just tripwires
-```
-
-The underlying scripts still accept raw flags when a recipe does not fit.
-
+Use `just --list` to inspect expert and maintenance recipes. Load package code
+after setup or dependency changes with `just load`.

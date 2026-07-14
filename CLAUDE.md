@@ -38,6 +38,7 @@ Use R-specific workflow, not Python/marimo defaults from generic Mycelium docs.
 - Render the notebook with `quarto render notebook/sc_analysis.qmd` after figure source changes because `embed-resources: true` embeds image bytes.
 - Run tripwire checks with `Rscript tools/run-tripwires.R` after changing analysis paths, report prose, or scientific-boundary code.
 - Prefer tidyverse-style R where useful, but keep helpers narrow and avoid one-off helper functions for a few commands.
+- Routine workflow rule: use `just run [source] [overwrite]` or `just run-dry-run [source] [overwrite]`; defaults are `counts-qc` and `false`, source also accepts `legacy` or a quoted explicit RDS path. Treat raw scripts and `just preprocess*` as expert recovery only; full runs render the notebook before tripwires.
 
 ## Installed Mycelium Convention Packs
 
