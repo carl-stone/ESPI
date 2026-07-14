@@ -674,3 +674,45 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: One small human interface removes repeated operational knowledge without changing the scientific modules or hiding the complete stage plan from dry-run review.
 
 **Consequences**: GitHub issue #1 records the incremental implementation and testing plan. The existing long command sequence remains authoritative until the canonical command completes one verified counts-derived run. QC, clustering choices, MG selection, Mouse × Condition pseudobulk analysis, sensitivity grids, and low-level expert commands remain unchanged.
+
+### [2026-07-13] Keep cell calling and doublet status separate from the saved MAD selector
+
+**Tags**: qc-filtering, emptydrops, scDblFinder, metadata, data-lineage
+
+**Context**: The current QC script combines emptyDrops cell calling, per-sample scDblFinder calls, and sample-specific log-MAD thresholds, but the saved `pass_qc` subset intentionally has a narrower selector than the threshold-estimation population.
+
+**Decision**: Run scDblFinder per sample on emptyDrops-called barcodes above the count and feature floors, estimate sample-specific count, feature, and mitochondrial thresholds among called singlets, and define the saved `pass_qc` subset from those three MAD criteria only. Preserve `is_cell`, `doublet_call`, and `is_singlet` as separate metadata rather than adding them to `pass_qc`.
+
+**Alternatives considered**: Requiring `is_cell` or `is_singlet` in `pass_qc` would change the user-authored selector. Omitting scDblFinder from the documented threshold-estimation path would misdescribe the current script.
+
+**Rationale**: Separate flags preserve the current analysis choice and allow later sensitivity subsets without hiding how the MAD thresholds were estimated.
+
+**Consequences**: The counts-derived source contains 4,146 `pass_qc` cells. Documentation now states that called singlets define the MAD thresholds while cell-call and singlet flags remain separate from `pass_qc`. This supersedes the earlier description of a QC stage without scDblFinder.
+
+### [2026-07-13] Select source 30 PCs and MG-selected 20 PCs at resolution 0.5
+
+**Tags**: clustering, pflog, mg-selected, stability, reproducibility
+
+**Context**: Regenerating the post-QC source and MG-selected 20/30/50-PC × 0.3/0.5/0.8 grids changed the candidate structure relative to the earlier 20-PC/resolution-0.3 choices.
+
+**Decision**: Use the PFlog no-cell-cycle-HVG source candidate at 30 PCs and resolution 0.3, then use the PFlog no-cell-cycle-HVG MG-selected candidate at 20 PCs and resolution 0.5. Continue computing 50 MG PCs and retaining all sensitivity candidates.
+
+**Alternatives considered**: Keeping the prior 20-PC/resolution-0.3 identifiers would ignore the regenerated stability summaries. Choosing the 50-PC MG candidate would retain more tail variance without a compensating stability or sample-support advantage.
+
+**Rationale**: The source candidate has the strongest local stability in the regenerated source grid. The MG candidate balances local stability, cluster count, and sample support; all eight clusters span both conditions and seven span every mouse.
+
+**Consequences**: The source has 4,146 cells in 9 clusters. Excluding source clusters 2, 7, and 8 retains 3,456 cells; the chosen MG clustering has 8 clusters. Source figures use dims30/resolution 0.3 and MG figures, markers, and DE use dims20/resolution 0.5. This supersedes the preserved 20-PC/resolution-0.3 choices recorded earlier on 2026-07-13.
+
+### [2026-07-13] Use one canonical just interface for complete runs
+
+**Tags**: workflow, just, orchestration, reproducibility, validation
+
+**Context**: The manuscript pipeline required a long sequence of low-level commands with repeated paths and clustering identifiers.
+
+**Decision**: Make `just run [source] [overwrite]` the routine interface and `just run-dry-run [source] [overwrite]` its side-effect-free plan. Default to `counts-qc` and `overwrite=false`; support `legacy` and explicit RDS paths. Keep low-level recipes for checkpoint recovery.
+
+**Alternatives considered**: Three coarse stage commands would still expose handoff state. A workflow engine, cache, resume database, or parallel scheduler would add machinery that this one-off analysis does not need.
+
+**Rationale**: The orchestration module owns stage order, paths, chosen identifiers, output validation, report rendering, and QA behind two human inputs.
+
+**Consequences**: A complete counts-derived run executes 24 validated stages through notebook rendering and tripwires. Legacy and explicit-object plans contain 22 stages because they skip count ingestion and QC. Protected statistical outputs require explicit overwrite intent.

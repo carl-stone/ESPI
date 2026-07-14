@@ -564,7 +564,7 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **structural_mitigation_candidate**: Treat preprocessing metadata as the authoritative assay-layer contract for downstream diagnostic plots.
 
 ### [2026-07-13] MAD-derived thresholds are not necessarily stricter than fixed floors
-**Historical implementation note:** The quantitative thresholds below came from the superseded D-45 implementation. The general lesson remains valid, but the current rewritten QC script estimates log-scale MAD thresholds among emptyDrops-called cells and does not clamp them to fixed floors.
+**Historical implementation note:** The quantitative thresholds below came from the superseded D-45 implementation. The general lesson remains valid, but the current QC script estimates log-scale MAD thresholds among emptyDrops-called scDblFinder singlets above count and feature floors and does not clamp the estimates to fixed floors; the final `pass_qc` selector remains independent of cell-call and singlet flags.
 
 **Tags**: qc-filtering, mitochondrial, doublets, validation, data-lineage
 
@@ -595,3 +595,35 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: Validate requested clustering dimensions against available PCA dimensions before starting candidate clustering.
+
+### [2026-07-13] MG validators must derive branch-specific chosen columns
+
+**Tags**: clustering, mg-selected, orchestration, validation
+
+**Category**: Branch contract
+
+**What happened**: The first full MG orchestration validated both clustered branches against the no-filter-CC chosen column. The valid filter-CC object failed because its metadata contained the filter-CC branch column instead.
+
+**Why it matters**: A shared validator can silently encode one branch's identity even when every branch follows the same structural contract.
+
+**Resolution**: Derive the expected chosen column from each object's expected branch tag, chosen dimensions, and resolution, then validate that branch-specific column.
+
+**mitigation_type**: test
+
+**structural_mitigation_candidate**: Test each branch handoff independently with exact expected branch tags and chosen columns.
+
+### [2026-07-13] Recursive just calls can suppress canonical dry-run output
+
+**Tags**: just, orchestration, dry-run, testing
+
+**Category**: Command interface
+
+**What happened**: Public recipes initially invoked a hidden helper with a nested `just` process. `just --quiet run-dry-run` propagated quiet behavior to the child process and returned no pipeline plan, so the public interface differed from the direct CLI.
+
+**Why it matters**: Dry-run output is the observable contract for human review and automated testing; a wrapper that hides it defeats the interface.
+
+**Resolution**: Express `run` and `run-dry-run` as parameterized dependencies on the hidden helper in the same Just process. Compare their complete output with the direct runner for counts-qc, legacy, explicit-object, and overwrite cases.
+
+**mitigation_type**: test
+
+**structural_mitigation_candidate**: Keep one public-interface tripwire that executes recipes rather than inspecting the justfile.
