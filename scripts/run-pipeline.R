@@ -230,6 +230,172 @@ validate_counts_output <- function(stage) {
     )
   }
 }
+validate_preprocess_outputs <- function(stage) {
+  expected_branches <- names(stage$expects)
+  if (
+    is.null(expected_branches) ||
+      any(!nzchar(expected_branches))
+  ) {
+    stop(
+      "Preprocess output expectations must be named by branch.",
+      call. = FALSE
+    )
+  }
+
+  for (branch in expected_branches) {
+    path <- stage$expects[[branch]]
+    sobj <- read_stage_rds(path)
+    validate_seurat_object(sobj, path)
+
+    missing_metadata <- setdiff(c("Mouse", "Condition"), colnames(sobj[[]]))
+    if (length(missing_metadata) > 0L) {
+      stop(
+        "Preprocess output ",
+        path,
+        " is missing required metadata column(s): ",
+        paste(missing_metadata, collapse = ", "),
+        ".",
+        call. = FALSE
+      )
+    }
+
+    pca_embeddings <- tryCatch(
+      SeuratObject::Embeddings(sobj, reduction = "pca"),
+      error = function(error) NULL
+    )
+    if (is.null(pca_embeddings) || ncol(pca_embeddings) != 50L) {
+      stop(
+        "Preprocess output ",
+        path,
+        " must contain a 50-PC PCA reduction.",
+        call. = FALSE
+      )
+    }
+
+    branch_parts <- strsplit(branch, "_", fixed = TRUE)[[1L]]
+    expected_normalization <- branch_parts[[1L]]
+    expected_filtered <- identical(branch_parts[[2L]], "filter")
+    preprocessing <- sobj@misc$preprocessing
+    if (
+      !identical(preprocessing$normalization, expected_normalization) ||
+        !identical(
+          isTRUE(preprocessing$filtered_cell_cycle),
+          expected_filtered
+        )
+    ) {
+      stop(
+        "Preprocess output ",
+        path,
+        " has branch metadata inconsistent with expected branch ",
+        branch,
+        ".",
+        call. = FALSE
+      )
+    }
+  }
+}
+
+validate_cluster_output <- function(stage, expected_branch) {
+  path <- stage$expects[[1L]]
+  sobj <- read_stage_rds(path)
+  validate_seurat_object(sobj, path)
+
+  preprocessing <- sobj@misc$preprocessing
+  branch_parts <- strsplit(expected_branch, "_", fixed = TRUE)[[1L]]
+  expected_normalization <- branch_parts[[1L]]
+  expected_filtered <- identical(branch_parts[[2L]], "filter")
+  if (
+    !identical(preprocessing$normalization, expected_normalization) ||
+      !identical(
+        isTRUE(preprocessing$filtered_cell_cycle),
+        expected_filtered
+      )
+  ) {
+    stop(
+      "Clustered output ",
+      path,
+      " has preprocessing metadata inconsistent with branch ",
+      expected_branch,
+      ".",
+      call. = FALSE
+    )
+  }
+
+  clustering <- sobj@misc$clustering
+  if (!identical(clustering$branch_tag, expected_branch)) {
+    stop(
+      "Clustered output ",
+      path,
+      " has branch tag ",
+      paste(clustering$branch_tag, collapse = ", "),
+      "; expected ",
+      expected_branch,
+      ".",
+      call. = FALSE
+    )
+  }
+
+  candidate_columns <- as.vector(outer(
+    c(20L, 30L, 50L),
+    c(0.3, 0.5, 0.8),
+    FUN = function(dims, resolution) {
+      sprintf(
+        "cluster_%s_dims%d_res%s",
+        expected_branch,
+        dims,
+        resolution_tag(resolution)
+      )
+    }
+  ))
+  missing_candidates <- setdiff(candidate_columns, colnames(sobj[[]]))
+  if (length(missing_candidates) > 0L) {
+    stop(
+      "Clustered output ",
+      path,
+      " is missing candidate cluster column(s): ",
+      paste(missing_candidates, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  umap_reductions <- sprintf(
+    "umap_%s_dims%d",
+    expected_branch,
+    c(20L, 30L, 50L)
+  )
+  missing_umaps <- setdiff(umap_reductions, names(sobj@reductions))
+  if (length(missing_umaps) > 0L) {
+    stop(
+      "Clustered output ",
+      path,
+      " is missing candidate UMAP reduction(s): ",
+      paste(missing_umaps, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  if (identical(expected_branch, run_spec$source_branch_tag)) {
+    chosen_column <- run_spec$source_cluster_column
+    if (!chosen_column %in% colnames(sobj[[]])) {
+      stop(
+        "Chosen source output ",
+        path,
+        " is missing cluster column ",
+        chosen_column,
+        ".",
+        call. = FALSE
+      )
+    }
+  }
+}
+
+make_cluster_validator <- function(expected_branch) {
+  force(expected_branch)
+  function(stage) validate_cluster_output(stage, expected_branch)
+}
+
 
 validate_qc_outputs <- function(stage) {
   annotated_path <- stage$expects[["annotated_raw"]]
@@ -524,6 +690,29 @@ overwrite_argument <- if (isTRUE(run_spec$overwrite)) {
   character()
 }
 
+source_summary_expected_outputs <- c(
+  file.path(
+    TABLE_DIR,
+    "cluster",
+    c(
+      "cluster_grid_summary.tsv",
+      "cluster_grid_stability_summary.tsv",
+      "cluster_grid_pairwise_stability.tsv"
+    )
+  ),
+  file.path(
+    FIGURE_DIR,
+    "cluster",
+    c(
+      "cluster_grid_clustree_12_panel.png",
+      "cluster_grid_clustree_12_panel.pdf",
+      "umap_resolution_sweep_pflog_filter_cc_dims50.png",
+      "umap_resolution_sweep_pflog_filter_cc_dims50.pdf"
+    )
+  )
+)
+
+
 stage_plan <- list()
 if (identical(run_spec$input_source, "counts-qc")) {
   raw_counts_dir <- file.path(DATA_ROOT_DIR, "data", "input", "Raw Matrices")
@@ -558,7 +747,6 @@ if (identical(run_spec$input_source, "counts-qc")) {
     )
   )
 }
-
 stage_plan <- c(
   stage_plan,
   list(
@@ -569,7 +757,11 @@ stage_plan <- c(
         "scripts/03-preprocess-all.R",
         source_input_command
       ),
-      unname(source_branches$preprocess_path)
+      setNames(
+        unname(source_branches$preprocess_path),
+        source_branches$branch
+      ),
+      validator = validate_preprocess_outputs
     )
   )
 )
@@ -597,7 +789,8 @@ for (index in seq_len(nrow(source_branches))) {
           "--resolutions",
           paste(resolution_tag(run_spec$candidate_resolutions), collapse = ",")
         ),
-        cluster_path(source_branch$branch, run_spec$chosen_dims)
+        cluster_path(source_branch$branch, run_spec$chosen_dims),
+        validator = make_cluster_validator(source_branch$branch)
       )
     )
   )
@@ -609,7 +802,7 @@ stage_plan <- c(
     new_stage(
       "summarize-source",
       c("Rscript", "scripts/05-summarize-clusters.R"),
-      file.path(TABLE_DIR, "cluster", "cluster_grid_summary.tsv")
+      source_summary_expected_outputs
     ),
     new_stage(
       "select-mg",
@@ -992,21 +1185,27 @@ if (dry_run) {
   quit(status = 0L, save = "no")
 }
 
-if (!identical(run_spec$input_source, "counts-qc")) {
-  stop(
-    "Pipeline execution currently supports only --input-source counts-qc; ",
-    "use --dry-run for legacy or explicit input plans.",
-    call. = FALSE
-  )
+source_execution_stage_names <- c(
+  "preprocess-source",
+  paste0(
+    "cluster-source-",
+    source_branches$normalization,
+    "-",
+    ifelse(source_branches$filtered, "filter-cc", "no-filter-cc")
+  ),
+  "summarize-source"
+)
+execution_stage_names <- if (identical(run_spec$input_source, "counts-qc")) {
+  c("process-counts", "qc-filtering", source_execution_stage_names)
+} else {
+  source_execution_stage_names
 }
-
-execution_stage_names <- c("process-counts", "qc-filtering")
 execution_stages <- stage_plan[
   match(execution_stage_names, vapply(stage_plan, `[[`, character(1), "name"))
 ]
 if (any(vapply(execution_stages, is.null, logical(1)))) {
   stop(
-    "Counts/QC execution stages are not available in the pipeline plan.",
+    "Source execution stages are not available in the pipeline plan.",
     call. = FALSE
   )
 }
@@ -1016,5 +1215,8 @@ preflight_protected_outputs(execution_stages)
 for (stage in execution_stages) {
   run_stage(stage)
 }
-message("Counts/QC pipeline execution completed.")
+if (identical(run_spec$input_source, "counts-qc")) {
+  message("Counts/QC pipeline execution completed.")
+}
+message("Source pipeline execution completed.")
 quit(status = 0L, save = "no")

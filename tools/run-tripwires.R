@@ -792,6 +792,14 @@ tripwire_pipeline_dry_run_contract <- function(root) {
   command_has <- function(command, value) {
     !is.na(command) && grepl(value, command, fixed = TRUE)
   }
+  path_has_suffix <- function(path, suffix) {
+    if (is.na(path)) {
+      return(FALSE)
+    }
+    path <- gsub("\\\\", "/", path)
+    suffix <- gsub("\\\\", "/", suffix)
+    identical(path, suffix) || endsWith(path, paste0("/", suffix))
+  }
   stage_problem <- function(variant, stage, expected, actual) {
     paste0(
       variant,
@@ -997,6 +1005,13 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "cluster-source-pflog-no-filter-cc" = "preprocess_pflog_no-filter-cc.rds",
       "cluster-source-pflog-filter-cc" = "preprocess_pflog_filter-cc.rds"
     )
+    source_cluster_outputs <- c(
+      "cluster-source-log1p-no-filter-cc" = "cluster_log1p_no_filter_cc_elbow20.rds",
+      "cluster-source-log1p-filter-cc" = "cluster_log1p_filter_cc_elbow20.rds",
+      "cluster-source-pflog-no-filter-cc" = "cluster_pflog_no_filter_cc_elbow20.rds",
+      "cluster-source-pflog-filter-cc" = "cluster_pflog_filter_cc_elbow20.rds"
+    )
+    current_object_suffix <- file.path("seurat_objects", "current")
     preprocess_expects <- stage_records[["preprocess-source"]]$expects
     preprocess_outputs <- if (is.na(preprocess_expects)) {
       character()
@@ -1005,20 +1020,53 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         1L
       ]]
     }
-    if (!identical(basename(preprocess_outputs), unname(source_clusters))) {
+    preprocess_matches <- length(preprocess_outputs) ==
+      length(source_clusters) &&
+      all(vapply(
+        seq_along(source_clusters),
+        function(index) {
+          path_has_suffix(
+            preprocess_outputs[[index]],
+            file.path(current_object_suffix, unname(source_clusters)[[index]])
+          )
+        },
+        logical(1)
+      ))
+    if (!isTRUE(preprocess_matches)) {
       problems <- c(
         problems,
         stage_problem(
           invocation$label,
           "preprocess-source",
           paste(
-            "exactly the four source preprocess outputs",
+            "exactly the four source preprocess outputs under",
+            current_object_suffix,
             paste(unname(source_clusters), collapse = ", ")
           ),
           preprocess_expects
         )
       )
     }
+    source_summary_outputs <- file.path(
+      c(
+        "tables",
+        "tables",
+        "tables",
+        "figures",
+        "figures",
+        "figures",
+        "figures"
+      ),
+      c(
+        "cluster/cluster_grid_summary.tsv",
+        "cluster/cluster_grid_stability_summary.tsv",
+        "cluster/cluster_grid_pairwise_stability.tsv",
+        "cluster/cluster_grid_clustree_12_panel.png",
+        "cluster/cluster_grid_clustree_12_panel.pdf",
+        "cluster/umap_resolution_sweep_pflog_filter_cc_dims50.png",
+        "cluster/umap_resolution_sweep_pflog_filter_cc_dims50.pdf"
+      )
+    )
     cluster_grid_options <- c(
       "'--extra-dims' '30,50'",
       "'--resolutions' '0.3,0.5,0.8'"
@@ -1056,6 +1104,71 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           )
         }
       }
+      cluster_outputs <- stage_output_paths(stage_records[[stage]])
+      if (
+        length(cluster_outputs) != 1L ||
+          !path_has_suffix(
+            cluster_outputs[[1L]],
+            file.path(current_object_suffix, source_cluster_outputs[[stage]])
+          )
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            stage,
+            paste0(
+              "exactly one clustered source RDS under ",
+              current_object_suffix,
+              ": ",
+              source_cluster_outputs[[stage]]
+            ),
+            stage_records[[stage]]$expects
+          )
+        )
+      }
+    }
+
+    summary_command <- stage_records[["summarize-source"]]$command
+    if (!command_has(summary_command, "'scripts/05-summarize-clusters.R'")) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "summarize-source",
+          "scripts/05-summarize-clusters.R command",
+          summary_command
+        )
+      )
+    }
+    summary_expects <- stage_output_paths(stage_records[["summarize-source"]])
+    summary_matches <- length(summary_expects) ==
+      length(source_summary_outputs) &&
+      all(vapply(
+        source_summary_outputs,
+        function(expected) {
+          any(vapply(
+            summary_expects,
+            path_has_suffix,
+            logical(1),
+            suffix = expected
+          ))
+        },
+        logical(1)
+      ))
+    if (!isTRUE(summary_matches)) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "summarize-source",
+          paste(
+            "all source summary artifacts",
+            paste(source_summary_outputs, collapse = ", ")
+          ),
+          stage_records[["summarize-source"]]$expects
+        )
+      )
     }
 
     select_mg_command <- stage_records[["select-mg"]]$command
@@ -1154,40 +1267,16 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       )
     }
   }
-  unavailable_source_diagnostic <- paste0(
-    "Pipeline execution currently supports only --input-source counts-qc; ",
-    "use --dry-run for legacy or explicit input plans."
-  )
-  legacy_execution_result <- run_pipeline(c("--input-source", "legacy"))
-  if (
-    !identical(legacy_execution_result$status, 1L) ||
-      !identical(
-        legacy_execution_result$output,
-        c(paste0("Error: ", unavailable_source_diagnostic), "Execution halted")
-      )
-  ) {
-    problems <- c(
-      problems,
-      paste0(
-        "legacy execution gate: expected status 1 and ",
-        format_output(c(
-          paste0("Error: ", unavailable_source_diagnostic),
-          "Execution halted"
-        )),
-        "; got status ",
-        legacy_execution_result$status,
-        " and ",
-        format_output(legacy_execution_result$output)
-      )
-    )
-  }
 
   missing_input <- tempfile(
     pattern = "espi-tripwire-missing-explicit-input-",
     tmpdir = tempdir(),
     fileext = ".rds"
   )
-  missing_input_expected <- unavailable_source_diagnostic
+  missing_input_expected <- paste0(
+    "Pipeline input(s) do not exist: ",
+    missing_input
+  )
   missing_input_result <- run_pipeline(c("--input", missing_input))
   if (identical(missing_input_result$status, 0L)) {
     problems <- c(
