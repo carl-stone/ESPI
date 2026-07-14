@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-# Print the deterministic analysis plan or perform its execution preflight.
+# Print the deterministic analysis plan or execute it through the figure stages.
 #
 # Usage:
 #   Rscript scripts/run-pipeline.R --dry-run \
@@ -166,17 +166,97 @@ heatmap_paths <- function(branch, type, output_dir, dims, resolution) {
       resolution_tag(resolution)
     )
   )
-  file.path(output_dir, paste0(output_tag, c(".png", ".pdf")))
+  png_path <- file.path(output_dir, paste0(output_tag, ".png"))
+  pdf_path <- file.path(output_dir, paste0(output_tag, ".pdf"))
+  notebook_png_path <- here::here(
+    "notebook",
+    "figures",
+    paste0(output_tag, ".png")
+  )
+  if (identical(type, "marker")) {
+    return(c(png_path, pdf_path, notebook_png_path))
+  }
+  table_dir <- file.path(TABLE_DIR, "annotation")
+  c(
+    png_path,
+    pdf_path,
+    file.path(table_dir, paste0(output_tag, "_module_scores.tsv")),
+    file.path(table_dir, paste0(output_tag, "_p27_enrichment.tsv")),
+    notebook_png_path
+  )
 }
 
 mg_figure_paths <- function(branch, dims, resolution) {
-  output_tag <- sprintf(
-    "mg_selected_cluster_umap_%s_dims%d_res%s",
-    branch,
-    dims,
-    resolution_tag(resolution)
+  resolution_tag_value <- resolution_tag(resolution)
+  output_dir <- file.path(FIGURE_DIR, "mg_selected")
+  table_dir <- file.path(TABLE_DIR, "mg_selected")
+  notebook_dir <- here::here("notebook", "figures")
+  output_tags <- c(
+    cluster = sprintf(
+      "mg_selected_cluster_umap_%s_dims%d_res%s",
+      branch,
+      dims,
+      resolution_tag_value
+    ),
+    condition = sprintf(
+      "mg_selected_condition_umap_%s_dims%d_res%s",
+      branch,
+      dims,
+      resolution_tag_value
+    ),
+    feature = sprintf(
+      "mg_selected_feature_umap_%s_%s_dims%d_res%s",
+      run_spec$expression_layer,
+      branch,
+      dims,
+      resolution_tag_value
+    ),
+    abundance = sprintf(
+      "mg_selected_cluster_abundance_enrichment_%s_dims%d_res%s",
+      branch,
+      dims,
+      resolution_tag_value
+    ),
+    proportion = sprintf(
+      "mg_selected_cluster_proportion_by_mouse_%s_dims%d_res%s",
+      branch,
+      dims,
+      resolution_tag_value
+    )
   )
-  file.path(FIGURE_DIR, "mg_selected", paste0(output_tag, c(".png", ".pdf")))
+  c(
+    unlist(
+      lapply(
+        output_tags,
+        function(output_tag) {
+          file.path(output_dir, paste0(output_tag, c(".png", ".pdf")))
+        }
+      ),
+      use.names = FALSE
+    ),
+    file.path(
+      table_dir,
+      paste0(
+        c(
+          output_tags[["abundance"]],
+          sprintf(
+            "mg_selected_cluster_proportion_randomization_%s_dims%d_res%s",
+            branch,
+            dims,
+            resolution_tag_value
+          ),
+          sprintf(
+            "mg_selected_sample_cluster_proportions_%s_dims%d_res%s",
+            branch,
+            dims,
+            resolution_tag_value
+          )
+        ),
+        ".tsv"
+      )
+    ),
+    file.path(notebook_dir, paste0(output_tags, ".png"))
+  )
 }
 
 shell_quote <- function(argument) {
@@ -1550,15 +1630,30 @@ mg_execution_stage_names <- c(
   "cluster-mg-filter-cc",
   "summarize-mg"
 )
+figure_execution_stage_names <- c(
+  "marker-heatmap-source",
+  "marker-heatmap-mg-no-filter-cc",
+  "marker-heatmap-mg-filter-cc",
+  "module-heatmap-source",
+  "module-heatmap-mg-no-filter-cc",
+  "module-heatmap-mg-filter-cc",
+  "mg-figures-no-filter-cc",
+  "mg-figures-filter-cc"
+)
 execution_stage_names <- if (identical(run_spec$input_source, "counts-qc")) {
   c(
     "process-counts",
     "qc-filtering",
     source_execution_stage_names,
-    mg_execution_stage_names
+    mg_execution_stage_names,
+    figure_execution_stage_names
   )
 } else {
-  c(source_execution_stage_names, mg_execution_stage_names)
+  c(
+    source_execution_stage_names,
+    mg_execution_stage_names,
+    figure_execution_stage_names
+  )
 }
 execution_stages <- stage_plan[
   match(execution_stage_names, vapply(stage_plan, `[[`, character(1), "name"))
@@ -1580,4 +1675,5 @@ if (identical(run_spec$input_source, "counts-qc")) {
 }
 message("Source pipeline execution completed.")
 message("MG clustering pipeline execution completed.")
+message("Figure pipeline execution completed.")
 quit(status = 0L, save = "no")

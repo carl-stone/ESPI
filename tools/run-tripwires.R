@@ -1242,72 +1242,123 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "marker-heatmap-source" = list(
         script = "scripts/06-plot-marker-heatmap.R",
         options = c("'--dims' '30'", "'--resolution' '0.3'"),
-        outputs = file.path(
-          "figures",
-          "annotation",
-          paste0(
-            "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3",
-            c(".png", ".pdf")
+        outputs = c(
+          file.path(
+            "figures/annotation",
+            paste0(
+              "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3",
+              c(".png", ".pdf")
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3.png"
           )
         )
       ),
       "marker-heatmap-mg-no-filter-cc" = list(
         script = "scripts/06-plot-marker-heatmap.R",
         options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = file.path(
-          "figures",
-          "annotation",
-          paste0(
-            "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5",
-            c(".png", ".pdf")
+        outputs = c(
+          file.path(
+            "figures/annotation",
+            paste0(
+              "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5",
+              c(".png", ".pdf")
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5.png"
           )
         )
       ),
       "marker-heatmap-mg-filter-cc" = list(
         script = "scripts/06-plot-marker-heatmap.R",
         options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = file.path(
-          "figures",
-          "annotation",
-          paste0(
-            "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5",
-            c(".png", ".pdf")
+        outputs = c(
+          file.path(
+            "figures/annotation",
+            paste0(
+              "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5",
+              c(".png", ".pdf")
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5.png"
           )
         )
       ),
       "module-heatmap-source" = list(
         script = "scripts/10-plot-cluster-marker-heatmaps.R",
         options = c("'--dims' '30'", "'--resolution' '0.3'"),
-        outputs = file.path(
-          "figures",
-          "annotation",
-          paste0(
-            "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
-            c(".png", ".pdf")
+        outputs = c(
+          file.path(
+            "figures/annotation",
+            paste0(
+              "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
+              c(".png", ".pdf")
+            )
+          ),
+          file.path(
+            "tables/annotation",
+            paste0(
+              "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
+              c("_module_scores.tsv", "_p27_enrichment.tsv")
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3.png"
           )
         )
       ),
       "module-heatmap-mg-no-filter-cc" = list(
         script = "scripts/10-plot-cluster-marker-heatmaps.R",
         options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = file.path(
-          "figures",
-          "annotation",
-          paste0(
-            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-            c(".png", ".pdf")
+        outputs = c(
+          file.path(
+            "figures/annotation",
+            paste0(
+              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+              c(".png", ".pdf")
+            )
+          ),
+          file.path(
+            "tables/annotation",
+            paste0(
+              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+              c("_module_scores.tsv", "_p27_enrichment.tsv")
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5.png"
           )
         )
       ),
       "module-heatmap-mg-filter-cc" = list(
         script = "scripts/10-plot-cluster-marker-heatmaps.R",
         options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = file.path(
-          "figures",
-          "annotation",
-          paste0(
-            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
-            c(".png", ".pdf")
+        outputs = c(
+          file.path(
+            "figures/annotation",
+            paste0(
+              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+              c(".png", ".pdf")
+            )
+          ),
+          file.path(
+            "tables/annotation",
+            paste0(
+              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+              c("_module_scores.tsv", "_p27_enrichment.tsv")
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5.png"
           )
         )
       ),
@@ -1318,12 +1369,43 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           "'--dims' '20'",
           "'--resolution' '0.5'"
         ),
-        outputs = file.path(
-          "figures",
-          "mg_selected",
-          paste0(
-            "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-            c(".png", ".pdf")
+        outputs = c(
+          file.path(
+            "figures/mg_selected",
+            paste0(
+              c(
+                "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
+              ),
+              rep(c(".png", ".pdf"), each = 5L)
+            )
+          ),
+          file.path(
+            "tables/mg_selected",
+            paste0(
+              c(
+                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_proportion_randomization_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_sample_cluster_proportions_pflog_mg_selected_no_filter_cc_dims20_res0.5"
+              ),
+              ".tsv"
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            paste0(
+              c(
+                "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
+              ),
+              ".png"
+            )
           )
         )
       ),
@@ -1334,38 +1416,43 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           "'--dims' '20'",
           "'--resolution' '0.5'"
         ),
-        outputs = file.path(
-          "figures",
-          "mg_selected",
-          paste0(
-            "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
-            c(".png", ".pdf")
-          )
-        )
-      ),
-      "mg-markers" = list(
-        script = "scripts/11-find-mg-markers.R",
-        options = c(
-          "'--elbow-n' '20'",
-          "'--dims' '20'",
-          "'--resolution' '0.5'"
-        ),
-        outputs = file.path(
-          c(
-            "tables/mg_selected",
-            "tables/mg_selected",
-            "tables/mg_selected",
-            "tables/mg_selected",
+        outputs = c(
+          file.path(
             "figures/mg_selected",
-            "figures/mg_selected"
+            paste0(
+              c(
+                "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
+              ),
+              rep(c(".png", ".pdf"), each = 5L)
+            )
           ),
-          c(
-            "find_all_markers_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-            "find_all_markers_top5_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-            "find_all_markers_summary_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-            "find_all_markers_identity_map_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-            "mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png",
-            "mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.pdf"
+          file.path(
+            "tables/mg_selected",
+            paste0(
+              c(
+                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_proportion_randomization_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_sample_cluster_proportions_pflog_mg_selected_filter_cc_dims20_res0.5"
+              ),
+              ".tsv"
+            )
+          ),
+          file.path(
+            "notebook/figures",
+            paste0(
+              c(
+                "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
+              ),
+              ".png"
+            )
           )
         )
       )
