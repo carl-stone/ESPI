@@ -145,6 +145,7 @@ Append-only log of non-obvious decisions and their rationale.
 **Reporting addendum 2026-07-04**: For both DE and DD, treat concordant primary and paired-sensitivity effects as the strongest design-robust signals. Interpret paired-only hits as within-paired-mice sensitivity results, not as globally more accurate than the all-sample primary condition model.
 
 ### [2026-07-04] Keep MG-selected clustering at 30 PCs and resolution 0.3
+**Superseded 2026-07-12 by "Use 20 PCs and Leiden resolution 0.3 for the counts-derived PFlog run":** The 30-PC choice and associated cluster IDs describe the earlier legacy-source analysis. The current counts-derived analysis uses the no-cell-cycle-HVG PFlog branch at 20 PCs and resolution 0.3; see the 2026-07-13 rebuild decision for current results.
 
 **Tags**: clustering, mg-selected, pFlog, parameters
 
@@ -659,3 +660,17 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The user asked to continue the established downstream pipeline after rebuilding preprocessing and clustering, not to revise the chosen clustering contract.
 
 **Consequences**: The revised QC object contains 4,145 source cells in 9 chosen source clusters. Source clusters 2, 7, and 8 meet configured exclusion criteria, leaving 3,460 MG-selected cells; the chosen MG clustering contains 7 clusters. Notebook prose and marker notes now use the regenerated cluster IDs.
+
+### [2026-07-13] Plan one canonical run interface while preserving scientific stages
+
+**Tags**: workflow, scripts, planning, reproducibility
+
+**Context**: Reproducing the current counts-derived manuscript analysis requires more than a dozen mixed `Rscript` and `just` commands, manual object-path handoffs, and repeated branch, PC-count, and resolution identifiers. Historical 30- and 50-PC defaults remain exposed beside the chosen 20-PC result.
+
+**Decision**: Plan one deep orchestration module behind `just run`. The module will default to the counts-derived source, retain legacy and explicit-object sources, own stage ordering and generated handoffs, expose a side-effect-free dry run, and require explicit overwrite intent for protected statistical outputs. Existing low-level scripts and recipes remain available for focused reruns.
+
+**Alternatives considered**: Three coarse human-run stage commands would reduce but not eliminate manual sequencing. A general workflow engine or persistent resume system would add machinery that this one-off analysis does not need.
+
+**Rationale**: One small human interface removes repeated operational knowledge without changing the scientific modules or hiding the complete stage plan from dry-run review.
+
+**Consequences**: GitHub issue #1 records the incremental implementation and testing plan. The existing long command sequence remains authoritative until the canonical command completes one verified counts-derived run. QC, clustering choices, MG selection, Mouse × Condition pseudobulk analysis, sensitivity grids, and low-level expert commands remain unchanged.

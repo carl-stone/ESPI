@@ -229,25 +229,25 @@ used `~ condition` across all six Mouse × Condition samples. The paired
 `~ mouse + condition` design used only mice 10 and 3, so I treat it as a
 sensitivity analysis rather than the primary result.
 
-Primary DESeq2 tested 24,514 genes and found 453 FDR-significant genes for
-E-Stim versus `p27CKO`. Seven curated marker-list genes were significant:
-`Glul` (Müller glia), `Ccn1` (activated Müller glia), `Hes6` (neurogenic
-progenitor), `Mcm2`, `Mcm6`, and `Pcna` (proliferative), and `Grm6` (rod
-bipolar). `Glul`, `Ccn1`, `Hes6`, and `Grm6` increased with E-Stim, while the
-proliferative markers decreased. The strongest design-robust curated marker
-signals are concordant in the primary and paired-sensitivity analyses:
-increased `Glul` and `Ccn1` and decreased `Mcm2` and `Mcm6`. `Hes6`, `Pcna`,
-and `Grm6` are primary-model hits but do not remain FDR-significant in the
-paired sensitivity. `Serpina3n` is significant only in the paired sensitivity,
-so I treat it as paired-subset support for activated Müller glia rather than a
-primary all-sample marker hit.
+Primary DESeq2 tested 24,612 genes and found 444 FDR-significant genes for
+E-Stim versus `p27CKO`: 133 increased and 311 decreased with E-Stim. Nine
+curated marker-list genes were significant. `Glul` (Müller glia), `Ccn1`
+(activated Müller glia), `Hes6` (neurogenic progenitor), `Grm6` (rod bipolar),
+and `Scgn` (cone bipolar) increased with E-Stim. `Mcm2`, `Mcm6`, and `Pcna`
+(proliferative) and `Rcvrn` (photoreceptor) decreased. The strongest
+design-robust curated marker signals are concordant in the primary and
+paired-sensitivity analyses: increased `Glul` and `Ccn1` and decreased `Mcm2`
+and `Mcm6`. `Hes6`, `Pcna`, `Grm6`, `Scgn`, and `Rcvrn` are primary-model hits
+but do not remain FDR-significant in the paired sensitivity. `Serpina3n` is
+significant only in the paired sensitivity, so I treat it as paired-subset
+support for activated Müller glia rather than a primary all-sample marker hit.
 
 The differential-detection (DD) analysis tests changes in the fraction of cells
 with non-zero expression per gene, using the pseudobulk `edgeR_NB_optim`
-workflow through `muscat::pbDS(method = "DD")`. Primary DD tested 36,468 genes
+workflow through `muscat::pbDS(method = "DD")`. Primary DD tested 35,386 genes
 and found no FDR-significant genes or marker-list hits, so the primary evidence
 does not support condition-level changes in detection for curated marker genes.
-The paired sensitivity DD tested 34,880 genes and found 40 FDR-significant
+The paired sensitivity DD tested 33,808 genes and found 44 FDR-significant
 genes, with no marker-list hits. Because this result uses only mice 10 and 3 and
 is not supported by primary DD, I treat it as a within-paired-mice sensitivity
 signal, not a general all-sample DD conclusion.

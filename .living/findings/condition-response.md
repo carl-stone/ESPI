@@ -27,7 +27,7 @@ status: active
 
 ## F-002: Primary condition-level detection evidence is negative for curated marker changes
 **Status:** supported
-**Claim:** In the MG-selected branch, primary Mouse × Condition differential detection found no FDR-significant genes and no curated marker-list hits for E-Stim versus p27CKO; the paired-mice sensitivity found 40 FDR-significant genes but still no curated marker hits and does not support a general all-sample detection conclusion.
+**Claim:** In the MG-selected branch, primary Mouse × Condition differential detection found no FDR-significant genes and no curated marker-list hits for E-Stim versus p27CKO; the paired-mice sensitivity found 44 FDR-significant genes but still no curated marker hits and does not support a general all-sample detection conclusion.
 **Implications:** Current MG-selected evidence supports transcript-abundance shifts for selected markers more strongly than changes in the fraction of cells detecting curated marker genes.
 **Tags:** MG-selected, E-Stim, pseudobulk, detection, curated markers, negative result
 
@@ -39,5 +39,5 @@ status: active
 | 2026-07-13 | session 2026-07-13-003; `degs/mg_selected/numbers.json` | MG-selected emptyDrops/log-MAD rebuild, 3,460 cells | ESPI | Primary detection tested 35,386 genes and again found no significant curated marker hits; paired sensitivity found 44 genes overall, while curated marker detection remained negative. | supports |
 
 ### Open Questions
-- Which paired-sensitivity detection genes drive the 40-gene subset signal, and do they reflect biology or the reduced paired-sample design?
+- Which paired-sensitivity detection genes drive the 44-gene subset signal, and do they reflect biology or the reduced paired-sample design?
 - Would identity-stratified pseudobulk detection recover marker-detection changes hidden in the pooled MG-selected branch?

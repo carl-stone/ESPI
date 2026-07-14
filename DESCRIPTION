@@ -1,11 +1,15 @@
 Package: ESPI
-Title: What the Package Does (One Line, Title Case)
+Title: Single-Cell Analysis of E-Stim in p27CKO Retina
 Version: 0.0.0.9000
 Authors@R: c(
     person("Megan", "Stone", , "megan.stone@vanderbilt.edu", role = c("aut", "cre")),
     person("Carl", "Stone", , "carl.j.stone@vanderbilt.edu", role = "aut")
     )
-Description: What the package does (one paragraph).
+Description: Reproducible single-cell RNA-sequencing analysis comparing p27CKO
+    mouse retina with and without E-Stim. Provides package
+    helpers and executable scripts for count processing, quality control,
+    clustering, Müller glia selection, pseudobulk differential analysis, and
+    manuscript figures.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

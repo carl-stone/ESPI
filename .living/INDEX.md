@@ -5,10 +5,10 @@ Last audit: 2026-07-13
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 6 sections | 2026-07-09 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit, Cross-References |
-| decisions.md | 47 entries (large — read selectively) | 2026-07-13 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
+| decisions.md | 48 entries (large — read selectively) | 2026-07-13 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
 | learnings.md | 37 entries (large — read selectively) | 2026-07-13 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
-| log/ | 55 sessions | 2026-07-13 | espi (55) |
-| findings/ | 5 findings across 2 topics | 2026-07-13 | population-structure, condition-response |
+| log/ | 56 sessions | 2026-07-13 | espi (56) |
+| findings/ | 5 findings across 2 topics | 2026-07-13 | condition-response, population-structure |
 
 ## Local skills
 See `.living/skills/` for project-specific skill packs.
@@ -22,7 +22,7 @@ Last summarized: 2026-07-13 (heuristic)
 - **mg-selected** (30 entries) — D-33, D-34, D-35, D-43, D-47
 - **mycelium** (21 entries) — D-14, D-15, D-16, D-18, D-30
 - **plotting** (19 entries) — D-27, D-29, D-31, D-32, D-33
-- **reproducibility** (18 entries) — D-43, D-44, D-45, D-46, D-47
+- **reproducibility** (19 entries) — D-44, D-45, D-46, D-47, D-48
 - **data-lineage** (16 entries) — D-40, D-41, D-44, D-45, D-46
 - **hooks** (15 entries) — D-13, D-14, D-15, D-16, D-30
 
@@ -33,23 +33,23 @@ Last summarized: 2026-07-13 (heuristic)
 - [2026-07-13] D-45: Use liberal floors before sample-specific MAD and doublet filtering
 - [2026-07-13] D-46: Use emptyDrops calls and log-MAD QC flags in the rewritten QC stage
 - [2026-07-13] D-47: Preserve the chosen PFlog parameters for the emptyDrops/log-MAD rebuild
+- [2026-07-13] D-48: Plan one canonical run interface while preserving scientific stages
 - [2026-07-12] L-34: Source selection belongs at preprocessing
 - [2026-07-12] L-35: PFlog PCA diagnostics must use the PCA source layer
 - [2026-07-12] D-41: Select preprocessing source at the pipeline entrypoint
 - [2026-07-12] D-42: Number executable pipeline stages
-- [2026-07-12] D-43: Use 20 PCs and Leiden resolution 0.3 for the counts-derived PFlog run
 
 ## By tag
 
 - `mg-selected`: L-14, L-15, L-17, L-18, L-19, L-24, L-25, L-26, L-37, D-10, D-11, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24, D-25, D-26, D-27, D-29, D-31, D-32, D-33, D-34, D-35, D-43, D-47
 - `mycelium`: L-1, L-3, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, D-1, D-2, D-3, D-4, D-12, D-13, D-14, D-15, D-16, D-18, D-30
 - `plotting`: L-5, L-6, L-18, L-24, L-25, L-26, L-33, L-35, D-8, D-20, D-21, D-22, D-23, D-24, D-27, D-29, D-31, D-32, D-33
-- `reproducibility`: L-9, L-10, L-11, L-27, L-34, D-5, D-9, D-12, D-36, D-37, D-38, D-41, D-42, D-43, D-44, D-45, D-46, D-47
+- `reproducibility`: L-9, L-10, L-11, L-27, L-34, D-5, D-9, D-12, D-36, D-37, D-38, D-41, D-42, D-43, D-44, D-45, D-46, D-47, D-48
 - `data-lineage`: L-12, L-29, L-30, L-31, L-32, L-34, L-36, D-15, D-37, D-38, D-39, D-40, D-41, D-44, D-45, D-46
 - `hooks`: L-1, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, D-12, D-13, D-14, D-15, D-16, D-30
 - `notebook`: L-2, L-7, L-16, L-25, D-20, D-21, D-22, D-23, D-26, D-27, D-28, D-29, D-33
 - `provenance`: L-20, L-21, L-22, L-23, L-30, L-31, L-32, L-33, D-30, D-38, D-39, D-40, D-41
-- `scripts`: L-29, L-30, L-34, D-5, D-9, D-36, D-37, D-38, D-39, D-41, D-42
+- `scripts`: L-29, L-30, L-34, D-5, D-9, D-36, D-37, D-38, D-39, D-41, D-42, D-48
 - `differential-expression`: L-9, L-18, L-24, D-10, D-17, D-20, D-32, D-34, D-35
 - `validation`: L-8, L-19, L-29, L-31, L-32, L-36, L-37, D-39, D-40
 - `differential-detection`: L-14, L-15, L-18, L-24, D-17, D-18, D-32, D-35
@@ -58,9 +58,9 @@ Last summarized: 2026-07-13 (heuristic)
 - `omp`: L-12, L-13, D-13, D-14, D-15, D-16, D-30
 - `session-logs`: L-10, L-20, L-21, L-22, L-23, D-28, D-30
 - `seurat`: L-4, L-5, L-17, L-26, L-35, D-5, D-19
+- `workflow`: L-28, L-30, L-33, L-34, L-37, D-42, D-48
 - `marker-analysis`: L-16, L-17, D-19, D-22, D-23, D-31
 - `r`: L-7, L-12, L-19, L-28, D-9, D-15
-- `workflow`: L-28, L-30, L-33, L-34, L-37, D-42
 - `marker-genes`: L-6, L-24, D-7, D-8, D-32
 - `pflog`: L-17, L-35, L-37, D-43, D-47
 - `r-package`: L-6, D-1, D-3, D-8, D-36
@@ -87,6 +87,7 @@ Last summarized: 2026-07-13 (heuristic)
 - `metadata`: D-44, D-46
 - `muscat`: L-15, D-18
 - `pipseeker`: L-31, L-33
+- `planning`: D-27, D-48
 - `portability`: L-1, L-29
 - `randomization`: D-26, D-31
 - `repo-structure`: D-1, D-3
@@ -118,7 +119,6 @@ Last summarized: 2026-07-13 (heuristic)
 - `package-data`: D-7
 - `palette`: D-29
 - `parameters`: D-11
-- `planning`: D-27
 - `preprocessing`: L-35
 - `pseudobulk`: D-10
 - `quarto`: L-2

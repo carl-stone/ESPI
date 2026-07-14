@@ -103,6 +103,15 @@ The wrapper loads ESPI path constants in R; do not rely on a shell-exported
 `CURRENT_OBJECT_DIR`. Clustered outputs use underscore branch tags such as
 `pflog_no_filter_cc` because Seurat rewrites hyphens in reduction names.
 
+The current chosen counts-derived analysis uses the no-cell-cycle-HVG PFlog
+candidate at 20 PCs and Leiden resolution 0.3 for both the source and
+MG-selected clusterings. The MG preprocessing stage computes 50 PCs so 30- and
+50-PC sensitivity candidates remain available. Some figure, marker, and DE
+recipes retain historical 30- or 50-PC defaults; pass `20`, `0.3`, and the
+matching `dims20_res0.3` cluster column explicitly for the current analysis.
+See the end-to-end workflow in `README.Rmd` for the exact downstream command
+sequence.
+
 ## Marker Annotation Figures
 
 Generate the per-cell cell type marker heatmap from the repo root:
@@ -146,8 +155,11 @@ stages or scratch-output instrumentation.
 Declared in `DESCRIPTION`:
 
 - `clustree`
+- `DropletUtils`
+- `gghalves` from `erocoar/gghalves`
 - `ggplot2`
 - `ggraph`
+- `ggrepel`
 - `here`
 - `igraph`
 - `mclust`
@@ -155,11 +167,13 @@ Declared in `DESCRIPTION`:
 - `scclrR` from `cleartools/scclrR`
 - `Seurat`
 - `SeuratObject`
+- `SingleCellExperiment`
 
 Suggested:
 
 - `biomaRt`
 - `devtools`
+- `muscat`
 
 ## Data and Output Paths
 
