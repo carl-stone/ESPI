@@ -659,83 +659,160 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     return(fail(slug, "scripts/run-pipeline.R is missing."))
   }
 
-  contract_lines <- c(
-    "mode: dry-run",
-    "input_source: counts-qc",
-    "overwrite: false",
-    "source_cluster_column: cluster_pflog_no_filter_cc_dims20_res0.3",
-    "mg_cluster_column: cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
-    "mg_pca_dims: 50",
-    "first_stage: process-counts",
-    "final_stage: tripwires"
-  )
-  output <- tryCatch(
-    suppressWarnings(system2(
-      rscript,
-      c(shQuote(script), "--dry-run"),
-      stdout = TRUE,
-      stderr = TRUE
-    )),
-    error = function(e) structure(conditionMessage(e), status = 1L)
-  )
-  status <- attr(output, "status")
-  if (is.null(status)) {
-    status <- 0L
+  make_contract <- function(input_source = "counts-qc", overwrite = "false") {
+    c(
+      "mode: dry-run",
+      paste0("input_source: ", input_source),
+      paste0("overwrite: ", overwrite),
+      "source_cluster_column: cluster_pflog_no_filter_cc_dims20_res0.3",
+      "mg_cluster_column: cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
+      "mg_pca_dims: 50",
+      "first_stage: process-counts",
+      "final_stage: tripwires"
+    )
   }
-  output <- unname(output)
+  explicit_input <- file.path(root, "data", "explicit-input.seurat.rds")
+  successful_invocations <- list(
+    list(
+      label = "default (--dry-run)",
+      args = c("--dry-run"),
+      expected = make_contract()
+    ),
+    list(
+      label = "legacy (--dry-run --input-source legacy)",
+      args = c("--dry-run", "--input-source", "legacy"),
+      expected = make_contract(input_source = "legacy")
+    ),
+    list(
+      label = "explicit input (--dry-run --input <seurat.rds>)",
+      args = c("--dry-run", "--input", shQuote(explicit_input)),
+      expected = make_contract(input_source = "explicit")
+    ),
+    list(
+      label = "overwrite (--dry-run --overwrite)",
+      args = c("--dry-run", "--overwrite"),
+      expected = make_contract(overwrite = "true")
+    )
+  )
+  failed_invocations <- list(
+    list(
+      label = "missing input source value (--dry-run --input-source)",
+      args = c("--dry-run", "--input-source"),
+      expected = "Missing value for --input-source."
+    ),
+    list(
+      label = "missing input value (--dry-run --input)",
+      args = c("--dry-run", "--input"),
+      expected = "Missing value for --input."
+    ),
+    list(
+      label = "invalid input source (--dry-run --input-source invalid)",
+      args = c("--dry-run", "--input-source", "invalid"),
+      expected = "--input-source must be one of counts-qc or legacy."
+    ),
+    list(
+      label = "mutually exclusive input options",
+      args = c(
+        "--dry-run",
+        "--input",
+        shQuote(explicit_input),
+        "--input-source",
+        "legacy"
+      ),
+      expected = "Use either --input or --input-source, not both."
+    ),
+    list(
+      label = "unknown flag (--dry-run --unknown)",
+      args = c("--dry-run", "--unknown"),
+      expected = "Unknown argument: --unknown."
+    )
+  )
+  run_pipeline <- function(args) {
+    output <- tryCatch(
+      suppressWarnings(system2(
+        rscript,
+        c(shQuote(script), args),
+        stdout = TRUE,
+        stderr = TRUE
+      )),
+      error = function(e) structure(conditionMessage(e), status = 1L)
+    )
+    status <- attr(output, "status")
+    if (is.null(status)) {
+      status <- 0L
+    }
+    list(status = as.integer(status), output = unname(as.character(output)))
+  }
+  format_output <- function(output) {
+    paste(shQuote(output), collapse = ", ")
+  }
 
   problems <- character()
-  if (!identical(as.integer(status), 0L)) {
-    problems <- c(
-      problems,
-      sprintf("expected dry-run exit status 0, got %d", as.integer(status))
-    )
+  for (invocation in successful_invocations) {
+    result <- run_pipeline(invocation$args)
+    if (!identical(result$status, 0L)) {
+      problems <- c(
+        problems,
+        sprintf(
+          "%s: expected exit status 0, got %d",
+          invocation$label,
+          result$status
+        )
+      )
+    }
+    if (!identical(result$output, invocation$expected)) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": output mismatch; expected ",
+          format_output(invocation$expected),
+          "; got ",
+          format_output(result$output)
+        )
+      )
+    }
+
+    historical_columns <- result$output[grepl(
+      "^(source_cluster_column|mg_cluster_column): .*dims(30|50)",
+      result$output,
+      perl = TRUE
+    )]
+    if (length(historical_columns) > 0L) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": selected historical dims30/dims50 cluster columns: ",
+          format_output(historical_columns)
+        )
+      )
+    }
   }
 
-  missing <- contract_lines[!contract_lines %in% output]
-  unexpected <- output[!output %in% contract_lines]
-  if (length(missing) > 0L) {
-    problems <- c(
-      problems,
-      paste0(
-        "missing dry-run contract lines: ",
-        paste(shQuote(missing), collapse = ", ")
+  for (invocation in failed_invocations) {
+    result <- run_pipeline(invocation$args)
+    if (identical(result$status, 0L)) {
+      problems <- c(
+        problems,
+        paste0(invocation$label, ": expected a nonzero exit status, got 0")
       )
-    )
-  }
-  if (length(unexpected) > 0L) {
-    problems <- c(
-      problems,
-      paste0(
-        "unexpected dry-run output: ",
-        paste(shQuote(unexpected), collapse = ", ")
+    }
+    has_diagnostic <- invocation$expected %in%
+      result$output ||
+      paste0("Error: ", invocation$expected) %in% result$output
+    if (!has_diagnostic) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": diagnostic mismatch; expected ",
+          shQuote(invocation$expected),
+          "; got ",
+          format_output(result$output)
+        )
       )
-    )
-  }
-  if (
-    length(missing) == 0L &&
-      length(unexpected) == 0L &&
-      !identical(output, contract_lines)
-  ) {
-    problems <- c(
-      problems,
-      "dry-run contract lines are out of order or repeated"
-    )
-  }
-
-  historical_columns <- output[grepl(
-    "^(source_cluster_column|mg_cluster_column): .*dims(30|50)",
-    output,
-    perl = TRUE
-  )]
-  if (length(historical_columns) > 0L) {
-    problems <- c(
-      problems,
-      paste0(
-        "dry-run selected historical dims30/dims50 cluster columns: ",
-        paste(shQuote(historical_columns), collapse = ", ")
-      )
-    )
+    }
   }
 
   if (length(problems) > 0L) {
@@ -743,7 +820,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
   }
   pass(
     slug,
-    "Public pipeline dry-run emits the required contract without selecting historical cluster columns."
+    "Public pipeline dry-run validates source and overwrite options without selecting historical cluster columns."
   )
 }
 
