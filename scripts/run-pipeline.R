@@ -179,13 +179,168 @@ render_command <- function(command) {
   paste(vapply(command, shell_quote, character(1)), collapse = " ")
 }
 
-new_stage <- function(name, command, expects, protected_outputs = character()) {
+new_stage <- function(
+  name,
+  command,
+  expects,
+  protected_outputs = character(),
+  validator = NULL
+) {
   list(
     name = name,
     command = command,
     expects = expects,
-    protected_outputs = protected_outputs
+    protected_outputs = protected_outputs,
+    validator = validator
   )
+}
+
+read_stage_rds <- function(path) {
+  tryCatch(
+    readRDS(path),
+    error = function(error) {
+      stop(
+        "Cannot read expected RDS output ",
+        path,
+        ": ",
+        conditionMessage(error),
+        call. = FALSE
+      )
+    }
+  )
+}
+
+validate_seurat_object <- function(object, path) {
+  if (!inherits(object, "Seurat")) {
+    stop("Expected a Seurat object at ", path, ".", call. = FALSE)
+  }
+}
+
+validate_counts_output <- function(stage) {
+  raw_object <- read_stage_rds(stage$expects[["raw_counts"]])
+  validate_seurat_object(raw_object, stage$expects[["raw_counts"]])
+
+  missing_metadata <- setdiff(c("Mouse", "Condition"), colnames(raw_object[[]]))
+  if (length(missing_metadata) > 0L) {
+    stop(
+      "Count output is missing required metadata column(s): ",
+      paste(missing_metadata, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+}
+
+validate_qc_outputs <- function(stage) {
+  annotated_path <- stage$expects[["annotated_raw"]]
+  filtered_path <- stage$expects[["filtered"]]
+  annotated_object <- read_stage_rds(annotated_path)
+  filtered_object <- read_stage_rds(filtered_path)
+  validate_seurat_object(annotated_object, annotated_path)
+  validate_seurat_object(filtered_object, filtered_path)
+
+  annotated_metadata <- annotated_object[[]]
+  filtered_metadata <- filtered_object[[]]
+  missing_annotation_columns <- setdiff(
+    c("is_cell", "pass_qc"),
+    colnames(annotated_metadata)
+  )
+  if (length(missing_annotation_columns) > 0L) {
+    stop(
+      "Annotated QC output is missing required metadata column(s): ",
+      paste(missing_annotation_columns, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+  if (!is.logical(annotated_metadata$pass_qc)) {
+    stop("Annotated QC output pass_qc metadata must be logical.", call. = FALSE)
+  }
+
+  missing_filtered_columns <- setdiff(
+    c("Mouse", "Condition"),
+    colnames(filtered_metadata)
+  )
+  if (length(missing_filtered_columns) > 0L) {
+    stop(
+      "Filtered QC output is missing required metadata column(s): ",
+      paste(missing_filtered_columns, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  expected_cells <- colnames(annotated_object)[
+    annotated_metadata$pass_qc %in% TRUE
+  ]
+  if (!identical(colnames(filtered_object), expected_cells)) {
+    stop(
+      "Filtered QC cells do not exactly match annotated cells with pass_qc TRUE.",
+      call. = FALSE
+    )
+  }
+}
+
+validate_stage_outputs <- function(stage) {
+  missing_paths <- stage$expects[!file.exists(stage$expects)]
+  if (length(missing_paths) > 0L) {
+    stop(
+      "Stage ",
+      stage$name,
+      " did not create expected output(s): ",
+      paste(missing_paths, collapse = "; "),
+      call. = FALSE
+    )
+  }
+  if (is.function(stage$validator)) {
+    stage$validator(stage)
+  }
+}
+
+run_stage <- function(stage) {
+  message("Running stage ", stage$name, ": ", render_command(stage$command))
+  status <- tryCatch(
+    suppressWarnings(
+      system2(
+        command = stage$command[[1]],
+        args = stage$command[-1],
+        stdout = "",
+        stderr = ""
+      )
+    ),
+    error = function(error) {
+      stop(
+        "Stage ",
+        stage$name,
+        " could not start: ",
+        conditionMessage(error),
+        call. = FALSE
+      )
+    }
+  )
+  if (!identical(status, 0L)) {
+    stop(
+      "Stage ",
+      stage$name,
+      " failed with exit status ",
+      status,
+      ".",
+      call. = FALSE
+    )
+  }
+  tryCatch(
+    validate_stage_outputs(stage),
+    error = function(error) {
+      stop(
+        "Stage ",
+        stage$name,
+        " output validation failed: ",
+        conditionMessage(error),
+        call. = FALSE
+      )
+    }
+  )
+  message("Completed stage ", stage$name, ".")
 }
 
 source_branches <- data.frame(
@@ -378,12 +533,27 @@ if (identical(run_spec$input_source, "counts-qc")) {
       new_stage(
         "process-counts",
         c("Rscript", "scripts/01-process-counts.R"),
-        file.path(INPUT_OBJECT_DIR, "sobj_raw.rds")
+        c(
+          raw_counts = file.path(
+            DATA_ROOT_DIR,
+            "data",
+            "input",
+            "sobj_raw.rds"
+          )
+        ),
+        validator = validate_counts_output
       ),
       new_stage(
         "qc-filtering",
         c("Rscript", "scripts/02-qc-filtering.R"),
-        file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds")
+        c(
+          annotated_raw = file.path(
+            INPUT_OBJECT_DIR,
+            "sobj_raw_with_qc.rds"
+          ),
+          filtered = file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds")
+        ),
+        validator = validate_qc_outputs
       )
     )
   )
@@ -822,6 +992,29 @@ if (dry_run) {
   quit(status = 0L, save = "no")
 }
 
+if (!identical(run_spec$input_source, "counts-qc")) {
+  stop(
+    "Pipeline execution currently supports only --input-source counts-qc; ",
+    "use --dry-run for legacy or explicit input plans.",
+    call. = FALSE
+  )
+}
+
+execution_stage_names <- c("process-counts", "qc-filtering")
+execution_stages <- stage_plan[
+  match(execution_stage_names, vapply(stage_plan, `[[`, character(1), "name"))
+]
+if (any(vapply(execution_stages, is.null, logical(1)))) {
+  stop(
+    "Counts/QC execution stages are not available in the pipeline plan.",
+    call. = FALSE
+  )
+}
+
 preflight_source_inputs()
-preflight_protected_outputs(stage_plan)
-stop("Pipeline execution is not implemented.", call. = FALSE)
+preflight_protected_outputs(execution_stages)
+for (stage in execution_stages) {
+  run_stage(stage)
+}
+message("Counts/QC pipeline execution completed.")
+quit(status = 0L, save = "no")

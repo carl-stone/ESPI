@@ -746,6 +746,11 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       expected = "--input-source must be one of counts-qc or legacy."
     ),
     list(
+      label = "invalid input source (--input-source invalid)",
+      args = c("--input-source", "invalid"),
+      expected = "--input-source must be one of counts-qc or legacy."
+    ),
+    list(
       label = "mutually exclusive input options",
       args = c(
         "--dry-run",
@@ -903,6 +908,61 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         )
       }
       stage_records[[stage]] <- list(command = command, expects = expects)
+    }
+    stage_output_paths <- function(record) {
+      if (is.null(record) || is.na(record$expects)) {
+        return(character())
+      }
+      strsplit(sub("^expects: ", "", record$expects), ";", fixed = TRUE)[[1L]]
+    }
+    expected_count_output <- "data/input/sobj_raw.rds"
+    expected_qc_outputs <- c(
+      "seurat_objects/input/sobj_raw_with_qc.rds",
+      "seurat_objects/input/sobj_qc_filtered.rds"
+    )
+    if (identical(invocation$input_source, "counts-qc")) {
+      counts_outputs <- stage_output_paths(stage_records[["process-counts"]])
+      if (
+        !identical(length(counts_outputs), 1L) ||
+          !endsWith(counts_outputs, expected_count_output)
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "process-counts",
+            paste0(
+              "exactly one DATA_ROOT_DIR/",
+              expected_count_output,
+              " output"
+            ),
+            stage_records[["process-counts"]]$expects
+          )
+        )
+      }
+
+      qc_outputs <- stage_output_paths(stage_records[["qc-filtering"]])
+      if (
+        !identical(length(qc_outputs), length(expected_qc_outputs)) ||
+          !all(vapply(
+            expected_qc_outputs,
+            function(output) any(endsWith(qc_outputs, output)),
+            logical(1)
+          ))
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "qc-filtering",
+            paste0(
+              "both INPUT_OBJECT_DIR outputs ",
+              paste(expected_qc_outputs, collapse = ", ")
+            ),
+            stage_records[["qc-filtering"]]$expects
+          )
+        )
+      }
     }
 
     preprocess_command <- stage_records[["preprocess-source"]]$command
@@ -1094,21 +1154,45 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       )
     }
   }
+  unavailable_source_diagnostic <- paste0(
+    "Pipeline execution currently supports only --input-source counts-qc; ",
+    "use --dry-run for legacy or explicit input plans."
+  )
+  legacy_execution_result <- run_pipeline(c("--input-source", "legacy"))
+  if (
+    !identical(legacy_execution_result$status, 1L) ||
+      !identical(
+        legacy_execution_result$output,
+        c(paste0("Error: ", unavailable_source_diagnostic), "Execution halted")
+      )
+  ) {
+    problems <- c(
+      problems,
+      paste0(
+        "legacy execution gate: expected status 1 and ",
+        format_output(c(
+          paste0("Error: ", unavailable_source_diagnostic),
+          "Execution halted"
+        )),
+        "; got status ",
+        legacy_execution_result$status,
+        " and ",
+        format_output(legacy_execution_result$output)
+      )
+    )
+  }
 
   missing_input <- tempfile(
     pattern = "espi-tripwire-missing-explicit-input-",
     tmpdir = tempdir(),
     fileext = ".rds"
   )
-  missing_input_expected <- paste0(
-    "Pipeline input(s) do not exist: ",
-    missing_input
-  )
+  missing_input_expected <- unavailable_source_diagnostic
   missing_input_result <- run_pipeline(c("--input", missing_input))
   if (identical(missing_input_result$status, 0L)) {
     problems <- c(
       problems,
-      "missing explicit input preflight: expected a nonzero exit status, got 0"
+      "missing explicit input no-side-effect: expected a nonzero exit status, got 0"
     )
   }
   if (
@@ -1120,7 +1204,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     problems <- c(
       problems,
       paste0(
-        "missing explicit input preflight: diagnostic mismatch; expected ",
+        "missing explicit input no-side-effect: diagnostic mismatch; expected ",
         format_output(c(
           paste0("Error: ", missing_input_expected),
           "Execution halted"
@@ -1134,7 +1218,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     problems <- c(
       problems,
       paste0(
-        "missing explicit input preflight: expected path to remain absent: ",
+        "missing explicit input no-side-effect: expected path to remain absent: ",
         shQuote(missing_input)
       )
     )
