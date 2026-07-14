@@ -641,6 +641,112 @@ tripwire_cli_value_boundaries <- function(root) {
   pass(slug, message)
 }
 
+tripwire_pipeline_dry_run_contract <- function(root) {
+  # Public boundary: dry-run is the safe, line-oriented entry point for the
+  # pipeline plan. It must select the current clustering settings without
+  # starting an analysis stage.
+  slug <- "pipeline-dry-run-contract"
+  rscript <- Sys.which("Rscript")
+  if (identical(unname(rscript), "")) {
+    return(fail(
+      slug,
+      "Rscript is unavailable, so the public pipeline dry-run cannot be executed."
+    ))
+  }
+
+  script <- file.path(root, "scripts", "run-pipeline.R")
+  if (!file.exists(script)) {
+    return(fail(slug, "scripts/run-pipeline.R is missing."))
+  }
+
+  contract_lines <- c(
+    "mode: dry-run",
+    "input_source: counts-qc",
+    "overwrite: false",
+    "source_cluster_column: cluster_pflog_no_filter_cc_dims20_res0.3",
+    "mg_cluster_column: cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
+    "mg_pca_dims: 50",
+    "first_stage: process-counts",
+    "final_stage: tripwires"
+  )
+  output <- tryCatch(
+    suppressWarnings(system2(
+      rscript,
+      c(shQuote(script), "--dry-run"),
+      stdout = TRUE,
+      stderr = TRUE
+    )),
+    error = function(e) structure(conditionMessage(e), status = 1L)
+  )
+  status <- attr(output, "status")
+  if (is.null(status)) {
+    status <- 0L
+  }
+  output <- unname(output)
+
+  problems <- character()
+  if (!identical(as.integer(status), 0L)) {
+    problems <- c(
+      problems,
+      sprintf("expected dry-run exit status 0, got %d", as.integer(status))
+    )
+  }
+
+  missing <- contract_lines[!contract_lines %in% output]
+  unexpected <- output[!output %in% contract_lines]
+  if (length(missing) > 0L) {
+    problems <- c(
+      problems,
+      paste0(
+        "missing dry-run contract lines: ",
+        paste(shQuote(missing), collapse = ", ")
+      )
+    )
+  }
+  if (length(unexpected) > 0L) {
+    problems <- c(
+      problems,
+      paste0(
+        "unexpected dry-run output: ",
+        paste(shQuote(unexpected), collapse = ", ")
+      )
+    )
+  }
+  if (
+    length(missing) == 0L &&
+      length(unexpected) == 0L &&
+      !identical(output, contract_lines)
+  ) {
+    problems <- c(
+      problems,
+      "dry-run contract lines are out of order or repeated"
+    )
+  }
+
+  historical_columns <- output[grepl(
+    "^(source_cluster_column|mg_cluster_column): .*dims(30|50)",
+    output,
+    perl = TRUE
+  )]
+  if (length(historical_columns) > 0L) {
+    problems <- c(
+      problems,
+      paste0(
+        "dry-run selected historical dims30/dims50 cluster columns: ",
+        paste(shQuote(historical_columns), collapse = ", ")
+      )
+    )
+  }
+
+  if (length(problems) > 0L) {
+    return(fail(slug, paste(problems, collapse = " | ")))
+  }
+  pass(
+    slug,
+    "Public pipeline dry-run emits the required contract without selecting historical cluster columns."
+  )
+}
+
 tripwire_report_values_freshness <- function(root) {
   # Scientific boundary: the rendered report must not be older than the source
   # prose or figures that define the claimed HVG and DimHeatmap parameters.
@@ -1627,6 +1733,7 @@ main <- function() {
   checks <- list(
     tripwire_cluster_wrapper_contract,
     tripwire_cli_value_boundaries,
+    tripwire_pipeline_dry_run_contract,
     tripwire_branch_artifact_collision,
     tripwire_report_values_freshness,
     tripwire_missing_counts_file,
