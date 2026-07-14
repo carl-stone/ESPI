@@ -1072,6 +1072,70 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "'--extra-dims' '30,50'",
       "'--resolutions' '0.3,0.5,0.8'"
     )
+    cluster_candidate_dims <- c(20L, 30L, 50L)
+    cluster_candidate_resolution_tags <- gsub(
+      "[^A-Za-z0-9_-]",
+      "_",
+      c("0.3", "0.5", "0.8")
+    )
+    cluster_notebook_umap_outputs <- function(branch) {
+      unlist(
+        lapply(
+          cluster_candidate_dims,
+          function(dims) {
+            file.path(
+              "notebook",
+              "figures",
+              sprintf(
+                "umap_%s_dims%d_by_cluster_%s_dims%d_res%s.png",
+                branch,
+                dims,
+                branch,
+                dims,
+                cluster_candidate_resolution_tags
+              )
+            )
+          }
+        ),
+        use.names = FALSE
+      )
+    }
+    cluster_stage_expected_outputs <- function(rds_path) {
+      branch <- sub(
+        "^cluster_",
+        "",
+        sub("_elbow20\\.rds$", "", basename(rds_path))
+      )
+      c(
+        rds_path,
+        cluster_notebook_umap_outputs(branch)
+      )
+    }
+    cluster_stage_expected_description <- function(rds_path, branch_label) {
+      paste(
+        "exactly one clustered",
+        branch_label,
+        "RDS plus nine notebook UMAP PNG links",
+        paste(cluster_stage_expected_outputs(rds_path), collapse = ", ")
+      )
+    }
+    stage_outputs_match <- function(record, expected_suffixes) {
+      actual_outputs <- stage_output_paths(record)
+      length(actual_outputs) == length(expected_suffixes) &&
+        all(vapply(
+          expected_suffixes,
+          function(suffix) {
+            sum(vapply(
+              actual_outputs,
+              path_has_suffix,
+              logical(1),
+              suffix = suffix
+            )) ==
+              1L
+          },
+          logical(1)
+        ))
+    }
     for (stage in names(source_clusters)) {
       command <- stage_records[[stage]]$command
       expected_input <- source_clusters[[stage]]
@@ -1105,24 +1169,22 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           )
         }
       }
-      cluster_outputs <- stage_output_paths(stage_records[[stage]])
       if (
-        length(cluster_outputs) != 1L ||
-          !path_has_suffix(
-            cluster_outputs[[1L]],
+        !stage_outputs_match(
+          stage_records[[stage]],
+          cluster_stage_expected_outputs(
             file.path(current_object_suffix, source_cluster_outputs[[stage]])
           )
+        )
       ) {
         problems <- c(
           problems,
           stage_problem(
             invocation$label,
             stage,
-            paste0(
-              "exactly one clustered source RDS under ",
-              current_object_suffix,
-              ": ",
-              source_cluster_outputs[[stage]]
+            cluster_stage_expected_description(
+              file.path(current_object_suffix, source_cluster_outputs[[stage]]),
+              "source"
             ),
             stage_records[[stage]]$expects
           )
@@ -1191,23 +1253,6 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       }
     }
 
-    stage_outputs_match <- function(record, expected_suffixes) {
-      actual_outputs <- stage_output_paths(record)
-      length(actual_outputs) == length(expected_suffixes) &&
-        all(vapply(
-          expected_suffixes,
-          function(suffix) {
-            sum(vapply(
-              actual_outputs,
-              path_has_suffix,
-              logical(1),
-              suffix = suffix
-            )) ==
-              1L
-          },
-          logical(1)
-        ))
-    }
     select_mg_outputs <- c(
       "seurat_objects/current/preprocess_pflog_mg_selected_no-filter-cc.rds",
       "seurat_objects/current/preprocess_pflog_mg_selected_filter-cc.rds",
@@ -1519,7 +1564,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       if (
         !stage_outputs_match(
           stage_records[[stage]],
-          mg_cluster_outputs[[stage]]
+          cluster_stage_expected_outputs(mg_cluster_outputs[[stage]])
         )
       ) {
         problems <- c(
@@ -1527,11 +1572,9 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           stage_problem(
             invocation$label,
             stage,
-            paste0(
-              "exactly one clustered MG RDS under ",
-              current_object_suffix,
-              ": ",
-              sub("^seurat_objects/current/", "", mg_cluster_outputs[[stage]])
+            cluster_stage_expected_description(
+              mg_cluster_outputs[[stage]],
+              "MG"
             ),
             stage_records[[stage]]$expects
           )
@@ -1748,20 +1791,60 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         )
       )
     }
+    terminal_stage_contracts <- list(
+      "render-notebook" = list(
+        command = "command: 'quarto' 'render' 'notebook/sc_analysis.qmd'",
+        expects = "notebook/sc_analysis.html"
+      ),
+      "tripwires" = list(
+        command = "command: 'Rscript' 'tools/run-tripwires.R'",
+        expects = "tools/run-tripwires.R"
+      )
+    )
     if (
       !identical(
-        tail(observed_stages, 2L),
-        c("render-notebook", "tripwires")
+        tail(observed_stages, 3L),
+        c("mg-de", "render-notebook", "tripwires")
       )
     ) {
       problems <- c(
         problems,
         paste0(
           invocation$label,
-          ": terminal stage order mismatch; expected render-notebook then tripwires; got ",
-          paste(tail(observed_stages, 2L), collapse = ", ")
+          ": terminal stage order mismatch; expected mg-de then render-notebook then tripwires; got ",
+          paste(tail(observed_stages, 3L), collapse = ", ")
         )
       )
+    }
+    for (terminal_stage in names(terminal_stage_contracts)) {
+      contract <- terminal_stage_contracts[[terminal_stage]]
+      record <- stage_records[[terminal_stage]]
+      if (!identical(record$command, contract$command)) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            terminal_stage,
+            paste0("exact command ", shQuote(contract$command)),
+            record$command
+          )
+        )
+      }
+      output_paths <- stage_output_paths(record)
+      if (
+        length(output_paths) != 1L ||
+          !path_has_suffix(output_paths[[1L]], contract$expects)
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            terminal_stage,
+            paste0("exact expected output path ", shQuote(contract$expects)),
+            record$expects
+          )
+        )
+      }
     }
   }
 

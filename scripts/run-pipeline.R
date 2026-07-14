@@ -148,6 +148,30 @@ cluster_column <- function(branch, dims, resolution) {
   )
 }
 
+cluster_expected_outputs <- function(branch) {
+  candidate_dims <- c(run_spec$cluster_elbow_n, run_spec$sensitivity_dims)
+  notebook_umap_paths <- as.vector(outer(
+    candidate_dims,
+    run_spec$candidate_resolutions,
+    FUN = function(dims, resolution) {
+      umap_name <- sprintf("umap_%s_dims%d", branch, dims)
+      cluster_name <- cluster_column(branch, dims, resolution)
+      file.path(
+        here::here("notebook", "figures"),
+        sprintf(
+          "%s_by_%s.png",
+          umap_name,
+          gsub("[^A-Za-z0-9_-]", "_", cluster_name)
+        )
+      )
+    }
+  ))
+  c(
+    cluster_path(branch, run_spec$cluster_elbow_n),
+    notebook_umap_paths
+  )
+}
+
 heatmap_paths <- function(branch, type, output_dir, dims, resolution) {
   output_tag <- switch(
     type,
@@ -1216,7 +1240,7 @@ for (index in seq_len(nrow(source_branches))) {
           "--resolutions",
           paste(resolution_tag(run_spec$candidate_resolutions), collapse = ",")
         ),
-        cluster_path(source_branch$branch, run_spec$cluster_elbow_n),
+        cluster_expected_outputs(source_branch$branch),
         validator = make_cluster_validator(
           source_branch$branch,
           if (identical(source_branch$branch, run_spec$source_branch_tag)) {
@@ -1284,7 +1308,7 @@ for (filter_key in names(mg_preprocess_paths)) {
           "--resolutions",
           paste(resolution_tag(run_spec$candidate_resolutions), collapse = ",")
         ),
-        cluster_path(mg_branch, run_spec$cluster_elbow_n),
+        cluster_expected_outputs(mg_branch),
         validator = make_mg_cluster_validator(mg_branch)
       )
     )
@@ -1649,7 +1673,9 @@ figure_execution_stage_names <- c(
 )
 analysis_execution_stage_names <- c(
   "mg-markers",
-  "mg-de"
+  "mg-de",
+  "render-notebook",
+  "tripwires"
 )
 execution_stage_names <- if (identical(run_spec$input_source, "counts-qc")) {
   c(
@@ -1683,11 +1709,5 @@ preflight_protected_outputs(execution_stages)
 for (stage in execution_stages) {
   run_stage(stage)
 }
-if (identical(run_spec$input_source, "counts-qc")) {
-  message("Counts/QC pipeline execution completed.")
-}
-message("Source pipeline execution completed.")
-message("MG clustering pipeline execution completed.")
-message("Figure pipeline execution completed.")
-message("Analysis pipeline execution completed.")
+message("Pipeline execution completed successfully through tripwires.")
 quit(status = 0L, save = "no")

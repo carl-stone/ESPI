@@ -18,4 +18,6 @@ splot_umap_by(sobj, umap, color_by)
 }
 \description{
 Filename combines the UMAP reduction and coloring column.
+Saves the PNG to the notebook figure directory as a symlink after writing
+both plot files.
 }

@@ -1,6 +1,8 @@
 #' Save a DimPlot on a specified UMAP reduction colored by a metadata column.
 #'
 #' Filename combines the UMAP reduction and coloring column.
+#' Saves the PNG to the notebook figure directory as a symlink after writing
+#' both plot files.
 #'
 #' @param sobj Seurat object with the named UMAP reduction populated.
 #' @param umap Character name of the UMAP reduction in `sobj@reductions`.
@@ -21,8 +23,9 @@ splot_umap_by <- function(sobj, umap, color_by) {
     label = TRUE,
     pt.size = 0.25
   )
+  png_path <- file.path(out_dir, sprintf("%s_by_%s.png", umap_tag, color_tag))
   ggplot2::ggsave(
-    file.path(out_dir, sprintf("%s_by_%s.png", umap_tag, color_tag)),
+    png_path,
     plot,
     width = 5,
     height = 5
@@ -33,6 +36,7 @@ splot_umap_by <- function(sobj, umap, color_by) {
     width = 5,
     height = 5
   )
+  link_notebook_png(png_path)
 
   invisible(NULL)
 }
