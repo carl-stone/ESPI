@@ -1584,20 +1584,119 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       )
     }
 
+    expected_marker_outputs <- c(
+      "tables/mg_selected/find_all_markers_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+      "tables/mg_selected/find_all_markers_top5_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+      "tables/mg_selected/find_all_markers_summary_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+      "tables/mg_selected/find_all_markers_identity_map_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+      "figures/mg_selected/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png",
+      "figures/mg_selected/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.pdf",
+      "notebook/figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png"
+    )
+    expected_de_outputs <- c(
+      "degs/mg_selected/pseudobulk_sample_summary.tsv",
+      "degs/mg_selected/design_summary.tsv",
+      "degs/mg_selected/deseq2_full_results.tsv",
+      "degs/mg_selected/deseq2_significant_degs.tsv",
+      "degs/mg_selected/deseq2_marker_overlap.tsv",
+      "degs/mg_selected/detection_full_results.tsv",
+      "degs/mg_selected/detection_marker_overlap.tsv",
+      "degs/mg_selected/deseq2_paired_sensitivity_full_results.tsv",
+      "degs/mg_selected/deseq2_paired_sensitivity_significant_degs.tsv",
+      "degs/mg_selected/deseq2_paired_sensitivity_marker_overlap.tsv",
+      "degs/mg_selected/detection_paired_sensitivity_full_results.tsv",
+      "degs/mg_selected/detection_paired_sensitivity_marker_overlap.tsv",
+      "degs/mg_selected/numbers.json",
+      "enrichment/mg_selected/go_bp_ora_up.tsv",
+      "enrichment/mg_selected/go_bp_ora_down.tsv",
+      "enrichment/mg_selected/go_bp_gsea.tsv",
+      "enrichment/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv",
+      "figures/mg_selected/mg_selected_de_dd_effect_scatter.png",
+      "figures/mg_selected/mg_selected_de_dd_effect_scatter.pdf",
+      "notebook/figures/mg_selected_de_dd_effect_scatter.png"
+    )
+
+    mg_marker_command <- stage_records[["mg-markers"]]$command
+    expected_marker_options <- c(
+      "'scripts/11-find-mg-markers.R'",
+      "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
+      "'--branch-tag' 'pflog_mg_selected_no_filter_cc'",
+      "'--dims' '20'",
+      "'--resolution' '0.5'",
+      "'--layer' 'data'",
+      "'--counts-layer' 'counts'",
+      "'--confirm-no-merge'"
+    )
+    for (expected_option in expected_marker_options) {
+      if (!command_has(mg_marker_command, expected_option)) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "mg-markers",
+            paste0("command containing ", shQuote(expected_option)),
+            mg_marker_command
+          )
+        )
+      }
+    }
+    if (
+      !stage_outputs_match(
+        stage_records[["mg-markers"]],
+        expected_marker_outputs
+      )
+    ) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "mg-markers",
+          paste(
+            "all seven protected MG marker outputs",
+            paste(expected_marker_outputs, collapse = ", ")
+          ),
+          stage_records[["mg-markers"]]$expects
+        )
+      )
+    }
+
     mg_de_command <- stage_records[["mg-de"]]$command
-    expected_mg_cluster_column_option <-
-      "'--cluster-column' 'cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5'"
-    if (!command_has(mg_de_command, expected_mg_cluster_column_option)) {
+    expected_de_options <- c(
+      "'scripts/12-run-mg-de.R'",
+      "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
+      "'--cluster-column' 'cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5'",
+      "'--counts-layer' 'counts'",
+      "'--lfc-shrink-type' 'normal'"
+    )
+    for (expected_option in expected_de_options) {
+      if (!command_has(mg_de_command, expected_option)) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "mg-de",
+            paste0("command containing ", shQuote(expected_option)),
+            mg_de_command
+          )
+        )
+      }
+    }
+    if (
+      !stage_outputs_match(
+        stage_records[["mg-de"]],
+        expected_de_outputs
+      )
+    ) {
       problems <- c(
         problems,
         stage_problem(
           invocation$label,
           "mg-de",
-          paste0(
-            "command containing ",
-            shQuote(expected_mg_cluster_column_option)
+          paste(
+            "all protected MG DE/DD outputs",
+            paste(expected_de_outputs, collapse = ", ")
           ),
-          mg_de_command
+          stage_records[["mg-de"]]$expects
         )
       )
     }
@@ -1625,6 +1724,30 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       )
     }
 
+    marker_index <- match("mg-markers", observed_stages)
+    de_index <- match("mg-de", observed_stages)
+    figure_indices <- match(names(figure_stage_contracts), observed_stages)
+    last_figure_index <- if (anyNA(figure_indices)) {
+      NA_integer_
+    } else {
+      max(figure_indices)
+    }
+    if (
+      is.na(marker_index) ||
+        is.na(de_index) ||
+        is.na(last_figure_index) ||
+        marker_index <= last_figure_index ||
+        de_index <= marker_index
+    ) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": marker/DE stage order mismatch; expected mg-markers then mg-de after all figure stages; got ",
+          paste(observed_stages, collapse = ", ")
+        )
+      )
+    }
     if (
       !identical(
         tail(observed_stages, 2L),

@@ -1052,6 +1052,13 @@ marker_protected_outputs <- c(
   file.path(
     marker_figure_dir,
     sprintf("mg_selected_cluster_marker_dotplot_%s_top5.pdf", marker_tag)
+  ),
+  file.path(
+    here::here("notebook", "figures"),
+    sprintf(
+      "mg_selected_cluster_marker_dotplot_%s_top5.png",
+      marker_tag
+    )
   )
 )
 
@@ -1640,19 +1647,25 @@ figure_execution_stage_names <- c(
   "mg-figures-no-filter-cc",
   "mg-figures-filter-cc"
 )
+analysis_execution_stage_names <- c(
+  "mg-markers",
+  "mg-de"
+)
 execution_stage_names <- if (identical(run_spec$input_source, "counts-qc")) {
   c(
     "process-counts",
     "qc-filtering",
     source_execution_stage_names,
     mg_execution_stage_names,
-    figure_execution_stage_names
+    figure_execution_stage_names,
+    analysis_execution_stage_names
   )
 } else {
   c(
     source_execution_stage_names,
     mg_execution_stage_names,
-    figure_execution_stage_names
+    figure_execution_stage_names,
+    analysis_execution_stage_names
   )
 }
 execution_stages <- stage_plan[
@@ -1676,4 +1689,5 @@ if (identical(run_spec$input_source, "counts-qc")) {
 message("Source pipeline execution completed.")
 message("MG clustering pipeline execution completed.")
 message("Figure pipeline execution completed.")
+message("Analysis pipeline execution completed.")
 quit(status = 0L, save = "no")
