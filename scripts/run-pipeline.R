@@ -90,10 +90,13 @@ run_spec <- list(
   overwrite = overwrite,
   normalization = "pflog",
   filter_cell_cycle_hvgs = FALSE,
-  chosen_dims = 20L,
+  cluster_elbow_n = 20L,
   sensitivity_dims = c(30L, 50L),
   candidate_resolutions = c(0.3, 0.5, 0.8),
-  resolution = 0.3,
+  source_chosen_dims = 30L,
+  source_resolution = 0.3,
+  mg_chosen_dims = 20L,
+  mg_resolution = 0.5,
   mg_pca_dims = 50L,
   expression_layer = "pflog",
   marker_layer = "data",
@@ -136,33 +139,42 @@ cluster_path <- function(branch, elbow_n) {
   )
 }
 
-heatmap_paths <- function(branch, type, output_dir) {
+cluster_column <- function(branch, dims, resolution) {
+  sprintf(
+    "cluster_%s_dims%d_res%s",
+    branch,
+    dims,
+    resolution_tag(resolution)
+  )
+}
+
+heatmap_paths <- function(branch, type, output_dir, dims, resolution) {
   output_tag <- switch(
     type,
     marker = sprintf(
       "cell_type_marker_heatmap_%s_%s_cells_dims%d_res%s",
       run_spec$expression_layer,
       branch,
-      run_spec$chosen_dims,
-      resolution_tag(run_spec$resolution)
+      dims,
+      resolution_tag(resolution)
     ),
     module = sprintf(
       "cell_type_module_p27_heatmap_%s_%s_dims%d_res%s",
       run_spec$expression_layer,
       branch,
-      run_spec$chosen_dims,
-      resolution_tag(run_spec$resolution)
+      dims,
+      resolution_tag(resolution)
     )
   )
   file.path(output_dir, paste0(output_tag, c(".png", ".pdf")))
 }
 
-mg_figure_paths <- function(branch) {
+mg_figure_paths <- function(branch, dims, resolution) {
   output_tag <- sprintf(
     "mg_selected_cluster_umap_%s_dims%d_res%s",
     branch,
-    run_spec$chosen_dims,
-    resolution_tag(run_spec$resolution)
+    dims,
+    resolution_tag(resolution)
   )
   file.path(FIGURE_DIR, "mg_selected", paste0(output_tag, c(".png", ".pdf")))
 }
@@ -295,7 +307,11 @@ validate_preprocess_outputs <- function(stage) {
   }
 }
 
-validate_cluster_output <- function(stage, expected_branch) {
+validate_cluster_output <- function(
+  stage,
+  expected_branch,
+  chosen_column = NULL
+) {
   path <- stage$expects[[1L]]
   sobj <- read_stage_rds(path)
   validate_seurat_object(sobj, path)
@@ -335,9 +351,10 @@ validate_cluster_output <- function(stage, expected_branch) {
     )
   }
 
+  candidate_dims <- c(run_spec$cluster_elbow_n, run_spec$sensitivity_dims)
   candidate_columns <- as.vector(outer(
-    c(20L, 30L, 50L),
-    c(0.3, 0.5, 0.8),
+    candidate_dims,
+    run_spec$candidate_resolutions,
     FUN = function(dims, resolution) {
       sprintf(
         "cluster_%s_dims%d_res%s",
@@ -362,7 +379,7 @@ validate_cluster_output <- function(stage, expected_branch) {
   umap_reductions <- sprintf(
     "umap_%s_dims%d",
     expected_branch,
-    c(20L, 30L, 50L)
+    candidate_dims
   )
   missing_umaps <- setdiff(umap_reductions, names(sobj@reductions))
   if (length(missing_umaps) > 0L) {
@@ -376,26 +393,289 @@ validate_cluster_output <- function(stage, expected_branch) {
     )
   }
 
-  if (identical(expected_branch, run_spec$source_branch_tag)) {
-    chosen_column <- run_spec$source_cluster_column
-    if (!chosen_column %in% colnames(sobj[[]])) {
+  if (!is.null(chosen_column) && !chosen_column %in% colnames(sobj[[]])) {
+    stop(
+      "Chosen source output ",
+      path,
+      " is missing cluster column ",
+      chosen_column,
+      ".",
+      call. = FALSE
+    )
+  }
+}
+
+make_cluster_validator <- function(expected_branch, chosen_column = NULL) {
+  force(expected_branch)
+  force(chosen_column)
+  function(stage) {
+    validate_cluster_output(stage, expected_branch, chosen_column)
+  }
+}
+
+
+validate_mg_preprocess_outputs <- function(stage) {
+  expected_branches <- names(mg_preprocess_paths)
+  if (
+    is.null(expected_branches) ||
+      !identical(
+        sort(expected_branches),
+        sort(c("no_filter_cc", "filter_cc"))
+      )
+  ) {
+    stop(
+      "MG preprocess output expectations must contain both cell-cycle branches.",
+      call. = FALSE
+    )
+  }
+
+  expected_source_provenance <- list(
+    source_cluster_column = run_spec$source_cluster_column,
+    source_input = chosen_source_path,
+    source_cluster_selection_table = mg_selection_table_path,
+    source_cluster_selection_figure = mg_selection_diagnostic_paths[[1L]]
+  )
+
+  for (filter_key in expected_branches) {
+    path <- mg_preprocess_paths[[filter_key]]
+    sobj <- read_stage_rds(path)
+    validate_seurat_object(sobj, path)
+
+    missing_metadata <- setdiff(c("Mouse", "Condition"), colnames(sobj[[]]))
+    if (length(missing_metadata) > 0L) {
       stop(
-        "Chosen source output ",
+        "MG preprocess output ",
         path,
-        " is missing cluster column ",
-        chosen_column,
+        " is missing required metadata column(s): ",
+        paste(missing_metadata, collapse = ", "),
         ".",
         call. = FALSE
       )
     }
+
+    pca_embeddings <- tryCatch(
+      SeuratObject::Embeddings(sobj, reduction = "pca"),
+      error = function(error) NULL
+    )
+    if (
+      is.null(pca_embeddings) ||
+        ncol(pca_embeddings) != run_spec$mg_pca_dims
+    ) {
+      stop(
+        "MG preprocess output ",
+        path,
+        " must contain a ",
+        run_spec$mg_pca_dims,
+        "-PC PCA reduction.",
+        call. = FALSE
+      )
+    }
+
+    expected_filtered <- identical(filter_key, "filter_cc")
+    preprocessing <- sobj@misc$preprocessing
+    if (
+      !identical(
+        preprocessing$normalization,
+        run_spec$normalization
+      ) ||
+        !identical(
+          isTRUE(preprocessing$filtered_cell_cycle),
+          expected_filtered
+        ) ||
+        !identical(
+          preprocessing$dataset_tag,
+          "mg_selected"
+        )
+    ) {
+      stop(
+        "MG preprocess output ",
+        path,
+        " has normalization, cell-cycle, or dataset metadata ",
+        "inconsistent with branch ",
+        filter_key,
+        ".",
+        call. = FALSE
+      )
+    }
+
+    for (field in names(expected_source_provenance)) {
+      if (
+        !identical(
+          preprocessing[[field]],
+          expected_source_provenance[[field]]
+        )
+      ) {
+        stop(
+          "MG preprocess output ",
+          path,
+          " has source provenance field ",
+          field,
+          " inconsistent with the run specification.",
+          call. = FALSE
+        )
+      }
+    }
   }
 }
 
-make_cluster_validator <- function(expected_branch) {
-  force(expected_branch)
-  function(stage) validate_cluster_output(stage, expected_branch)
+validate_mg_cluster_output <- function(stage, expected_branch) {
+  path <- stage$expects[[1L]]
+  sobj <- read_stage_rds(path)
+  validate_seurat_object(sobj, path)
+
+  missing_metadata <- setdiff(c("Mouse", "Condition"), colnames(sobj[[]]))
+  if (length(missing_metadata) > 0L) {
+    stop(
+      "MG clustered output ",
+      path,
+      " is missing required metadata column(s): ",
+      paste(missing_metadata, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  preprocessing <- sobj@misc$preprocessing
+  expected_filtered <- identical(
+    expected_branch,
+    branch_tag(
+      run_spec$normalization,
+      TRUE,
+      dataset_tag = "mg_selected"
+    )
+  )
+  if (
+    !identical(preprocessing$normalization, run_spec$normalization) ||
+      !identical(
+        isTRUE(preprocessing$filtered_cell_cycle),
+        expected_filtered
+      ) ||
+      !identical(preprocessing$dataset_tag, "mg_selected")
+  ) {
+    stop(
+      "MG clustered output ",
+      path,
+      " has preprocessing metadata inconsistent with branch ",
+      expected_branch,
+      ".",
+      call. = FALSE
+    )
+  }
+
+  expected_source_provenance <- list(
+    source_cluster_column = run_spec$source_cluster_column,
+    source_input = chosen_source_path,
+    source_cluster_selection_table = mg_selection_table_path,
+    source_cluster_selection_figure = mg_selection_diagnostic_paths[[1L]]
+  )
+  for (field in names(expected_source_provenance)) {
+    if (
+      !identical(
+        preprocessing[[field]],
+        expected_source_provenance[[field]]
+      )
+    ) {
+      stop(
+        "MG clustered output ",
+        path,
+        " has source provenance field ",
+        field,
+        " inconsistent with the run specification.",
+        call. = FALSE
+      )
+    }
+  }
+
+  clustering <- sobj@misc$clustering
+  if (!identical(clustering$branch_tag, expected_branch)) {
+    stop(
+      "MG clustered output ",
+      path,
+      " has branch tag ",
+      paste(clustering$branch_tag, collapse = ", "),
+      "; expected ",
+      expected_branch,
+      ".",
+      call. = FALSE
+    )
+  }
+
+  candidate_dims <- c(run_spec$cluster_elbow_n, run_spec$sensitivity_dims)
+  candidate_columns <- as.vector(outer(
+    candidate_dims,
+    run_spec$candidate_resolutions,
+    FUN = function(dims, resolution) {
+      sprintf(
+        "cluster_%s_dims%d_res%s",
+        expected_branch,
+        dims,
+        resolution_tag(resolution)
+      )
+    }
+  ))
+  missing_candidates <- setdiff(candidate_columns, colnames(sobj[[]]))
+  if (length(missing_candidates) > 0L) {
+    stop(
+      "MG clustered output ",
+      path,
+      " is missing candidate cluster column(s): ",
+      paste(missing_candidates, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+  declared_candidates <- clustering$candidate_names
+  if (
+    !is.character(declared_candidates) ||
+      length(setdiff(candidate_columns, declared_candidates)) > 0L
+  ) {
+    stop(
+      "MG clustered output ",
+      path,
+      " does not declare all candidate cluster columns.",
+      call. = FALSE
+    )
+  }
+
+  umap_reductions <- sprintf(
+    "umap_%s_dims%d",
+    expected_branch,
+    candidate_dims
+  )
+  missing_umaps <- setdiff(umap_reductions, names(sobj@reductions))
+  if (length(missing_umaps) > 0L) {
+    stop(
+      "MG clustered output ",
+      path,
+      " is missing candidate UMAP reduction(s): ",
+      paste(missing_umaps, collapse = ", "),
+      ".",
+      call. = FALSE
+    )
+  }
+
+  expected_chosen_column <- sprintf(
+    "cluster_%s_dims%d_res%s",
+    expected_branch,
+    run_spec$mg_chosen_dims,
+    resolution_tag(run_spec$mg_resolution)
+  )
+  if (!expected_chosen_column %in% colnames(sobj[[]])) {
+    stop(
+      "MG clustered output ",
+      path,
+      " is missing chosen cluster column ",
+      expected_chosen_column,
+      ".",
+      call. = FALSE
+    )
+  }
 }
 
+make_mg_cluster_validator <- function(expected_branch) {
+  force(expected_branch)
+  function(stage) validate_mg_cluster_output(stage, expected_branch)
+}
 
 validate_qc_outputs <- function(stage) {
   annotated_path <- stage$expects[["annotated_raw"]]
@@ -544,22 +824,20 @@ run_spec$mg_branch_tag <- branch_tag(
   run_spec$filter_cell_cycle_hvgs,
   dataset_tag = "mg_selected"
 )
-run_spec$source_cluster_column <- sprintf(
-  "cluster_%s_dims%d_res%s",
+run_spec$source_cluster_column <- cluster_column(
   run_spec$source_branch_tag,
-  run_spec$chosen_dims,
-  resolution_tag(run_spec$resolution)
+  run_spec$source_chosen_dims,
+  run_spec$source_resolution
 )
-run_spec$mg_cluster_column <- sprintf(
-  "cluster_%s_dims%d_res%s",
+run_spec$mg_cluster_column <- cluster_column(
   run_spec$mg_branch_tag,
-  run_spec$chosen_dims,
-  resolution_tag(run_spec$resolution)
+  run_spec$mg_chosen_dims,
+  run_spec$mg_resolution
 )
 
 chosen_source_path <- cluster_path(
   run_spec$source_branch_tag,
-  run_spec$chosen_dims
+  run_spec$cluster_elbow_n
 )
 mg_preprocess_paths <- c(
   no_filter_cc = file.path(
@@ -577,6 +855,39 @@ mg_preprocess_paths <- c(
     )
   )
 )
+mg_selection_table_path <- file.path(
+  TABLE_DIR,
+  "mg_selected",
+  "mg_selected_cluster_selection.tsv"
+)
+mg_selection_diagnostic_paths <- file.path(
+  FIGURE_DIR,
+  "mg_selected",
+  paste0("mg_selected_cluster_selection_diagnostics", c(".png", ".pdf"))
+)
+mg_elbow_expected_outputs <- unlist(
+  lapply(
+    c("no_filter_cc", "filter_cc"),
+    function(filter_key) {
+      file.path(
+        FIGURE_DIR,
+        "mg_selected",
+        paste0(
+          "elbow_pflog_mg_selected_",
+          filter_key,
+          c(".png", ".pdf")
+        )
+      )
+    }
+  ),
+  use.names = FALSE
+)
+mg_selection_expected_outputs <- c(
+  unname(mg_preprocess_paths),
+  mg_selection_table_path,
+  mg_selection_diagnostic_paths,
+  mg_elbow_expected_outputs
+)
 mg_branch_paths <- setNames(
   vapply(
     c(FALSE, TRUE),
@@ -587,12 +898,38 @@ mg_branch_paths <- setNames(
           filtered,
           dataset_tag = "mg_selected"
         ),
-        run_spec$chosen_dims
+        run_spec$cluster_elbow_n
       )
     },
     character(1)
   ),
   c("no_filter_cc", "filter_cc")
+)
+mg_summary_expected_outputs <- c(
+  file.path(
+    TABLE_DIR,
+    "mg_selected",
+    "mg_selected_cluster_grid_summary.tsv"
+  ),
+  unlist(
+    lapply(
+      c("no_filter_cc", "filter_cc"),
+      function(filter_key) {
+        file.path(
+          FIGURE_DIR,
+          "mg_selected",
+          paste0(
+            "mg_selected_umap_resolution_sweep_pflog_mg_selected_",
+            filter_key,
+            "_dims",
+            run_spec$mg_pca_dims,
+            c(".png", ".pdf")
+          )
+        )
+      }
+    ),
+    use.names = FALSE
+  )
 )
 
 marker_table_dir <- file.path(TABLE_DIR, "mg_selected")
@@ -600,8 +937,8 @@ marker_figure_dir <- file.path(FIGURE_DIR, "mg_selected")
 marker_tag <- sprintf(
   "data_%s_dims%d_res%s",
   run_spec$mg_branch_tag,
-  run_spec$chosen_dims,
-  resolution_tag(run_spec$resolution)
+  run_spec$mg_chosen_dims,
+  resolution_tag(run_spec$mg_resolution)
 )
 marker_protected_outputs <- c(
   file.path(marker_table_dir, paste0("find_all_markers_", marker_tag, ".csv")),
@@ -614,15 +951,18 @@ marker_protected_outputs <- c(
   ),
   file.path(
     marker_table_dir,
-    paste0("find_all_markers_summary_", marker_tag, ".csv")
+    sprintf(
+      "find_all_markers_summary_%s.csv",
+      marker_tag
+    )
   ),
   file.path(
     marker_table_dir,
     sprintf(
       "find_all_markers_identity_map_%s_dims%d_res%s.csv",
       run_spec$mg_branch_tag,
-      run_spec$chosen_dims,
-      resolution_tag(run_spec$resolution)
+      run_spec$mg_chosen_dims,
+      resolution_tag(run_spec$mg_resolution)
     )
   ),
   file.path(
@@ -783,14 +1123,21 @@ for (index in seq_len(nrow(source_branches))) {
           "--input",
           source_branch$preprocess_path,
           "--elbow-n",
-          as.character(run_spec$chosen_dims),
+          as.character(run_spec$cluster_elbow_n),
           "--extra-dims",
           paste(run_spec$sensitivity_dims, collapse = ","),
           "--resolutions",
           paste(resolution_tag(run_spec$candidate_resolutions), collapse = ",")
         ),
-        cluster_path(source_branch$branch, run_spec$chosen_dims),
-        validator = make_cluster_validator(source_branch$branch)
+        cluster_path(source_branch$branch, run_spec$cluster_elbow_n),
+        validator = make_cluster_validator(
+          source_branch$branch,
+          if (identical(source_branch$branch, run_spec$source_branch_tag)) {
+            run_spec$source_cluster_column
+          } else {
+            NULL
+          }
+        )
       )
     )
   )
@@ -820,14 +1167,8 @@ stage_plan <- c(
         "--dataset-tag",
         "mg_selected"
       ),
-      c(
-        unname(mg_preprocess_paths),
-        file.path(
-          TABLE_DIR,
-          "mg_selected",
-          "mg_selected_cluster_selection.tsv"
-        )
-      )
+      mg_selection_expected_outputs,
+      validator = validate_mg_preprocess_outputs
     )
   )
 )
@@ -850,18 +1191,18 @@ for (filter_key in names(mg_preprocess_paths)) {
           "--input",
           mg_preprocess_paths[[filter_key]],
           "--elbow-n",
-          as.character(run_spec$chosen_dims),
+          as.character(run_spec$cluster_elbow_n),
           "--extra-dims",
           paste(run_spec$sensitivity_dims, collapse = ","),
           "--resolutions",
           paste(resolution_tag(run_spec$candidate_resolutions), collapse = ",")
         ),
-        cluster_path(mg_branch, run_spec$chosen_dims)
+        cluster_path(mg_branch, run_spec$cluster_elbow_n),
+        validator = make_mg_cluster_validator(mg_branch)
       )
     )
   )
 }
-
 stage_plan <- c(
   stage_plan,
   list(
@@ -871,13 +1212,9 @@ stage_plan <- c(
         "Rscript",
         "scripts/08-summarize-mg-clusters.R",
         "--elbow-n",
-        as.character(run_spec$chosen_dims)
+        as.character(run_spec$cluster_elbow_n)
       ),
-      file.path(
-        TABLE_DIR,
-        "mg_selected",
-        "mg_selected_cluster_grid_summary.tsv"
-      )
+      mg_summary_expected_outputs
     )
   )
 )
@@ -885,12 +1222,16 @@ stage_plan <- c(
 source_marker_paths <- heatmap_paths(
   run_spec$source_branch_tag,
   "marker",
-  file.path(FIGURE_DIR, "annotation")
+  file.path(FIGURE_DIR, "annotation"),
+  run_spec$source_chosen_dims,
+  run_spec$source_resolution
 )
 source_module_paths <- heatmap_paths(
   run_spec$source_branch_tag,
   "module",
-  file.path(FIGURE_DIR, "annotation")
+  file.path(FIGURE_DIR, "annotation"),
+  run_spec$source_chosen_dims,
+  run_spec$source_resolution
 )
 stage_plan <- c(
   stage_plan,
@@ -903,9 +1244,9 @@ stage_plan <- c(
         "--input",
         chosen_source_path,
         "--dims",
-        as.character(run_spec$chosen_dims),
+        as.character(run_spec$source_chosen_dims),
         "--resolution",
-        resolution_tag(run_spec$resolution),
+        resolution_tag(run_spec$source_resolution),
         "--layer",
         run_spec$expression_layer,
         "--out-dir",
@@ -925,7 +1266,9 @@ for (filter_key in names(mg_branch_paths)) {
   marker_paths <- heatmap_paths(
     mg_branch,
     "marker",
-    file.path(FIGURE_DIR, "annotation")
+    file.path(FIGURE_DIR, "annotation"),
+    run_spec$mg_chosen_dims,
+    run_spec$mg_resolution
   )
   stage_plan <- c(
     stage_plan,
@@ -941,9 +1284,9 @@ for (filter_key in names(mg_branch_paths)) {
           "--input",
           mg_branch_paths[[filter_key]],
           "--dims",
-          as.character(run_spec$chosen_dims),
+          as.character(run_spec$mg_chosen_dims),
           "--resolution",
-          resolution_tag(run_spec$resolution),
+          resolution_tag(run_spec$mg_resolution),
           "--layer",
           run_spec$expression_layer,
           "--out-dir",
@@ -966,9 +1309,9 @@ stage_plan <- c(
         "--input",
         chosen_source_path,
         "--dims",
-        as.character(run_spec$chosen_dims),
+        as.character(run_spec$source_chosen_dims),
         "--resolution",
-        resolution_tag(run_spec$resolution),
+        resolution_tag(run_spec$source_resolution),
         "--layer",
         run_spec$expression_layer,
         "--slot",
@@ -990,7 +1333,9 @@ for (filter_key in names(mg_branch_paths)) {
   module_paths <- heatmap_paths(
     mg_branch,
     "module",
-    file.path(FIGURE_DIR, "annotation")
+    file.path(FIGURE_DIR, "annotation"),
+    run_spec$mg_chosen_dims,
+    run_spec$mg_resolution
   )
   stage_plan <- c(
     stage_plan,
@@ -1006,9 +1351,9 @@ for (filter_key in names(mg_branch_paths)) {
           "--input",
           mg_branch_paths[[filter_key]],
           "--dims",
-          as.character(run_spec$chosen_dims),
+          as.character(run_spec$mg_chosen_dims),
           "--resolution",
-          resolution_tag(run_spec$resolution),
+          resolution_tag(run_spec$mg_resolution),
           "--layer",
           run_spec$expression_layer,
           "--slot",
@@ -1042,15 +1387,19 @@ for (filter_key in names(mg_branch_paths)) {
           "--branch-tag",
           mg_branch,
           "--elbow-n",
-          as.character(run_spec$chosen_dims),
+          as.character(run_spec$cluster_elbow_n),
           "--dims",
-          as.character(run_spec$chosen_dims),
+          as.character(run_spec$mg_chosen_dims),
           "--resolution",
-          resolution_tag(run_spec$resolution),
+          resolution_tag(run_spec$mg_resolution),
           "--layer",
           run_spec$expression_layer
         ),
-        mg_figure_paths(mg_branch)
+        mg_figure_paths(
+          mg_branch,
+          run_spec$mg_chosen_dims,
+          run_spec$mg_resolution
+        )
       )
     )
   )
@@ -1069,11 +1418,11 @@ stage_plan <- c(
         "--branch-tag",
         run_spec$mg_branch_tag,
         "--elbow-n",
-        as.character(run_spec$chosen_dims),
+        as.character(run_spec$cluster_elbow_n),
         "--dims",
-        as.character(run_spec$chosen_dims),
+        as.character(run_spec$mg_chosen_dims),
         "--resolution",
-        resolution_tag(run_spec$resolution),
+        resolution_tag(run_spec$mg_resolution),
         "--layer",
         run_spec$marker_layer,
         "--counts-layer",
@@ -1195,10 +1544,21 @@ source_execution_stage_names <- c(
   ),
   "summarize-source"
 )
+mg_execution_stage_names <- c(
+  "select-mg",
+  "cluster-mg-no-filter-cc",
+  "cluster-mg-filter-cc",
+  "summarize-mg"
+)
 execution_stage_names <- if (identical(run_spec$input_source, "counts-qc")) {
-  c("process-counts", "qc-filtering", source_execution_stage_names)
+  c(
+    "process-counts",
+    "qc-filtering",
+    source_execution_stage_names,
+    mg_execution_stage_names
+  )
 } else {
-  source_execution_stage_names
+  c(source_execution_stage_names, mg_execution_stage_names)
 }
 execution_stages <- stage_plan[
   match(execution_stage_names, vapply(stage_plan, `[[`, character(1), "name"))
@@ -1219,4 +1579,5 @@ if (identical(run_spec$input_source, "counts-qc")) {
   message("Counts/QC pipeline execution completed.")
 }
 message("Source pipeline execution completed.")
+message("MG clustering pipeline execution completed.")
 quit(status = 0L, save = "no")

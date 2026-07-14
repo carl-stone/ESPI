@@ -691,8 +691,8 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "mode: dry-run",
       paste0("input_source: ", input_source),
       paste0("overwrite: ", overwrite),
-      "source_cluster_column: cluster_pflog_no_filter_cc_dims20_res0.3",
-      "mg_cluster_column: cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
+      "source_cluster_column: cluster_pflog_no_filter_cc_dims30_res0.3",
+      "mg_cluster_column: cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5",
       "mg_pca_dims: 50",
       paste0("first_stage: ", stages[[1L]]),
       "final_stage: tripwires",
@@ -1067,7 +1067,8 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         "cluster/umap_resolution_sweep_pflog_filter_cc_dims50.pdf"
       )
     )
-    cluster_grid_options <- c(
+    cluster_execution_options <- c(
+      "'--elbow-n' '20'",
       "'--extra-dims' '30,50'",
       "'--resolutions' '0.3,0.5,0.8'"
     )
@@ -1091,7 +1092,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           )
         )
       }
-      for (expected_option in cluster_grid_options) {
+      for (expected_option in cluster_execution_options) {
         if (!command_has(command, expected_option)) {
           problems <- c(
             problems,
@@ -1172,23 +1173,250 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     }
 
     select_mg_command <- stage_records[["select-mg"]]$command
-    if (!command_has(select_mg_command, "'--dims' '50'")) {
+    select_mg_options <- c(
+      "'--cluster-column' 'cluster_pflog_no_filter_cc_dims30_res0.3'",
+      "'--dims' '50'"
+    )
+    for (expected_option in select_mg_options) {
+      if (!command_has(select_mg_command, expected_option)) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "select-mg",
+            paste0("command containing ", shQuote(expected_option)),
+            select_mg_command
+          )
+        )
+      }
+    }
+
+    stage_outputs_match <- function(record, expected_suffixes) {
+      actual_outputs <- stage_output_paths(record)
+      length(actual_outputs) == length(expected_suffixes) &&
+        all(vapply(
+          expected_suffixes,
+          function(suffix) {
+            sum(vapply(
+              actual_outputs,
+              path_has_suffix,
+              logical(1),
+              suffix = suffix
+            )) ==
+              1L
+          },
+          logical(1)
+        ))
+    }
+    select_mg_outputs <- c(
+      "seurat_objects/current/preprocess_pflog_mg_selected_no-filter-cc.rds",
+      "seurat_objects/current/preprocess_pflog_mg_selected_filter-cc.rds",
+      "tables/mg_selected/mg_selected_cluster_selection.tsv",
+      "figures/mg_selected/mg_selected_cluster_selection_diagnostics.png",
+      "figures/mg_selected/mg_selected_cluster_selection_diagnostics.pdf",
+      "figures/mg_selected/elbow_pflog_mg_selected_no_filter_cc.png",
+      "figures/mg_selected/elbow_pflog_mg_selected_no_filter_cc.pdf",
+      "figures/mg_selected/elbow_pflog_mg_selected_filter_cc.png",
+      "figures/mg_selected/elbow_pflog_mg_selected_filter_cc.pdf"
+    )
+    if (
+      !stage_outputs_match(
+        stage_records[["select-mg"]],
+        select_mg_outputs
+      )
+    ) {
       problems <- c(
         problems,
         stage_problem(
           invocation$label,
           "select-mg",
-          "command containing '--dims' '50'",
-          select_mg_command
+          paste(
+            "exactly the selection RDS, table, diagnostics, and elbow artifacts",
+            paste(select_mg_outputs, collapse = ", ")
+          ),
+          stage_records[["select-mg"]]$expects
         )
       )
     }
-    for (stage in c("cluster-mg-no-filter-cc", "cluster-mg-filter-cc")) {
+    figure_stage_contracts <- list(
+      "marker-heatmap-source" = list(
+        script = "scripts/06-plot-marker-heatmap.R",
+        options = c("'--dims' '30'", "'--resolution' '0.3'"),
+        outputs = file.path(
+          "figures",
+          "annotation",
+          paste0(
+            "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "marker-heatmap-mg-no-filter-cc" = list(
+        script = "scripts/06-plot-marker-heatmap.R",
+        options = c("'--dims' '20'", "'--resolution' '0.5'"),
+        outputs = file.path(
+          "figures",
+          "annotation",
+          paste0(
+            "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "marker-heatmap-mg-filter-cc" = list(
+        script = "scripts/06-plot-marker-heatmap.R",
+        options = c("'--dims' '20'", "'--resolution' '0.5'"),
+        outputs = file.path(
+          "figures",
+          "annotation",
+          paste0(
+            "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "module-heatmap-source" = list(
+        script = "scripts/10-plot-cluster-marker-heatmaps.R",
+        options = c("'--dims' '30'", "'--resolution' '0.3'"),
+        outputs = file.path(
+          "figures",
+          "annotation",
+          paste0(
+            "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "module-heatmap-mg-no-filter-cc" = list(
+        script = "scripts/10-plot-cluster-marker-heatmaps.R",
+        options = c("'--dims' '20'", "'--resolution' '0.5'"),
+        outputs = file.path(
+          "figures",
+          "annotation",
+          paste0(
+            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "module-heatmap-mg-filter-cc" = list(
+        script = "scripts/10-plot-cluster-marker-heatmaps.R",
+        options = c("'--dims' '20'", "'--resolution' '0.5'"),
+        outputs = file.path(
+          "figures",
+          "annotation",
+          paste0(
+            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "mg-figures-no-filter-cc" = list(
+        script = "scripts/09-plot-mg-figures.R",
+        options = c(
+          "'--elbow-n' '20'",
+          "'--dims' '20'",
+          "'--resolution' '0.5'"
+        ),
+        outputs = file.path(
+          "figures",
+          "mg_selected",
+          paste0(
+            "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "mg-figures-filter-cc" = list(
+        script = "scripts/09-plot-mg-figures.R",
+        options = c(
+          "'--elbow-n' '20'",
+          "'--dims' '20'",
+          "'--resolution' '0.5'"
+        ),
+        outputs = file.path(
+          "figures",
+          "mg_selected",
+          paste0(
+            "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+            c(".png", ".pdf")
+          )
+        )
+      ),
+      "mg-markers" = list(
+        script = "scripts/11-find-mg-markers.R",
+        options = c(
+          "'--elbow-n' '20'",
+          "'--dims' '20'",
+          "'--resolution' '0.5'"
+        ),
+        outputs = file.path(
+          c(
+            "tables/mg_selected",
+            "tables/mg_selected",
+            "tables/mg_selected",
+            "tables/mg_selected",
+            "figures/mg_selected",
+            "figures/mg_selected"
+          ),
+          c(
+            "find_all_markers_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+            "find_all_markers_top5_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+            "find_all_markers_summary_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+            "find_all_markers_identity_map_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+            "mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png",
+            "mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.pdf"
+          )
+        )
+      )
+    )
+    for (stage in names(figure_stage_contracts)) {
+      contract <- figure_stage_contracts[[stage]]
       command <- stage_records[[stage]]$command
-      for (expected_option in c(
-        "'--elbow-n' '20'",
-        cluster_grid_options
+      for (expected_token in c(
+        paste0("'", contract$script, "'"),
+        contract$options
       )) {
+        if (!command_has(command, expected_token)) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              stage,
+              paste0("command containing ", shQuote(expected_token)),
+              command
+            )
+          )
+        }
+      }
+      if (
+        !stage_outputs_match(
+          stage_records[[stage]],
+          contract$outputs
+        )
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            stage,
+            paste(
+              "exactly the chosen-dimension/resolution artifacts",
+              paste(contract$outputs, collapse = ", ")
+            ),
+            stage_records[[stage]]$expects
+          )
+        )
+      }
+    }
+
+    mg_cluster_outputs <- c(
+      "cluster-mg-no-filter-cc" = "seurat_objects/current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
+      "cluster-mg-filter-cc" = "seurat_objects/current/cluster_pflog_mg_selected_filter_cc_elbow20.rds"
+    )
+    for (stage in names(mg_cluster_outputs)) {
+      command <- stage_records[[stage]]$command
+      for (expected_option in cluster_execution_options) {
         if (!command_has(command, expected_option)) {
           problems <- c(
             problems,
@@ -1201,6 +1429,90 @@ tripwire_pipeline_dry_run_contract <- function(root) {
           )
         }
       }
+      if (
+        !stage_outputs_match(
+          stage_records[[stage]],
+          mg_cluster_outputs[[stage]]
+        )
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            stage,
+            paste0(
+              "exactly one clustered MG RDS under ",
+              current_object_suffix,
+              ": ",
+              sub("^seurat_objects/current/", "", mg_cluster_outputs[[stage]])
+            ),
+            stage_records[[stage]]$expects
+          )
+        )
+      }
+    }
+
+    summarize_mg_command <- stage_records[["summarize-mg"]]$command
+    if (
+      !command_has(
+        summarize_mg_command,
+        "'scripts/08-summarize-mg-clusters.R'"
+      ) ||
+        !command_has(summarize_mg_command, "'--elbow-n' '20'")
+    ) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "summarize-mg",
+          "scripts/08-summarize-mg-clusters.R command containing '--elbow-n' '20'",
+          summarize_mg_command
+        )
+      )
+    }
+    summarize_mg_outputs <- c(
+      "tables/mg_selected/mg_selected_cluster_grid_summary.tsv",
+      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_no_filter_cc_dims50.png",
+      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_no_filter_cc_dims50.pdf",
+      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_filter_cc_dims50.png",
+      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_filter_cc_dims50.pdf"
+    )
+    if (
+      !stage_outputs_match(
+        stage_records[["summarize-mg"]],
+        summarize_mg_outputs
+      )
+    ) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "summarize-mg",
+          paste(
+            "exactly the MG grid summary and no-filter/filter-CC dims50 sweeps",
+            paste(summarize_mg_outputs, collapse = ", ")
+          ),
+          stage_records[["summarize-mg"]]$expects
+        )
+      )
+    }
+
+    mg_de_command <- stage_records[["mg-de"]]$command
+    expected_mg_cluster_column_option <-
+      "'--cluster-column' 'cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5'"
+    if (!command_has(mg_de_command, expected_mg_cluster_column_option)) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "mg-de",
+          paste0(
+            "command containing ",
+            shQuote(expected_mg_cluster_column_option)
+          ),
+          mg_de_command
+        )
+      )
     }
 
     overwrite_stages <- names(stage_records)[vapply(
