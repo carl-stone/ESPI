@@ -1,16 +1,16 @@
 #!/usr/bin/env Rscript
 
-# Preview the analysis pipeline configuration without running any stages.
+# Print the deterministic analysis plan or perform its execution preflight.
 #
 # Usage:
 #   Rscript scripts/run-pipeline.R --dry-run \
 #     [--input-source counts-qc|legacy | --input <seurat.rds>] [--overwrite]
 #
 # Arguments:
-#   --dry-run       Print the pipeline contract without creating outputs.
+#   --dry-run       Print the pipeline contract without checking or writing inputs.
 #   --input-source  Use the named counts-qc or legacy source object.
 #   --input         Use an explicit Seurat RDS input path.
-#   --overwrite     Permit replacement of pipeline outputs when execution lands.
+#   --overwrite     Permit replacement of protected marker and DE outputs.
 
 suppressPackageStartupMessages({
   library(here)
@@ -92,64 +92,736 @@ run_spec <- list(
   filter_cell_cycle_hvgs = FALSE,
   chosen_dims = 20L,
   sensitivity_dims = c(30L, 50L),
+  candidate_resolutions = c(0.3, 0.5, 0.8),
   resolution = 0.3,
   mg_pca_dims = 50L,
+  expression_layer = "pflog",
+  marker_layer = "data",
+  module_score_layer = "data",
   counts_layer = "counts"
 )
 
-cell_cycle_tag <- if (isTRUE(run_spec$filter_cell_cycle_hvgs)) {
-  "filter_cc"
-} else {
-  "no_filter_cc"
+# ---- pipeline plan ----
+
+resolution_tag <- function(value) {
+  format(value, trim = TRUE, scientific = FALSE)
 }
-run_spec$source_branch_tag <- paste(
-  run_spec$normalization,
-  cell_cycle_tag,
-  sep = "_"
+
+cell_cycle_tag <- function(filtered) {
+  if (isTRUE(filtered)) "filter_cc" else "no_filter_cc"
+}
+
+preprocess_path <- function(normalization, filtered) {
+  file.path(
+    CURRENT_OBJECT_DIR,
+    sprintf(
+      "preprocess_%s_%s.rds",
+      normalization,
+      if (isTRUE(filtered)) "filter-cc" else "no-filter-cc"
+    )
+  )
+}
+
+branch_tag <- function(normalization, filtered, dataset_tag = NULL) {
+  paste(
+    c(normalization, dataset_tag, cell_cycle_tag(filtered)),
+    collapse = "_"
+  )
+}
+
+cluster_path <- function(branch, elbow_n) {
+  file.path(
+    CURRENT_OBJECT_DIR,
+    sprintf("cluster_%s_elbow%d.rds", branch, elbow_n)
+  )
+}
+
+heatmap_paths <- function(branch, type, output_dir) {
+  output_tag <- switch(
+    type,
+    marker = sprintf(
+      "cell_type_marker_heatmap_%s_%s_cells_dims%d_res%s",
+      run_spec$expression_layer,
+      branch,
+      run_spec$chosen_dims,
+      resolution_tag(run_spec$resolution)
+    ),
+    module = sprintf(
+      "cell_type_module_p27_heatmap_%s_%s_dims%d_res%s",
+      run_spec$expression_layer,
+      branch,
+      run_spec$chosen_dims,
+      resolution_tag(run_spec$resolution)
+    )
+  )
+  file.path(output_dir, paste0(output_tag, c(".png", ".pdf")))
+}
+
+mg_figure_paths <- function(branch) {
+  output_tag <- sprintf(
+    "mg_selected_cluster_umap_%s_dims%d_res%s",
+    branch,
+    run_spec$chosen_dims,
+    resolution_tag(run_spec$resolution)
+  )
+  file.path(FIGURE_DIR, "mg_selected", paste0(output_tag, c(".png", ".pdf")))
+}
+
+shell_quote <- function(argument) {
+  paste0(
+    "'",
+    gsub("'", "'\"'\"'", as.character(argument), fixed = TRUE),
+    "'"
+  )
+}
+
+render_command <- function(command) {
+  paste(vapply(command, shell_quote, character(1)), collapse = " ")
+}
+
+new_stage <- function(name, command, expects, protected_outputs = character()) {
+  list(
+    name = name,
+    command = command,
+    expects = expects,
+    protected_outputs = protected_outputs
+  )
+}
+
+source_branches <- data.frame(
+  normalization = c("log1p", "log1p", "pflog", "pflog"),
+  filtered = c(FALSE, TRUE, FALSE, TRUE),
+  stringsAsFactors = FALSE
 )
-run_spec$mg_branch_tag <- paste(
-  run_spec$normalization,
-  "mg_selected",
-  cell_cycle_tag,
-  sep = "_"
+source_branches$branch <- vapply(
+  seq_len(nrow(source_branches)),
+  function(index) {
+    branch_tag(
+      source_branches$normalization[[index]],
+      source_branches$filtered[[index]]
+    )
+  },
+  character(1)
 )
-run_spec$source_cluster_column <- paste0(
-  "cluster_",
+source_branches$preprocess_path <- vapply(
+  seq_len(nrow(source_branches)),
+  function(index) {
+    preprocess_path(
+      source_branches$normalization[[index]],
+      source_branches$filtered[[index]]
+    )
+  },
+  character(1)
+)
+
+run_spec$source_branch_tag <- branch_tag(
+  run_spec$normalization,
+  run_spec$filter_cell_cycle_hvgs
+)
+run_spec$mg_branch_tag <- branch_tag(
+  run_spec$normalization,
+  run_spec$filter_cell_cycle_hvgs,
+  dataset_tag = "mg_selected"
+)
+run_spec$source_cluster_column <- sprintf(
+  "cluster_%s_dims%d_res%s",
   run_spec$source_branch_tag,
-  "_dims",
   run_spec$chosen_dims,
-  "_res",
-  run_spec$resolution
+  resolution_tag(run_spec$resolution)
 )
-run_spec$mg_cluster_column <- paste0(
-  "cluster_",
+run_spec$mg_cluster_column <- sprintf(
+  "cluster_%s_dims%d_res%s",
   run_spec$mg_branch_tag,
-  "_dims",
   run_spec$chosen_dims,
-  "_res",
-  run_spec$resolution
+  resolution_tag(run_spec$resolution)
+)
+
+chosen_source_path <- cluster_path(
+  run_spec$source_branch_tag,
+  run_spec$chosen_dims
+)
+mg_preprocess_paths <- c(
+  no_filter_cc = file.path(
+    CURRENT_OBJECT_DIR,
+    sprintf(
+      "preprocess_%s_mg_selected_no-filter-cc.rds",
+      run_spec$normalization
+    )
+  ),
+  filter_cc = file.path(
+    CURRENT_OBJECT_DIR,
+    sprintf(
+      "preprocess_%s_mg_selected_filter-cc.rds",
+      run_spec$normalization
+    )
+  )
+)
+mg_branch_paths <- setNames(
+  vapply(
+    c(FALSE, TRUE),
+    function(filtered) {
+      cluster_path(
+        branch_tag(
+          run_spec$normalization,
+          filtered,
+          dataset_tag = "mg_selected"
+        ),
+        run_spec$chosen_dims
+      )
+    },
+    character(1)
+  ),
+  c("no_filter_cc", "filter_cc")
+)
+
+marker_table_dir <- file.path(TABLE_DIR, "mg_selected")
+marker_figure_dir <- file.path(FIGURE_DIR, "mg_selected")
+marker_tag <- sprintf(
+  "data_%s_dims%d_res%s",
+  run_spec$mg_branch_tag,
+  run_spec$chosen_dims,
+  resolution_tag(run_spec$resolution)
+)
+marker_protected_outputs <- c(
+  file.path(marker_table_dir, paste0("find_all_markers_", marker_tag, ".csv")),
+  file.path(
+    marker_table_dir,
+    sprintf(
+      "find_all_markers_top5_%s.csv",
+      marker_tag
+    )
+  ),
+  file.path(
+    marker_table_dir,
+    paste0("find_all_markers_summary_", marker_tag, ".csv")
+  ),
+  file.path(
+    marker_table_dir,
+    sprintf(
+      "find_all_markers_identity_map_%s_dims%d_res%s.csv",
+      run_spec$mg_branch_tag,
+      run_spec$chosen_dims,
+      resolution_tag(run_spec$resolution)
+    )
+  ),
+  file.path(
+    marker_figure_dir,
+    sprintf("mg_selected_cluster_marker_dotplot_%s_top5.png", marker_tag)
+  ),
+  file.path(
+    marker_figure_dir,
+    sprintf("mg_selected_cluster_marker_dotplot_%s_top5.pdf", marker_tag)
+  )
+)
+
+de_output_dir <- file.path(DEG_DIR, "mg_selected")
+enrichment_output_dir <- file.path(ENRICHMENT_DIR, "mg_selected")
+de_figure_dir <- file.path(FIGURE_DIR, "mg_selected")
+de_protected_outputs <- c(
+  file.path(
+    de_output_dir,
+    c(
+      "pseudobulk_sample_summary.tsv",
+      "design_summary.tsv",
+      "deseq2_full_results.tsv",
+      "deseq2_significant_degs.tsv",
+      "deseq2_marker_overlap.tsv",
+      "detection_full_results.tsv",
+      "detection_marker_overlap.tsv",
+      "deseq2_paired_sensitivity_full_results.tsv",
+      "deseq2_paired_sensitivity_significant_degs.tsv",
+      "deseq2_paired_sensitivity_marker_overlap.tsv",
+      "detection_paired_sensitivity_full_results.tsv",
+      "detection_paired_sensitivity_marker_overlap.tsv",
+      "numbers.json"
+    )
+  ),
+  file.path(
+    enrichment_output_dir,
+    c(
+      "go_bp_ora_up.tsv",
+      "go_bp_ora_down.tsv",
+      "go_bp_gsea.tsv",
+      "go_bp_gsea_symbol_entrez_mapping.tsv"
+    )
+  ),
+  file.path(
+    de_figure_dir,
+    c(
+      "mg_selected_de_dd_effect_scatter.png",
+      "mg_selected_de_dd_effect_scatter.pdf"
+    )
+  ),
+  file.path(
+    here::here("notebook", "figures"),
+    "mg_selected_de_dd_effect_scatter.png"
+  )
+)
+
+source_input_command <- if (identical(run_spec$input_source, "explicit")) {
+  c("--input", run_spec$input_path)
+} else {
+  c("--input-source", run_spec$input_source)
+}
+overwrite_argument <- if (isTRUE(run_spec$overwrite)) {
+  "--overwrite"
+} else {
+  character()
+}
+
+stage_plan <- list()
+if (identical(run_spec$input_source, "counts-qc")) {
+  raw_counts_dir <- file.path(DATA_ROOT_DIR, "data", "input", "Raw Matrices")
+  stage_plan <- c(
+    stage_plan,
+    list(
+      new_stage(
+        "process-counts",
+        c("Rscript", "scripts/01-process-counts.R"),
+        file.path(INPUT_OBJECT_DIR, "sobj_raw.rds")
+      ),
+      new_stage(
+        "qc-filtering",
+        c("Rscript", "scripts/02-qc-filtering.R"),
+        file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds")
+      )
+    )
+  )
+}
+
+stage_plan <- c(
+  stage_plan,
+  list(
+    new_stage(
+      "preprocess-source",
+      c(
+        "Rscript",
+        "scripts/03-preprocess-all.R",
+        source_input_command
+      ),
+      unname(source_branches$preprocess_path)
+    )
+  )
+)
+
+for (index in seq_len(nrow(source_branches))) {
+  source_branch <- source_branches[index, ]
+  stage_plan <- c(
+    stage_plan,
+    list(
+      new_stage(
+        sprintf(
+          "cluster-source-%s-%s",
+          source_branch$normalization,
+          if (source_branch$filtered) "filter-cc" else "no-filter-cc"
+        ),
+        c(
+          "Rscript",
+          "scripts/04-cluster.R",
+          "--input",
+          source_branch$preprocess_path,
+          "--elbow-n",
+          as.character(run_spec$chosen_dims),
+          "--extra-dims",
+          paste(run_spec$sensitivity_dims, collapse = ","),
+          "--resolutions",
+          paste(resolution_tag(run_spec$candidate_resolutions), collapse = ",")
+        ),
+        cluster_path(source_branch$branch, run_spec$chosen_dims)
+      )
+    )
+  )
+}
+
+stage_plan <- c(
+  stage_plan,
+  list(
+    new_stage(
+      "summarize-source",
+      c("Rscript", "scripts/05-summarize-clusters.R"),
+      file.path(TABLE_DIR, "cluster", "cluster_grid_summary.tsv")
+    ),
+    new_stage(
+      "select-mg",
+      c(
+        "Rscript",
+        "scripts/07-select-mg-subset.R",
+        "--input",
+        chosen_source_path,
+        "--cluster-column",
+        run_spec$source_cluster_column,
+        "--dims",
+        as.character(run_spec$mg_pca_dims),
+        "--score-layer",
+        run_spec$module_score_layer,
+        "--dataset-tag",
+        "mg_selected"
+      ),
+      c(
+        unname(mg_preprocess_paths),
+        file.path(
+          TABLE_DIR,
+          "mg_selected",
+          "mg_selected_cluster_selection.tsv"
+        )
+      )
+    )
+  )
+)
+
+for (filter_key in names(mg_preprocess_paths)) {
+  filtered <- identical(filter_key, "filter_cc")
+  mg_branch <- branch_tag(
+    run_spec$normalization,
+    filtered,
+    dataset_tag = "mg_selected"
+  )
+  stage_plan <- c(
+    stage_plan,
+    list(
+      new_stage(
+        paste0("cluster-mg-", if (filtered) "filter-cc" else "no-filter-cc"),
+        c(
+          "Rscript",
+          "scripts/04-cluster.R",
+          "--input",
+          mg_preprocess_paths[[filter_key]],
+          "--elbow-n",
+          as.character(run_spec$chosen_dims),
+          "--extra-dims",
+          paste(run_spec$sensitivity_dims, collapse = ","),
+          "--resolutions",
+          paste(resolution_tag(run_spec$candidate_resolutions), collapse = ",")
+        ),
+        cluster_path(mg_branch, run_spec$chosen_dims)
+      )
+    )
+  )
+}
+
+stage_plan <- c(
+  stage_plan,
+  list(
+    new_stage(
+      "summarize-mg",
+      c(
+        "Rscript",
+        "scripts/08-summarize-mg-clusters.R",
+        "--elbow-n",
+        as.character(run_spec$chosen_dims)
+      ),
+      file.path(
+        TABLE_DIR,
+        "mg_selected",
+        "mg_selected_cluster_grid_summary.tsv"
+      )
+    )
+  )
+)
+
+source_marker_paths <- heatmap_paths(
+  run_spec$source_branch_tag,
+  "marker",
+  file.path(FIGURE_DIR, "annotation")
+)
+source_module_paths <- heatmap_paths(
+  run_spec$source_branch_tag,
+  "module",
+  file.path(FIGURE_DIR, "annotation")
+)
+stage_plan <- c(
+  stage_plan,
+  list(
+    new_stage(
+      "marker-heatmap-source",
+      c(
+        "Rscript",
+        "scripts/06-plot-marker-heatmap.R",
+        "--input",
+        chosen_source_path,
+        "--dims",
+        as.character(run_spec$chosen_dims),
+        "--resolution",
+        resolution_tag(run_spec$resolution),
+        "--layer",
+        run_spec$expression_layer,
+        "--out-dir",
+        file.path(FIGURE_DIR, "annotation")
+      ),
+      source_marker_paths
+    )
+  )
+)
+for (filter_key in names(mg_branch_paths)) {
+  filtered <- identical(filter_key, "filter_cc")
+  mg_branch <- branch_tag(
+    run_spec$normalization,
+    filtered,
+    dataset_tag = "mg_selected"
+  )
+  marker_paths <- heatmap_paths(
+    mg_branch,
+    "marker",
+    file.path(FIGURE_DIR, "annotation")
+  )
+  stage_plan <- c(
+    stage_plan,
+    list(
+      new_stage(
+        paste0(
+          "marker-heatmap-mg-",
+          if (filtered) "filter-cc" else "no-filter-cc"
+        ),
+        c(
+          "Rscript",
+          "scripts/06-plot-marker-heatmap.R",
+          "--input",
+          mg_branch_paths[[filter_key]],
+          "--dims",
+          as.character(run_spec$chosen_dims),
+          "--resolution",
+          resolution_tag(run_spec$resolution),
+          "--layer",
+          run_spec$expression_layer,
+          "--out-dir",
+          file.path(FIGURE_DIR, "annotation")
+        ),
+        marker_paths
+      )
+    )
+  )
+}
+
+stage_plan <- c(
+  stage_plan,
+  list(
+    new_stage(
+      "module-heatmap-source",
+      c(
+        "Rscript",
+        "scripts/10-plot-cluster-marker-heatmaps.R",
+        "--input",
+        chosen_source_path,
+        "--dims",
+        as.character(run_spec$chosen_dims),
+        "--resolution",
+        resolution_tag(run_spec$resolution),
+        "--layer",
+        run_spec$expression_layer,
+        "--slot",
+        run_spec$module_score_layer,
+        "--out-dir",
+        file.path(FIGURE_DIR, "annotation")
+      ),
+      source_module_paths
+    )
+  )
+)
+for (filter_key in names(mg_branch_paths)) {
+  filtered <- identical(filter_key, "filter_cc")
+  mg_branch <- branch_tag(
+    run_spec$normalization,
+    filtered,
+    dataset_tag = "mg_selected"
+  )
+  module_paths <- heatmap_paths(
+    mg_branch,
+    "module",
+    file.path(FIGURE_DIR, "annotation")
+  )
+  stage_plan <- c(
+    stage_plan,
+    list(
+      new_stage(
+        paste0(
+          "module-heatmap-mg-",
+          if (filtered) "filter-cc" else "no-filter-cc"
+        ),
+        c(
+          "Rscript",
+          "scripts/10-plot-cluster-marker-heatmaps.R",
+          "--input",
+          mg_branch_paths[[filter_key]],
+          "--dims",
+          as.character(run_spec$chosen_dims),
+          "--resolution",
+          resolution_tag(run_spec$resolution),
+          "--layer",
+          run_spec$expression_layer,
+          "--slot",
+          run_spec$module_score_layer,
+          "--out-dir",
+          file.path(FIGURE_DIR, "annotation")
+        ),
+        module_paths
+      )
+    )
+  )
+}
+
+for (filter_key in names(mg_branch_paths)) {
+  filtered <- identical(filter_key, "filter_cc")
+  mg_branch <- branch_tag(
+    run_spec$normalization,
+    filtered,
+    dataset_tag = "mg_selected"
+  )
+  stage_plan <- c(
+    stage_plan,
+    list(
+      new_stage(
+        paste0("mg-figures-", if (filtered) "filter-cc" else "no-filter-cc"),
+        c(
+          "Rscript",
+          "scripts/09-plot-mg-figures.R",
+          "--input",
+          mg_branch_paths[[filter_key]],
+          "--branch-tag",
+          mg_branch,
+          "--elbow-n",
+          as.character(run_spec$chosen_dims),
+          "--dims",
+          as.character(run_spec$chosen_dims),
+          "--resolution",
+          resolution_tag(run_spec$resolution),
+          "--layer",
+          run_spec$expression_layer
+        ),
+        mg_figure_paths(mg_branch)
+      )
+    )
+  )
+}
+
+stage_plan <- c(
+  stage_plan,
+  list(
+    new_stage(
+      "mg-markers",
+      c(
+        "Rscript",
+        "scripts/11-find-mg-markers.R",
+        "--input",
+        mg_branch_paths[["no_filter_cc"]],
+        "--branch-tag",
+        run_spec$mg_branch_tag,
+        "--elbow-n",
+        as.character(run_spec$chosen_dims),
+        "--dims",
+        as.character(run_spec$chosen_dims),
+        "--resolution",
+        resolution_tag(run_spec$resolution),
+        "--layer",
+        run_spec$marker_layer,
+        "--counts-layer",
+        run_spec$counts_layer,
+        "--confirm-no-merge",
+        overwrite_argument
+      ),
+      marker_protected_outputs,
+      protected_outputs = marker_protected_outputs
+    ),
+    new_stage(
+      "mg-de",
+      c(
+        "Rscript",
+        "scripts/12-run-mg-de.R",
+        "--input",
+        mg_branch_paths[["no_filter_cc"]],
+        "--cluster-column",
+        run_spec$mg_cluster_column,
+        "--counts-layer",
+        run_spec$counts_layer,
+        "--lfc-shrink-type",
+        "normal",
+        overwrite_argument
+      ),
+      de_protected_outputs,
+      protected_outputs = de_protected_outputs
+    ),
+    new_stage(
+      "render-notebook",
+      c("quarto", "render", "notebook/sc_analysis.qmd"),
+      here::here("notebook", "sc_analysis.html")
+    ),
+    new_stage(
+      "tripwires",
+      c("Rscript", "tools/run-tripwires.R"),
+      here::here("tools", "run-tripwires.R")
+    )
+  )
 )
 
 # ---- validation ----
 
-if (!dry_run) {
-  stop(
-    "Only --dry-run is supported; refusing to execute the pipeline.",
-    call. = FALSE
+preflight_source_inputs <- function() {
+  required_paths <- if (identical(run_spec$input_source, "counts-qc")) {
+    raw_counts_dir <- file.path(DATA_ROOT_DIR, "data", "input", "Raw Matrices")
+    c(raw_counts_dir, file.path(raw_counts_dir, "Sample_Metadata_MS1.txt"))
+  } else {
+    run_spec$input_path
+  }
+  exists <- if (identical(run_spec$input_source, "counts-qc")) {
+    c(
+      dir.exists(required_paths[[1]]),
+      file.exists(required_paths[[2]])
+    )
+  } else {
+    file.exists(required_paths)
+  }
+  missing_paths <- required_paths[!exists]
+  if (length(missing_paths) > 0L) {
+    stop(
+      "Pipeline input(s) do not exist: ",
+      paste(missing_paths, collapse = "; "),
+      call. = FALSE
+    )
+  }
+}
+
+preflight_protected_outputs <- function(stages) {
+  protected_paths <- unlist(
+    lapply(stages, `[[`, "protected_outputs"),
+    use.names = FALSE
   )
+  existing_paths <- protected_paths[
+    file.exists(protected_paths) | nzchar(Sys.readlink(protected_paths))
+  ]
+  if (length(existing_paths) > 0L && !isTRUE(run_spec$overwrite)) {
+    stop(
+      "Protected pipeline output(s) already exist; use --overwrite to replace: ",
+      paste(existing_paths, collapse = "; "),
+      call. = FALSE
+    )
+  }
 }
 
 # ---- dry run ----
 
-contract_lines <- c(
-  "mode: dry-run",
-  paste0("input_source: ", run_spec$input_source),
-  paste0("overwrite: ", tolower(as.character(run_spec$overwrite))),
-  paste0("source_cluster_column: ", run_spec$source_cluster_column),
-  paste0("mg_cluster_column: ", run_spec$mg_cluster_column),
-  paste0("mg_pca_dims: ", run_spec$mg_pca_dims),
-  "first_stage: process-counts",
-  "final_stage: tripwires"
-)
+if (dry_run) {
+  contract_lines <- c(
+    "mode: dry-run",
+    paste0("input_source: ", run_spec$input_source),
+    paste0("overwrite: ", tolower(as.character(run_spec$overwrite))),
+    paste0("source_cluster_column: ", run_spec$source_cluster_column),
+    paste0("mg_cluster_column: ", run_spec$mg_cluster_column),
+    paste0("mg_pca_dims: ", run_spec$mg_pca_dims),
+    paste0("first_stage: ", stage_plan[[1]]$name),
+    "final_stage: tripwires",
+    paste0("stage_count: ", length(stage_plan))
+  )
+  base::cat(contract_lines, sep = "\n")
+  for (stage in stage_plan) {
+    base::cat(
+      paste0("stage: ", stage$name),
+      paste0("command: ", render_command(stage$command)),
+      paste0("expects: ", paste(stage$expects, collapse = ";")),
+      sep = "\n"
+    )
+  }
+  quit(status = 0L, save = "no")
+}
 
-base::cat(contract_lines, sep = "\n")
+preflight_source_inputs()
+preflight_protected_outputs(stage_plan)
+stop("Pipeline execution is not implemented.", call. = FALSE)

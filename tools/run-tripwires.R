@@ -642,9 +642,7 @@ tripwire_cli_value_boundaries <- function(root) {
 }
 
 tripwire_pipeline_dry_run_contract <- function(root) {
-  # Public boundary: dry-run is the safe, line-oriented entry point for the
-  # pipeline plan. It must select the current clustering settings without
-  # starting an analysis stage.
+  # Public boundary: dry-run exposes a complete, safe, line-oriented plan.
   slug <- "pipeline-dry-run-contract"
   rscript <- Sys.which("Rscript")
   if (identical(unname(rscript), "")) {
@@ -659,7 +657,36 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     return(fail(slug, "scripts/run-pipeline.R is missing."))
   }
 
-  make_contract <- function(input_source = "counts-qc", overwrite = "false") {
+  counts_qc_stages <- c(
+    "process-counts",
+    "qc-filtering",
+    "preprocess-source",
+    "cluster-source-log1p-no-filter-cc",
+    "cluster-source-log1p-filter-cc",
+    "cluster-source-pflog-no-filter-cc",
+    "cluster-source-pflog-filter-cc",
+    "summarize-source",
+    "select-mg",
+    "cluster-mg-no-filter-cc",
+    "cluster-mg-filter-cc",
+    "summarize-mg",
+    "marker-heatmap-source",
+    "marker-heatmap-mg-no-filter-cc",
+    "marker-heatmap-mg-filter-cc",
+    "module-heatmap-source",
+    "module-heatmap-mg-no-filter-cc",
+    "module-heatmap-mg-filter-cc",
+    "mg-figures-no-filter-cc",
+    "mg-figures-filter-cc",
+    "mg-markers",
+    "mg-de",
+    "render-notebook",
+    "tripwires"
+  )
+  existing_source_stages <- counts_qc_stages[-c(1L, 2L)]
+  explicit_input <- file.path(root, "data", "explicit-input.seurat.rds")
+
+  make_header <- function(input_source, overwrite, stages) {
     c(
       "mode: dry-run",
       paste0("input_source: ", input_source),
@@ -667,31 +694,39 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "source_cluster_column: cluster_pflog_no_filter_cc_dims20_res0.3",
       "mg_cluster_column: cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
       "mg_pca_dims: 50",
-      "first_stage: process-counts",
-      "final_stage: tripwires"
+      paste0("first_stage: ", stages[[1L]]),
+      "final_stage: tripwires",
+      paste0("stage_count: ", length(stages))
     )
   }
-  explicit_input <- file.path(root, "data", "explicit-input.seurat.rds")
   successful_invocations <- list(
     list(
-      label = "default (--dry-run)",
+      label = "counts-qc",
       args = c("--dry-run"),
-      expected = make_contract()
+      input_source = "counts-qc",
+      overwrite = FALSE,
+      stages = counts_qc_stages
     ),
     list(
-      label = "legacy (--dry-run --input-source legacy)",
+      label = "legacy",
       args = c("--dry-run", "--input-source", "legacy"),
-      expected = make_contract(input_source = "legacy")
+      input_source = "legacy",
+      overwrite = FALSE,
+      stages = existing_source_stages
     ),
     list(
-      label = "explicit input (--dry-run --input <seurat.rds>)",
+      label = "explicit",
       args = c("--dry-run", "--input", shQuote(explicit_input)),
-      expected = make_contract(input_source = "explicit")
+      input_source = "explicit",
+      overwrite = FALSE,
+      stages = existing_source_stages
     ),
     list(
-      label = "overwrite (--dry-run --overwrite)",
+      label = "counts-qc overwrite",
       args = c("--dry-run", "--overwrite"),
-      expected = make_contract(overwrite = "true")
+      input_source = "counts-qc",
+      overwrite = TRUE,
+      stages = counts_qc_stages
     )
   )
   failed_invocations <- list(
@@ -746,6 +781,23 @@ tripwire_pipeline_dry_run_contract <- function(root) {
   format_output <- function(output) {
     paste(shQuote(output), collapse = ", ")
   }
+  output_at <- function(output, position) {
+    if (position > length(output)) NA_character_ else output[[position]]
+  }
+  command_has <- function(command, value) {
+    !is.na(command) && grepl(value, command, fixed = TRUE)
+  }
+  stage_problem <- function(variant, stage, expected, actual) {
+    paste0(
+      variant,
+      ": stage ",
+      stage,
+      ": expected ",
+      expected,
+      "; got ",
+      shQuote(actual)
+    )
+  }
 
   problems <- character()
   for (invocation in successful_invocations) {
@@ -760,31 +812,259 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         )
       )
     }
-    if (!identical(result$output, invocation$expected)) {
+
+    header <- make_header(
+      invocation$input_source,
+      tolower(as.character(invocation$overwrite)),
+      invocation$stages
+    )
+    if (
+      length(result$output) < length(header) ||
+        !identical(result$output[seq_along(header)], header)
+    ) {
       problems <- c(
         problems,
         paste0(
           invocation$label,
-          ": output mismatch; expected ",
-          format_output(invocation$expected),
+          ": header mismatch; expected ",
+          format_output(header),
           "; got ",
-          format_output(result$output)
+          format_output(utils::head(result$output, length(header)))
         )
       )
     }
 
-    historical_columns <- result$output[grepl(
-      "^(source_cluster_column|mg_cluster_column): .*dims(30|50)",
-      result$output,
-      perl = TRUE
-    )]
-    if (length(historical_columns) > 0L) {
+    expected_line_count <- length(header) + 3L * length(invocation$stages)
+    if (!identical(length(result$output), expected_line_count)) {
       problems <- c(
         problems,
         paste0(
           invocation$label,
-          ": selected historical dims30/dims50 cluster columns: ",
-          format_output(historical_columns)
+          ": expected ",
+          expected_line_count,
+          " contract lines for ",
+          length(invocation$stages),
+          " stages; got ",
+          length(result$output)
+        )
+      )
+    }
+
+    stage_records <- vector("list", length(invocation$stages))
+    names(stage_records) <- invocation$stages
+    observed_stages <- character(length(invocation$stages))
+    for (stage_index in seq_along(invocation$stages)) {
+      stage <- invocation$stages[[stage_index]]
+      record_start <- length(header) + (stage_index - 1L) * 3L + 1L
+      actual_stage <- output_at(result$output, record_start)
+      observed_stages[[stage_index]] <- sub("^stage: ", "", actual_stage)
+      expected_stage <- paste0("stage: ", stage)
+      if (!identical(actual_stage, expected_stage)) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            stage,
+            paste0("stage line ", shQuote(expected_stage)),
+            actual_stage
+          )
+        )
+      }
+
+      command <- output_at(result$output, record_start + 1L)
+      if (
+        is.na(command) ||
+          !grepl("^command: ('[^']*')( ('[^']*'))*$", command, perl = TRUE)
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            stage,
+            "one shell-quoted command line",
+            command
+          )
+        )
+      }
+
+      expects <- output_at(result$output, record_start + 2L)
+      if (
+        is.na(expects) ||
+          !grepl("^expects: [^;[:space:]]+(;[^;[:space:]]+)*$", expects)
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            stage,
+            "one-or-more semicolon-separated expected output paths",
+            expects
+          )
+        )
+      }
+      stage_records[[stage]] <- list(command = command, expects = expects)
+    }
+
+    preprocess_command <- stage_records[["preprocess-source"]]$command
+    expected_source_option <- if (
+      identical(invocation$input_source, "explicit")
+    ) {
+      paste0("'--input' ", shQuote(explicit_input))
+    } else {
+      paste0("'--input-source' '", invocation$input_source, "'")
+    }
+    if (
+      !command_has(preprocess_command, "'scripts/03-preprocess-all.R'") ||
+        !command_has(preprocess_command, expected_source_option)
+    ) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "preprocess-source",
+          paste0(
+            "scripts/03-preprocess-all.R command containing ",
+            shQuote(expected_source_option)
+          ),
+          preprocess_command
+        )
+      )
+    }
+
+    source_clusters <- c(
+      "cluster-source-log1p-no-filter-cc" = "preprocess_log1p_no-filter-cc.rds",
+      "cluster-source-log1p-filter-cc" = "preprocess_log1p_filter-cc.rds",
+      "cluster-source-pflog-no-filter-cc" = "preprocess_pflog_no-filter-cc.rds",
+      "cluster-source-pflog-filter-cc" = "preprocess_pflog_filter-cc.rds"
+    )
+    preprocess_expects <- stage_records[["preprocess-source"]]$expects
+    preprocess_outputs <- if (is.na(preprocess_expects)) {
+      character()
+    } else {
+      strsplit(sub("^expects: ", "", preprocess_expects), ";", fixed = TRUE)[[
+        1L
+      ]]
+    }
+    if (!identical(basename(preprocess_outputs), unname(source_clusters))) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "preprocess-source",
+          paste(
+            "exactly the four source preprocess outputs",
+            paste(unname(source_clusters), collapse = ", ")
+          ),
+          preprocess_expects
+        )
+      )
+    }
+    cluster_grid_options <- c(
+      "'--extra-dims' '30,50'",
+      "'--resolutions' '0.3,0.5,0.8'"
+    )
+    for (stage in names(source_clusters)) {
+      command <- stage_records[[stage]]$command
+      expected_input <- source_clusters[[stage]]
+      if (
+        !command_has(command, "'scripts/04-cluster.R'") ||
+          !command_has(command, expected_input)
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            stage,
+            paste0(
+              "scripts/04-cluster.R command for ",
+              shQuote(expected_input)
+            ),
+            command
+          )
+        )
+      }
+      for (expected_option in cluster_grid_options) {
+        if (!command_has(command, expected_option)) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              stage,
+              paste0("command containing ", shQuote(expected_option)),
+              command
+            )
+          )
+        }
+      }
+    }
+
+    select_mg_command <- stage_records[["select-mg"]]$command
+    if (!command_has(select_mg_command, "'--dims' '50'")) {
+      problems <- c(
+        problems,
+        stage_problem(
+          invocation$label,
+          "select-mg",
+          "command containing '--dims' '50'",
+          select_mg_command
+        )
+      )
+    }
+    for (stage in c("cluster-mg-no-filter-cc", "cluster-mg-filter-cc")) {
+      command <- stage_records[[stage]]$command
+      for (expected_option in c(
+        "'--elbow-n' '20'",
+        cluster_grid_options
+      )) {
+        if (!command_has(command, expected_option)) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              stage,
+              paste0("command containing ", shQuote(expected_option)),
+              command
+            )
+          )
+        }
+      }
+    }
+
+    overwrite_stages <- names(stage_records)[vapply(
+      stage_records,
+      function(record) command_has(record$command, "'--overwrite'"),
+      logical(1)
+    )]
+    expected_overwrite_stages <- if (isTRUE(invocation$overwrite)) {
+      c("mg-markers", "mg-de")
+    } else {
+      character()
+    }
+    if (!identical(overwrite_stages, expected_overwrite_stages)) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": --overwrite stage mismatch; expected ",
+          paste(expected_overwrite_stages, collapse = ", "),
+          "; got ",
+          paste(overwrite_stages, collapse = ", ")
+        )
+      )
+    }
+
+    if (
+      !identical(
+        tail(observed_stages, 2L),
+        c("render-notebook", "tripwires")
+      )
+    ) {
+      problems <- c(
+        problems,
+        paste0(
+          invocation$label,
+          ": terminal stage order mismatch; expected render-notebook then tripwires; got ",
+          paste(tail(observed_stages, 2L), collapse = ", ")
         )
       )
     }
@@ -815,12 +1095,57 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     }
   }
 
+  missing_input <- tempfile(
+    pattern = "espi-tripwire-missing-explicit-input-",
+    tmpdir = tempdir(),
+    fileext = ".rds"
+  )
+  missing_input_expected <- paste0(
+    "Pipeline input(s) do not exist: ",
+    missing_input
+  )
+  missing_input_result <- run_pipeline(c("--input", missing_input))
+  if (identical(missing_input_result$status, 0L)) {
+    problems <- c(
+      problems,
+      "missing explicit input preflight: expected a nonzero exit status, got 0"
+    )
+  }
+  if (
+    !identical(
+      missing_input_result$output,
+      c(paste0("Error: ", missing_input_expected), "Execution halted")
+    )
+  ) {
+    problems <- c(
+      problems,
+      paste0(
+        "missing explicit input preflight: diagnostic mismatch; expected ",
+        format_output(c(
+          paste0("Error: ", missing_input_expected),
+          "Execution halted"
+        )),
+        "; got ",
+        format_output(missing_input_result$output)
+      )
+    )
+  }
+  if (file.exists(missing_input)) {
+    problems <- c(
+      problems,
+      paste0(
+        "missing explicit input preflight: expected path to remain absent: ",
+        shQuote(missing_input)
+      )
+    )
+  }
+
   if (length(problems) > 0L) {
     return(fail(slug, paste(problems, collapse = " | ")))
   }
   pass(
     slug,
-    "Public pipeline dry-run validates source and overwrite options without selecting historical cluster columns."
+    "Public pipeline dry-run exposes the complete deterministic plan and execution preflight has no side effects."
   )
 }
 
