@@ -706,3 +706,17 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: workflow
 
 **structural_mitigation_candidate**: Keep the one-root loop and explicit exit-status wrapper beside the lint recipe so future scilintr upgrades can be checked against the same contract.
+
+### [2026-07-15] Pipeline interface changes require both contract tripwires
+
+**Tags**: pipeline, tripwires, cli, workflow
+
+**Category**: Workflow testing
+
+**What happened**: The direct pipeline dry-run tripwire retained the old full-regeneration stage order after the runner changed. The separate `just` interface tripwire passed because it compares each recipe with its matching direct CLI plan rather than hard-coding the complete order.
+
+**Why it matters**: A dry run can look correct while another repository integration gate still encodes a stale public contract.
+
+**Resolution**: Update the explicit stage vector in `pipeline-dry-run-contract` when the canonical boundary or stage order changes, and execute both pipeline interface tripwires.
+
+**structural_mitigation_candidate**: Keep both tripwires driven by the same explicit stage names and mode header.

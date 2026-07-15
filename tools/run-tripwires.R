@@ -705,13 +705,13 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     "cluster-source-pflog-filter-cc",
     "summarize-source",
     "select-mg",
+    "marker-heatmap-source",
+    "module-heatmap-source",
     "cluster-mg-no-filter-cc",
     "cluster-mg-filter-cc",
-    "summarize-mg",
-    "marker-heatmap-source",
     "marker-heatmap-mg-no-filter-cc",
     "marker-heatmap-mg-filter-cc",
-    "module-heatmap-source",
+    "summarize-mg",
     "module-heatmap-mg-no-filter-cc",
     "module-heatmap-mg-filter-cc",
     "mg-figures-no-filter-cc",
@@ -722,12 +722,29 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     "tripwires"
   )
   existing_source_stages <- counts_qc_stages[-c(1L, 2L)]
+  frozen_downstream_stages <- c(
+    "summarize-mg",
+    "module-heatmap-mg-no-filter-cc",
+    "module-heatmap-mg-filter-cc",
+    "mg-figures-no-filter-cc",
+    "mg-figures-filter-cc",
+    "mg-markers",
+    "mg-de",
+    "render-notebook",
+    "tripwires"
+  )
   explicit_input <- file.path(root, "data", "explicit-input.seurat.rds")
 
   # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
-  make_header <- function(input_source, overwrite, stages) {
+  make_header <- function(
+    input_source,
+    regenerate_frozen,
+    overwrite,
+    stages
+  ) {
     c(
       "mode: dry-run",
+      paste0("regenerate_frozen: ", regenerate_frozen),
       paste0("input_source: ", input_source),
       paste0("overwrite: ", overwrite),
       "source_cluster_column: cluster_pflog_no_filter_cc_dims30_res0.3",
@@ -740,32 +757,54 @@ tripwire_pipeline_dry_run_contract <- function(root) {
   }
   successful_invocations <- list(
     list(
-      label = "counts-qc",
+      label = "frozen downstream",
       args = c("--dry-run"),
       input_source = "counts-qc",
+      regenerate_frozen = FALSE,
+      overwrite = FALSE,
+      stages = frozen_downstream_stages
+    ),
+    list(
+      label = "counts-qc regeneration",
+      args = c("--dry-run", "--regenerate-frozen"),
+      input_source = "counts-qc",
+      regenerate_frozen = TRUE,
       overwrite = FALSE,
       stages = counts_qc_stages
     ),
     list(
-      label = "legacy",
-      args = c("--dry-run", "--input-source", "legacy"),
+      label = "legacy regeneration",
+      args = c(
+        "--dry-run",
+        "--regenerate-frozen",
+        "--input-source",
+        "legacy"
+      ),
       input_source = "legacy",
+      regenerate_frozen = TRUE,
       overwrite = FALSE,
       stages = existing_source_stages
     ),
     list(
-      label = "explicit",
-      args = c("--dry-run", "--input", shQuote(explicit_input)),
+      label = "explicit regeneration",
+      args = c(
+        "--dry-run",
+        "--regenerate-frozen",
+        "--input",
+        shQuote(explicit_input)
+      ),
       input_source = "explicit",
+      regenerate_frozen = TRUE,
       overwrite = FALSE,
       stages = existing_source_stages
     ),
     list(
-      label = "counts-qc overwrite",
+      label = "frozen downstream overwrite",
       args = c("--dry-run", "--overwrite"),
       input_source = "counts-qc",
+      regenerate_frozen = FALSE,
       overwrite = TRUE,
-      stages = counts_qc_stages
+      stages = frozen_downstream_stages
     )
   )
   failed_invocations <- list(
@@ -780,14 +819,19 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       expected = "Missing value for --input."
     ),
     list(
-      label = "invalid input source (--dry-run --input-source invalid)",
-      args = c("--dry-run", "--input-source", "invalid"),
+      label = "invalid input source",
+      args = c(
+        "--dry-run",
+        "--regenerate-frozen",
+        "--input-source",
+        "invalid"
+      ),
       expected = "--input-source must be one of counts-qc or legacy."
     ),
     list(
-      label = "invalid input source (--input-source invalid)",
-      args = c("--input-source", "invalid"),
-      expected = "--input-source must be one of counts-qc or legacy."
+      label = "input source without regeneration",
+      args = c("--dry-run", "--input-source", "legacy"),
+      expected = "--input-source and --input require --regenerate-frozen."
     ),
     list(
       label = "mutually exclusive input options",
@@ -873,6 +917,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
 
     header <- make_header(
       invocation$input_source,
+      tolower(as.character(invocation$regenerate_frozen)),
       tolower(as.character(invocation$overwrite)),
       invocation$stages
     )
@@ -976,946 +1021,951 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "seurat_objects/input/sobj_raw_with_qc.rds",
       "seurat_objects/input/sobj_qc_filtered.rds"
     )
-    if (identical(invocation$input_source, "counts-qc")) {
-      counts_outputs <- stage_output_paths(stage_records[["process-counts"]])
-      if (
-        !identical(length(counts_outputs), 1L) ||
-          !endsWith(counts_outputs, expected_count_output)
-      ) {
-        problems <- c(
-          problems,
-          stage_problem(
-            invocation$label,
-            "process-counts",
-            paste0(
-              "exactly one DATA_ROOT_DIR/",
-              expected_count_output,
-              " output"
-            ),
-            stage_records[["process-counts"]]$expects
-          )
-        )
-      }
-
-      qc_outputs <- stage_output_paths(stage_records[["qc-filtering"]])
-      if (
-        !identical(length(qc_outputs), length(expected_qc_outputs)) ||
-          !all(vapply(
-            expected_qc_outputs,
-            function(output) any(endsWith(qc_outputs, output)),
-            logical(1)
-          ))
-      ) {
-        problems <- c(
-          problems,
-          stage_problem(
-            invocation$label,
-            "qc-filtering",
-            paste0(
-              "both INPUT_OBJECT_DIR outputs ",
-              paste(expected_qc_outputs, collapse = ", ")
-            ),
-            stage_records[["qc-filtering"]]$expects
-          )
-        )
-      }
-    }
-
-    preprocess_command <- stage_records[["preprocess-source"]]$command
-    expected_source_option <- if (
-      identical(invocation$input_source, "explicit")
-    ) {
-      paste0("'--input' ", shQuote(explicit_input))
-    } else {
-      paste0("'--input-source' '", invocation$input_source, "'")
-    }
-    if (
-      !command_has(preprocess_command, "'scripts/03-preprocess-all.R'") ||
-        !command_has(preprocess_command, expected_source_option)
-    ) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "preprocess-source",
-          paste0(
-            "scripts/03-preprocess-all.R command containing ",
-            shQuote(expected_source_option)
-          ),
-          preprocess_command
-        )
-      )
-    }
-
-    source_clusters <- c(
-      "cluster-source-log1p-no-filter-cc" = "preprocess_log1p_no-filter-cc.rds",
-      "cluster-source-log1p-filter-cc" = "preprocess_log1p_filter-cc.rds",
-      "cluster-source-pflog-no-filter-cc" = "preprocess_pflog_no-filter-cc.rds",
-      "cluster-source-pflog-filter-cc" = "preprocess_pflog_filter-cc.rds"
-    )
-    source_cluster_outputs <- c(
-      "cluster-source-log1p-no-filter-cc" = "cluster_log1p_no_filter_cc_elbow20.rds",
-      "cluster-source-log1p-filter-cc" = "cluster_log1p_filter_cc_elbow20.rds",
-      "cluster-source-pflog-no-filter-cc" = "cluster_pflog_no_filter_cc_elbow20.rds",
-      "cluster-source-pflog-filter-cc" = "cluster_pflog_filter_cc_elbow20.rds"
-    )
-    current_object_suffix <- file.path("seurat_objects", "current")
-    preprocess_expects <- stage_records[["preprocess-source"]]$expects
-    preprocess_outputs <- if (is.na(preprocess_expects)) {
-      character()
-    } else {
-      strsplit(sub("^expects: ", "", preprocess_expects), ";", fixed = TRUE)[[
-        1L
-      ]]
-    }
-    preprocess_matches <- length(preprocess_outputs) ==
-      length(source_clusters) &&
-      all(vapply(
-        seq_along(source_clusters),
-        function(index) {
-          path_has_suffix(
-            preprocess_outputs[[index]],
-            file.path(current_object_suffix, unname(source_clusters)[[index]])
-          )
-        },
-        logical(1)
-      ))
-    if (!isTRUE(preprocess_matches)) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "preprocess-source",
-          paste(
-            "exactly the four source preprocess outputs under",
-            current_object_suffix,
-            paste(unname(source_clusters), collapse = ", ")
-          ),
-          preprocess_expects
-        )
-      )
-    }
-    source_summary_outputs <- file.path(
-      c(
-        "tables",
-        "tables",
-        "tables",
-        "figures",
-        "figures",
-        "figures",
-        "figures"
-      ),
-      c(
-        "cluster/cluster_grid_summary.tsv",
-        "cluster/cluster_grid_stability_summary.tsv",
-        "cluster/cluster_grid_pairwise_stability.tsv",
-        "cluster/cluster_grid_clustree_12_panel.png",
-        "cluster/cluster_grid_clustree_12_panel.pdf",
-        "cluster/umap_resolution_sweep_pflog_filter_cc_dims50.png",
-        "cluster/umap_resolution_sweep_pflog_filter_cc_dims50.pdf"
-      )
-    )
-    cluster_execution_options <- c(
-      "'--elbow-n' '20'",
-      "'--extra-dims' '30,50'",
-      "'--resolutions' '0.3,0.5,0.8'"
-    )
-    cluster_candidate_dims <- c(20L, 30L, 50L)
-    cluster_candidate_resolution_tags <- gsub(
-      "[^A-Za-z0-9_-]",
-      "_",
-      c("0.3", "0.5", "0.8")
-    )
-    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
-    cluster_notebook_umap_outputs <- function(branch) {
-      unlist(
-        lapply(
-          cluster_candidate_dims,
-          function(dims) {
-            file.path(
-              "notebook",
-              "figures",
-              sprintf(
-                "umap_%s_dims%d_by_cluster_%s_dims%d_res%s.png",
-                branch,
-                dims,
-                branch,
-                dims,
-                cluster_candidate_resolution_tags
-              )
+    if (isTRUE(invocation$regenerate_frozen)) {
+      if (identical(invocation$input_source, "counts-qc")) {
+        counts_outputs <- stage_output_paths(stage_records[["process-counts"]])
+        if (
+          !identical(length(counts_outputs), 1L) ||
+            !endsWith(counts_outputs, expected_count_output)
+        ) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              "process-counts",
+              paste0(
+                "exactly one DATA_ROOT_DIR/",
+                expected_count_output,
+                " output"
+              ),
+              stage_records[["process-counts"]]$expects
             )
-          }
-        ),
-        use.names = FALSE
+          )
+        }
+
+        qc_outputs <- stage_output_paths(stage_records[["qc-filtering"]])
+        if (
+          !identical(length(qc_outputs), length(expected_qc_outputs)) ||
+            !all(vapply(
+              expected_qc_outputs,
+              function(output) any(endsWith(qc_outputs, output)),
+              logical(1)
+            ))
+        ) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              "qc-filtering",
+              paste0(
+                "both INPUT_OBJECT_DIR outputs ",
+                paste(expected_qc_outputs, collapse = ", ")
+              ),
+              stage_records[["qc-filtering"]]$expects
+            )
+          )
+        }
+      }
+
+      preprocess_command <- stage_records[["preprocess-source"]]$command
+      expected_source_option <- if (
+        identical(invocation$input_source, "explicit")
+      ) {
+        paste0("'--input' ", shQuote(explicit_input))
+      } else {
+        paste0("'--input-source' '", invocation$input_source, "'")
+      }
+      if (
+        !command_has(preprocess_command, "'scripts/03-preprocess-all.R'") ||
+          !command_has(preprocess_command, expected_source_option)
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "preprocess-source",
+            paste0(
+              "scripts/03-preprocess-all.R command containing ",
+              shQuote(expected_source_option)
+            ),
+            preprocess_command
+          )
+        )
+      }
+
+      source_clusters <- c(
+        "cluster-source-log1p-no-filter-cc" = "preprocess_log1p_no-filter-cc.rds",
+        "cluster-source-log1p-filter-cc" = "preprocess_log1p_filter-cc.rds",
+        "cluster-source-pflog-no-filter-cc" = "preprocess_pflog_no-filter-cc.rds",
+        "cluster-source-pflog-filter-cc" = "preprocess_pflog_filter-cc.rds"
       )
-    }
-    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
-    cluster_stage_expected_outputs <- function(rds_path) {
-      branch <- sub(
-        "^cluster_",
-        "",
-        sub("_elbow20\\.rds$", "", basename(rds_path))
+      source_cluster_outputs <- c(
+        "cluster-source-log1p-no-filter-cc" = "cluster_log1p_no_filter_cc_elbow20.rds",
+        "cluster-source-log1p-filter-cc" = "cluster_log1p_filter_cc_elbow20.rds",
+        "cluster-source-pflog-no-filter-cc" = "cluster_pflog_no_filter_cc_elbow20.rds",
+        "cluster-source-pflog-filter-cc" = "cluster_pflog_filter_cc_elbow20.rds"
       )
-      c(
-        rds_path,
-        cluster_notebook_umap_outputs(branch)
-      )
-    }
-    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
-    cluster_stage_expected_description <- function(rds_path, branch_label) {
-      paste(
-        "exactly one clustered",
-        branch_label,
-        "RDS plus nine notebook UMAP PNG links",
-        paste(cluster_stage_expected_outputs(rds_path), collapse = ", ")
-      )
-    }
-    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
-    stage_outputs_match <- function(record, expected_suffixes) {
-      actual_outputs <- stage_output_paths(record)
-      length(actual_outputs) == length(expected_suffixes) &&
+      current_object_suffix <- file.path("seurat_objects", "current")
+      preprocess_expects <- stage_records[["preprocess-source"]]$expects
+      preprocess_outputs <- if (is.na(preprocess_expects)) {
+        character()
+      } else {
+        strsplit(sub("^expects: ", "", preprocess_expects), ";", fixed = TRUE)[[
+          1L
+        ]]
+      }
+      preprocess_matches <- length(preprocess_outputs) ==
+        length(source_clusters) &&
         all(vapply(
-          expected_suffixes,
-          function(suffix) {
-            sum(vapply(
-              actual_outputs,
-              path_has_suffix,
-              logical(1),
-              suffix = suffix
-            )) ==
-              1L
+          seq_along(source_clusters),
+          function(index) {
+            path_has_suffix(
+              preprocess_outputs[[index]],
+              file.path(current_object_suffix, unname(source_clusters)[[index]])
+            )
           },
           logical(1)
         ))
-    }
-    for (stage in names(source_clusters)) {
-      command <- stage_records[[stage]]$command
-      expected_input <- source_clusters[[stage]]
-      if (
-        !command_has(command, "'scripts/04-cluster.R'") ||
-          !command_has(command, expected_input)
-      ) {
+      if (!isTRUE(preprocess_matches)) {
         problems <- c(
           problems,
           stage_problem(
             invocation$label,
-            stage,
-            paste0(
-              "scripts/04-cluster.R command for ",
-              shQuote(expected_input)
+            "preprocess-source",
+            paste(
+              "exactly the four source preprocess outputs under",
+              current_object_suffix,
+              paste(unname(source_clusters), collapse = ", ")
             ),
-            command
+            preprocess_expects
           )
         )
       }
-      for (expected_option in cluster_execution_options) {
-        if (!command_has(command, expected_option)) {
+      source_summary_outputs <- file.path(
+        c(
+          "tables",
+          "tables",
+          "tables",
+          "figures",
+          "figures",
+          "figures",
+          "figures"
+        ),
+        c(
+          "cluster/cluster_grid_summary.tsv",
+          "cluster/cluster_grid_stability_summary.tsv",
+          "cluster/cluster_grid_pairwise_stability.tsv",
+          "cluster/cluster_grid_clustree_12_panel.png",
+          "cluster/cluster_grid_clustree_12_panel.pdf",
+          "cluster/umap_resolution_sweep_pflog_filter_cc_dims50.png",
+          "cluster/umap_resolution_sweep_pflog_filter_cc_dims50.pdf"
+        )
+      )
+      cluster_execution_options <- c(
+        "'--elbow-n' '20'",
+        "'--extra-dims' '30,50'",
+        "'--resolutions' '0.3,0.5,0.8'"
+      )
+      cluster_candidate_dims <- c(20L, 30L, 50L)
+      cluster_candidate_resolution_tags <- gsub(
+        "[^A-Za-z0-9_-]",
+        "_",
+        c("0.3", "0.5", "0.8")
+      )
+      # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
+      cluster_notebook_umap_outputs <- function(branch) {
+        unlist(
+          lapply(
+            cluster_candidate_dims,
+            function(dims) {
+              file.path(
+                "notebook",
+                "figures",
+                sprintf(
+                  "umap_%s_dims%d_by_cluster_%s_dims%d_res%s.png",
+                  branch,
+                  dims,
+                  branch,
+                  dims,
+                  cluster_candidate_resolution_tags
+                )
+              )
+            }
+          ),
+          use.names = FALSE
+        )
+      }
+      # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
+      cluster_stage_expected_outputs <- function(rds_path) {
+        branch <- sub(
+          "^cluster_",
+          "",
+          sub("_elbow20\\.rds$", "", basename(rds_path))
+        )
+        c(
+          rds_path,
+          cluster_notebook_umap_outputs(branch)
+        )
+      }
+      # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
+      cluster_stage_expected_description <- function(rds_path, branch_label) {
+        paste(
+          "exactly one clustered",
+          branch_label,
+          "RDS plus nine notebook UMAP PNG links",
+          paste(cluster_stage_expected_outputs(rds_path), collapse = ", ")
+        )
+      }
+      # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
+      stage_outputs_match <- function(record, expected_suffixes) {
+        actual_outputs <- stage_output_paths(record)
+        length(actual_outputs) == length(expected_suffixes) &&
+          all(vapply(
+            expected_suffixes,
+            function(suffix) {
+              sum(vapply(
+                actual_outputs,
+                path_has_suffix,
+                logical(1),
+                suffix = suffix
+              )) ==
+                1L
+            },
+            logical(1)
+          ))
+      }
+      for (stage in names(source_clusters)) {
+        command <- stage_records[[stage]]$command
+        expected_input <- source_clusters[[stage]]
+        if (
+          !command_has(command, "'scripts/04-cluster.R'") ||
+            !command_has(command, expected_input)
+        ) {
           problems <- c(
             problems,
             stage_problem(
               invocation$label,
               stage,
-              paste0("command containing ", shQuote(expected_option)),
+              paste0(
+                "scripts/04-cluster.R command for ",
+                shQuote(expected_input)
+              ),
               command
             )
           )
         }
-      }
-      if (
-        !stage_outputs_match(
-          stage_records[[stage]],
-          cluster_stage_expected_outputs(
-            file.path(current_object_suffix, source_cluster_outputs[[stage]])
+        for (expected_option in cluster_execution_options) {
+          if (!command_has(command, expected_option)) {
+            problems <- c(
+              problems,
+              stage_problem(
+                invocation$label,
+                stage,
+                paste0("command containing ", shQuote(expected_option)),
+                command
+              )
+            )
+          }
+        }
+        if (
+          !stage_outputs_match(
+            stage_records[[stage]],
+            cluster_stage_expected_outputs(
+              file.path(current_object_suffix, source_cluster_outputs[[stage]])
+            )
           )
-        )
-      ) {
+        ) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              stage,
+              cluster_stage_expected_description(
+                file.path(
+                  current_object_suffix,
+                  source_cluster_outputs[[stage]]
+                ),
+                "source"
+              ),
+              stage_records[[stage]]$expects
+            )
+          )
+        }
+      }
+
+      summary_command <- stage_records[["summarize-source"]]$command
+      if (!command_has(summary_command, "'scripts/05-summarize-clusters.R'")) {
         problems <- c(
           problems,
           stage_problem(
             invocation$label,
-            stage,
-            cluster_stage_expected_description(
-              file.path(current_object_suffix, source_cluster_outputs[[stage]]),
-              "source"
-            ),
-            stage_records[[stage]]$expects
+            "summarize-source",
+            "scripts/05-summarize-clusters.R command",
+            summary_command
           )
         )
       }
-    }
-
-    summary_command <- stage_records[["summarize-source"]]$command
-    if (!command_has(summary_command, "'scripts/05-summarize-clusters.R'")) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "summarize-source",
-          "scripts/05-summarize-clusters.R command",
-          summary_command
+      summary_expects <- stage_output_paths(stage_records[["summarize-source"]])
+      summary_matches <- length(summary_expects) ==
+        length(source_summary_outputs) &&
+        all(vapply(
+          source_summary_outputs,
+          function(expected) {
+            any(vapply(
+              summary_expects,
+              path_has_suffix,
+              logical(1),
+              suffix = expected
+            ))
+          },
+          logical(1)
+        ))
+      if (!isTRUE(summary_matches)) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "summarize-source",
+            paste(
+              "all source summary artifacts",
+              paste(source_summary_outputs, collapse = ", ")
+            ),
+            stage_records[["summarize-source"]]$expects
+          )
         )
-      )
-    }
-    summary_expects <- stage_output_paths(stage_records[["summarize-source"]])
-    summary_matches <- length(summary_expects) ==
-      length(source_summary_outputs) &&
-      all(vapply(
-        source_summary_outputs,
-        function(expected) {
-          any(vapply(
-            summary_expects,
-            path_has_suffix,
-            logical(1),
-            suffix = expected
-          ))
-        },
-        logical(1)
-      ))
-    if (!isTRUE(summary_matches)) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "summarize-source",
-          paste(
-            "all source summary artifacts",
-            paste(source_summary_outputs, collapse = ", ")
-          ),
-          stage_records[["summarize-source"]]$expects
-        )
-      )
-    }
+      }
 
-    select_mg_command <- stage_records[["select-mg"]]$command
-    select_mg_options <- c(
-      "'--cluster-column' 'cluster_pflog_no_filter_cc_dims30_res0.3'",
-      "'--dims' '50'"
-    )
-    for (expected_option in select_mg_options) {
-      if (!command_has(select_mg_command, expected_option)) {
+      select_mg_command <- stage_records[["select-mg"]]$command
+      select_mg_options <- c(
+        "'--cluster-column' 'cluster_pflog_no_filter_cc_dims30_res0.3'",
+        "'--dims' '50'"
+      )
+      for (expected_option in select_mg_options) {
+        if (!command_has(select_mg_command, expected_option)) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              "select-mg",
+              paste0("command containing ", shQuote(expected_option)),
+              select_mg_command
+            )
+          )
+        }
+      }
+
+      select_mg_outputs <- c(
+        "seurat_objects/current/preprocess_pflog_mg_selected_no-filter-cc.rds",
+        "seurat_objects/current/preprocess_pflog_mg_selected_filter-cc.rds",
+        "tables/mg_selected/mg_selected_cluster_selection.tsv",
+        "figures/mg_selected/mg_selected_cluster_selection_diagnostics.png",
+        "figures/mg_selected/mg_selected_cluster_selection_diagnostics.pdf",
+        "figures/mg_selected/elbow_pflog_mg_selected_no_filter_cc.png",
+        "figures/mg_selected/elbow_pflog_mg_selected_no_filter_cc.pdf",
+        "figures/mg_selected/elbow_pflog_mg_selected_filter_cc.png",
+        "figures/mg_selected/elbow_pflog_mg_selected_filter_cc.pdf"
+      )
+      if (
+        !stage_outputs_match(
+          stage_records[["select-mg"]],
+          select_mg_outputs
+        )
+      ) {
         problems <- c(
           problems,
           stage_problem(
             invocation$label,
             "select-mg",
-            paste0("command containing ", shQuote(expected_option)),
-            select_mg_command
-          )
-        )
-      }
-    }
-
-    select_mg_outputs <- c(
-      "seurat_objects/current/preprocess_pflog_mg_selected_no-filter-cc.rds",
-      "seurat_objects/current/preprocess_pflog_mg_selected_filter-cc.rds",
-      "tables/mg_selected/mg_selected_cluster_selection.tsv",
-      "figures/mg_selected/mg_selected_cluster_selection_diagnostics.png",
-      "figures/mg_selected/mg_selected_cluster_selection_diagnostics.pdf",
-      "figures/mg_selected/elbow_pflog_mg_selected_no_filter_cc.png",
-      "figures/mg_selected/elbow_pflog_mg_selected_no_filter_cc.pdf",
-      "figures/mg_selected/elbow_pflog_mg_selected_filter_cc.png",
-      "figures/mg_selected/elbow_pflog_mg_selected_filter_cc.pdf"
-    )
-    if (
-      !stage_outputs_match(
-        stage_records[["select-mg"]],
-        select_mg_outputs
-      )
-    ) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "select-mg",
-          paste(
-            "exactly the selection RDS, table, diagnostics, and elbow artifacts",
-            paste(select_mg_outputs, collapse = ", ")
-          ),
-          stage_records[["select-mg"]]$expects
-        )
-      )
-    }
-    figure_stage_contracts <- list(
-      "marker-heatmap-source" = list(
-        script = "scripts/06-plot-marker-heatmap.R",
-        options = c("'--dims' '30'", "'--resolution' '0.3'"),
-        outputs = c(
-          file.path(
-            "figures/annotation",
-            paste0(
-              "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3",
-              c(".png", ".pdf")
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3.png"
-          )
-        )
-      ),
-      "marker-heatmap-mg-no-filter-cc" = list(
-        script = "scripts/06-plot-marker-heatmap.R",
-        options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = c(
-          file.path(
-            "figures/annotation",
-            paste0(
-              "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5",
-              c(".png", ".pdf")
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5.png"
-          )
-        )
-      ),
-      "marker-heatmap-mg-filter-cc" = list(
-        script = "scripts/06-plot-marker-heatmap.R",
-        options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = c(
-          file.path(
-            "figures/annotation",
-            paste0(
-              "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5",
-              c(".png", ".pdf")
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5.png"
-          )
-        )
-      ),
-      "module-heatmap-source" = list(
-        script = "scripts/10-plot-cluster-marker-heatmaps.R",
-        options = c("'--dims' '30'", "'--resolution' '0.3'"),
-        outputs = c(
-          file.path(
-            "figures/annotation",
-            paste0(
-              "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
-              c(".png", ".pdf")
-            )
-          ),
-          file.path(
-            "tables/annotation",
-            paste0(
-              "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
-              c("_module_scores.tsv", "_p27_enrichment.tsv")
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3.png"
-          )
-        )
-      ),
-      "module-heatmap-mg-no-filter-cc" = list(
-        script = "scripts/10-plot-cluster-marker-heatmaps.R",
-        options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = c(
-          file.path(
-            "figures/annotation",
-            paste0(
-              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-              c(".png", ".pdf")
-            )
-          ),
-          file.path(
-            "tables/annotation",
-            paste0(
-              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-              c("_module_scores.tsv", "_p27_enrichment.tsv")
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5.png"
-          )
-        )
-      ),
-      "module-heatmap-mg-filter-cc" = list(
-        script = "scripts/10-plot-cluster-marker-heatmaps.R",
-        options = c("'--dims' '20'", "'--resolution' '0.5'"),
-        outputs = c(
-          file.path(
-            "figures/annotation",
-            paste0(
-              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
-              c(".png", ".pdf")
-            )
-          ),
-          file.path(
-            "tables/annotation",
-            paste0(
-              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
-              c("_module_scores.tsv", "_p27_enrichment.tsv")
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5.png"
-          )
-        )
-      ),
-      "mg-figures-no-filter-cc" = list(
-        script = "scripts/09-plot-mg-figures.R",
-        options = c(
-          "'--elbow-n' '20'",
-          "'--dims' '20'",
-          "'--resolution' '0.5'"
-        ),
-        outputs = c(
-          file.path(
-            "figures/mg_selected",
-            paste0(
-              c(
-                "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
-              ),
-              rep(c(".png", ".pdf"), each = 6L)
-            )
-          ),
-          file.path(
-            "tables/mg_selected",
-            paste0(
-              c(
-                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_proportion_randomization_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_sample_cluster_proportions_pflog_mg_selected_no_filter_cc_dims20_res0.5"
-              ),
-              ".tsv"
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            paste0(
-              c(
-                "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
-              ),
-              ".png"
-            )
-          )
-        )
-      ),
-      "mg-figures-filter-cc" = list(
-        script = "scripts/09-plot-mg-figures.R",
-        options = c(
-          "'--elbow-n' '20'",
-          "'--dims' '20'",
-          "'--resolution' '0.5'"
-        ),
-        outputs = c(
-          file.path(
-            "figures/mg_selected",
-            paste0(
-              c(
-                "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
-              ),
-              rep(c(".png", ".pdf"), each = 6L)
-            )
-          ),
-          file.path(
-            "tables/mg_selected",
-            paste0(
-              c(
-                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_proportion_randomization_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_sample_cluster_proportions_pflog_mg_selected_filter_cc_dims20_res0.5"
-              ),
-              ".tsv"
-            )
-          ),
-          file.path(
-            "notebook/figures",
-            paste0(
-              c(
-                "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
-                "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
-              ),
-              ".png"
-            )
-          )
-        )
-      )
-    )
-    for (stage in names(figure_stage_contracts)) {
-      contract <- figure_stage_contracts[[stage]]
-      command <- stage_records[[stage]]$command
-      for (expected_token in c(
-        paste0("'", contract$script, "'"),
-        contract$options
-      )) {
-        if (!command_has(command, expected_token)) {
-          problems <- c(
-            problems,
-            stage_problem(
-              invocation$label,
-              stage,
-              paste0("command containing ", shQuote(expected_token)),
-              command
-            )
-          )
-        }
-      }
-      if (
-        !stage_outputs_match(
-          stage_records[[stage]],
-          contract$outputs
-        )
-      ) {
-        problems <- c(
-          problems,
-          stage_problem(
-            invocation$label,
-            stage,
             paste(
-              "exactly the chosen-dimension/resolution artifacts",
-              paste(contract$outputs, collapse = ", ")
+              "exactly the selection RDS, table, diagnostics, and elbow artifacts",
+              paste(select_mg_outputs, collapse = ", ")
             ),
-            stage_records[[stage]]$expects
+            stage_records[["select-mg"]]$expects
           )
         )
       }
-    }
-
-    mg_cluster_outputs <- c(
-      "cluster-mg-no-filter-cc" = "seurat_objects/current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
-      "cluster-mg-filter-cc" = "seurat_objects/current/cluster_pflog_mg_selected_filter_cc_elbow20.rds"
-    )
-    for (stage in names(mg_cluster_outputs)) {
-      command <- stage_records[[stage]]$command
-      for (expected_option in cluster_execution_options) {
-        if (!command_has(command, expected_option)) {
+      figure_stage_contracts <- list(
+        "marker-heatmap-source" = list(
+          script = "scripts/06-plot-marker-heatmap.R",
+          options = c("'--dims' '30'", "'--resolution' '0.3'"),
+          outputs = c(
+            file.path(
+              "figures/annotation",
+              paste0(
+                "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3",
+                c(".png", ".pdf")
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              "cell_type_marker_heatmap_pflog_pflog_no_filter_cc_cells_dims30_res0.3.png"
+            )
+          )
+        ),
+        "marker-heatmap-mg-no-filter-cc" = list(
+          script = "scripts/06-plot-marker-heatmap.R",
+          options = c("'--dims' '20'", "'--resolution' '0.5'"),
+          outputs = c(
+            file.path(
+              "figures/annotation",
+              paste0(
+                "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5",
+                c(".png", ".pdf")
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              "cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5.png"
+            )
+          )
+        ),
+        "marker-heatmap-mg-filter-cc" = list(
+          script = "scripts/06-plot-marker-heatmap.R",
+          options = c("'--dims' '20'", "'--resolution' '0.5'"),
+          outputs = c(
+            file.path(
+              "figures/annotation",
+              paste0(
+                "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5",
+                c(".png", ".pdf")
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              "cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5.png"
+            )
+          )
+        ),
+        "module-heatmap-source" = list(
+          script = "scripts/10-plot-cluster-marker-heatmaps.R",
+          options = c("'--dims' '30'", "'--resolution' '0.3'"),
+          outputs = c(
+            file.path(
+              "figures/annotation",
+              paste0(
+                "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
+                c(".png", ".pdf")
+              )
+            ),
+            file.path(
+              "tables/annotation",
+              paste0(
+                "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3",
+                c("_module_scores.tsv", "_p27_enrichment.tsv")
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              "cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3.png"
+            )
+          )
+        ),
+        "module-heatmap-mg-no-filter-cc" = list(
+          script = "scripts/10-plot-cluster-marker-heatmaps.R",
+          options = c("'--dims' '20'", "'--resolution' '0.5'"),
+          outputs = c(
+            file.path(
+              "figures/annotation",
+              paste0(
+                "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                c(".png", ".pdf")
+              )
+            ),
+            file.path(
+              "tables/annotation",
+              paste0(
+                "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                c("_module_scores.tsv", "_p27_enrichment.tsv")
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5.png"
+            )
+          )
+        ),
+        "module-heatmap-mg-filter-cc" = list(
+          script = "scripts/10-plot-cluster-marker-heatmaps.R",
+          options = c("'--dims' '20'", "'--resolution' '0.5'"),
+          outputs = c(
+            file.path(
+              "figures/annotation",
+              paste0(
+                "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                c(".png", ".pdf")
+              )
+            ),
+            file.path(
+              "tables/annotation",
+              paste0(
+                "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                c("_module_scores.tsv", "_p27_enrichment.tsv")
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              "cell_type_module_p27_heatmap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5.png"
+            )
+          )
+        ),
+        "mg-figures-no-filter-cc" = list(
+          script = "scripts/09-plot-mg-figures.R",
+          options = c(
+            "'--elbow-n' '20'",
+            "'--dims' '20'",
+            "'--resolution' '0.5'"
+          ),
+          outputs = c(
+            file.path(
+              "figures/mg_selected",
+              paste0(
+                c(
+                  "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
+                ),
+                rep(c(".png", ".pdf"), each = 6L)
+              )
+            ),
+            file.path(
+              "tables/mg_selected",
+              paste0(
+                c(
+                  "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_proportion_randomization_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_sample_cluster_proportions_pflog_mg_selected_no_filter_cc_dims20_res0.5"
+                ),
+                ".tsv"
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              paste0(
+                c(
+                  "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
+                ),
+                ".png"
+              )
+            )
+          )
+        ),
+        "mg-figures-filter-cc" = list(
+          script = "scripts/09-plot-mg-figures.R",
+          options = c(
+            "'--elbow-n' '20'",
+            "'--dims' '20'",
+            "'--resolution' '0.5'"
+          ),
+          outputs = c(
+            file.path(
+              "figures/mg_selected",
+              paste0(
+                c(
+                  "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
+                ),
+                rep(c(".png", ".pdf"), each = 6L)
+              )
+            ),
+            file.path(
+              "tables/mg_selected",
+              paste0(
+                c(
+                  "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_proportion_randomization_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_sample_cluster_proportions_pflog_mg_selected_filter_cc_dims20_res0.5"
+                ),
+                ".tsv"
+              )
+            ),
+            file.path(
+              "notebook/figures",
+              paste0(
+                c(
+                  "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
+                  "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
+                ),
+                ".png"
+              )
+            )
+          )
+        )
+      )
+      for (stage in names(figure_stage_contracts)) {
+        contract <- figure_stage_contracts[[stage]]
+        command <- stage_records[[stage]]$command
+        for (expected_token in c(
+          paste0("'", contract$script, "'"),
+          contract$options
+        )) {
+          if (!command_has(command, expected_token)) {
+            problems <- c(
+              problems,
+              stage_problem(
+                invocation$label,
+                stage,
+                paste0("command containing ", shQuote(expected_token)),
+                command
+              )
+            )
+          }
+        }
+        if (
+          !stage_outputs_match(
+            stage_records[[stage]],
+            contract$outputs
+          )
+        ) {
           problems <- c(
             problems,
             stage_problem(
               invocation$label,
               stage,
-              paste0("command containing ", shQuote(expected_option)),
-              command
+              paste(
+                "exactly the chosen-dimension/resolution artifacts",
+                paste(contract$outputs, collapse = ", ")
+              ),
+              stage_records[[stage]]$expects
             )
           )
         }
       }
+
+      mg_cluster_outputs <- c(
+        "cluster-mg-no-filter-cc" = "seurat_objects/current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
+        "cluster-mg-filter-cc" = "seurat_objects/current/cluster_pflog_mg_selected_filter_cc_elbow20.rds"
+      )
+      for (stage in names(mg_cluster_outputs)) {
+        command <- stage_records[[stage]]$command
+        for (expected_option in cluster_execution_options) {
+          if (!command_has(command, expected_option)) {
+            problems <- c(
+              problems,
+              stage_problem(
+                invocation$label,
+                stage,
+                paste0("command containing ", shQuote(expected_option)),
+                command
+              )
+            )
+          }
+        }
+        if (
+          !stage_outputs_match(
+            stage_records[[stage]],
+            cluster_stage_expected_outputs(mg_cluster_outputs[[stage]])
+          )
+        ) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              stage,
+              cluster_stage_expected_description(
+                mg_cluster_outputs[[stage]],
+                "MG"
+              ),
+              stage_records[[stage]]$expects
+            )
+          )
+        }
+      }
+
+      summarize_mg_command <- stage_records[["summarize-mg"]]$command
+      if (
+        !command_has(
+          summarize_mg_command,
+          "'scripts/08-summarize-mg-clusters.R'"
+        ) ||
+          !command_has(summarize_mg_command, "'--elbow-n' '20'")
+      ) {
+        problems <- c(
+          problems,
+          stage_problem(
+            invocation$label,
+            "summarize-mg",
+            "scripts/08-summarize-mg-clusters.R command containing '--elbow-n' '20'",
+            summarize_mg_command
+          )
+        )
+      }
+      summarize_mg_outputs <- c(
+        "tables/mg_selected/mg_selected_cluster_grid_summary.tsv",
+        "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_no_filter_cc_dims50.png",
+        "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_no_filter_cc_dims50.pdf",
+        "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_filter_cc_dims50.png",
+        "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_filter_cc_dims50.pdf"
+      )
       if (
         !stage_outputs_match(
-          stage_records[[stage]],
-          cluster_stage_expected_outputs(mg_cluster_outputs[[stage]])
+          stage_records[["summarize-mg"]],
+          summarize_mg_outputs
         )
       ) {
         problems <- c(
           problems,
           stage_problem(
             invocation$label,
-            stage,
-            cluster_stage_expected_description(
-              mg_cluster_outputs[[stage]],
-              "MG"
+            "summarize-mg",
+            paste(
+              "exactly the MG grid summary and no-filter/filter-CC dims50 sweeps",
+              paste(summarize_mg_outputs, collapse = ", ")
             ),
-            stage_records[[stage]]$expects
+            stage_records[["summarize-mg"]]$expects
           )
         )
       }
-    }
 
-    summarize_mg_command <- stage_records[["summarize-mg"]]$command
-    if (
-      !command_has(
-        summarize_mg_command,
-        "'scripts/08-summarize-mg-clusters.R'"
-      ) ||
-        !command_has(summarize_mg_command, "'--elbow-n' '20'")
-    ) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "summarize-mg",
-          "scripts/08-summarize-mg-clusters.R command containing '--elbow-n' '20'",
-          summarize_mg_command
+      expected_marker_outputs <- c(
+        "tables/mg_selected/find_all_markers_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+        "tables/mg_selected/find_all_markers_top5_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+        "tables/mg_selected/find_all_markers_summary_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+        "tables/mg_selected/find_all_markers_identity_map_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
+        "figures/mg_selected/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png",
+        "figures/mg_selected/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.pdf",
+        "notebook/figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png"
+      )
+      expected_de_outputs <- c(
+        "degs/mg_selected/pseudobulk_sample_summary.tsv",
+        "degs/mg_selected/design_summary.tsv",
+        "degs/mg_selected/deseq2_full_results.tsv",
+        "degs/mg_selected/deseq2_significant_degs.tsv",
+        "degs/mg_selected/deseq2_marker_overlap.tsv",
+        "degs/mg_selected/deseq2_paired_sensitivity_full_results.tsv",
+        "degs/mg_selected/deseq2_paired_sensitivity_significant_degs.tsv",
+        "degs/mg_selected/deseq2_paired_sensitivity_marker_overlap.tsv",
+        "degs/mg_selected/numbers.json",
+        "enrichment/mg_selected/go_bp_ora_up.tsv",
+        "enrichment/mg_selected/go_bp_ora_down.tsv",
+        "enrichment/mg_selected/go_bp_gsea.tsv",
+        "enrichment/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv",
+        "enrichment/mg_selected/go_bp_ora_up_simplified.tsv",
+        "enrichment/mg_selected/go_bp_ora_down_simplified.tsv",
+        "enrichment/mg_selected/go_bp_gsea_simplified.tsv",
+        "enrichment/mg_selected/go_bp_ora_up_bayes_simplified.tsv",
+        "enrichment/mg_selected/go_bp_ora_down_bayes_simplified.tsv",
+        "figures/mg_selected/mg_selected_go_ora_up_dotplot.png",
+        "figures/mg_selected/mg_selected_go_ora_up_dotplot.pdf",
+        "figures/mg_selected/mg_selected_go_ora_down_dotplot.png",
+        "figures/mg_selected/mg_selected_go_ora_down_dotplot.pdf",
+        "figures/mg_selected/mg_selected_go_gsea_dotplot.png",
+        "figures/mg_selected/mg_selected_go_gsea_dotplot.pdf",
+        "figures/mg_selected/mg_selected_go_ora_up_bayes_dotplot.png",
+        "figures/mg_selected/mg_selected_go_ora_up_bayes_dotplot.pdf",
+        "figures/mg_selected/mg_selected_go_ora_down_bayes_dotplot.png",
+        "figures/mg_selected/mg_selected_go_ora_down_bayes_dotplot.pdf",
+        "notebook/figures/mg_selected_go_ora_up_dotplot.png",
+        "notebook/figures/mg_selected_go_ora_down_dotplot.png",
+        "notebook/figures/mg_selected_go_gsea_dotplot.png",
+        "notebook/figures/mg_selected_go_ora_up_bayes_dotplot.png",
+        "notebook/figures/mg_selected_go_ora_down_bayes_dotplot.png",
+        "figures/mg_selected/mg_selected_de_volcano.png",
+        "figures/mg_selected/mg_selected_de_volcano.pdf",
+        "notebook/figures/mg_selected_de_volcano.png"
+      )
+
+      mg_marker_command <- stage_records[["mg-markers"]]$command
+      expected_marker_options <- c(
+        "'scripts/11-find-mg-markers.R'",
+        "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
+        "'--branch-tag' 'pflog_mg_selected_no_filter_cc'",
+        "'--dims' '20'",
+        "'--resolution' '0.5'",
+        "'--layer' 'data'",
+        "'--counts-layer' 'counts'",
+        "'--confirm-no-merge'"
+      )
+      for (expected_option in expected_marker_options) {
+        if (!command_has(mg_marker_command, expected_option)) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              "mg-markers",
+              paste0("command containing ", shQuote(expected_option)),
+              mg_marker_command
+            )
+          )
+        }
+      }
+      if (
+        !stage_outputs_match(
+          stage_records[["mg-markers"]],
+          expected_marker_outputs
         )
-      )
-    }
-    summarize_mg_outputs <- c(
-      "tables/mg_selected/mg_selected_cluster_grid_summary.tsv",
-      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_no_filter_cc_dims50.png",
-      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_no_filter_cc_dims50.pdf",
-      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_filter_cc_dims50.png",
-      "figures/mg_selected/mg_selected_umap_resolution_sweep_pflog_mg_selected_filter_cc_dims50.pdf"
-    )
-    if (
-      !stage_outputs_match(
-        stage_records[["summarize-mg"]],
-        summarize_mg_outputs
-      )
-    ) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "summarize-mg",
-          paste(
-            "exactly the MG grid summary and no-filter/filter-CC dims50 sweeps",
-            paste(summarize_mg_outputs, collapse = ", ")
-          ),
-          stage_records[["summarize-mg"]]$expects
-        )
-      )
-    }
-
-    expected_marker_outputs <- c(
-      "tables/mg_selected/find_all_markers_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-      "tables/mg_selected/find_all_markers_top5_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-      "tables/mg_selected/find_all_markers_summary_data_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-      "tables/mg_selected/find_all_markers_identity_map_pflog_mg_selected_no_filter_cc_dims20_res0.5.csv",
-      "figures/mg_selected/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png",
-      "figures/mg_selected/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.pdf",
-      "notebook/figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png"
-    )
-    expected_de_outputs <- c(
-      "degs/mg_selected/pseudobulk_sample_summary.tsv",
-      "degs/mg_selected/design_summary.tsv",
-      "degs/mg_selected/deseq2_full_results.tsv",
-      "degs/mg_selected/deseq2_significant_degs.tsv",
-      "degs/mg_selected/deseq2_marker_overlap.tsv",
-      "degs/mg_selected/deseq2_paired_sensitivity_full_results.tsv",
-      "degs/mg_selected/deseq2_paired_sensitivity_significant_degs.tsv",
-      "degs/mg_selected/deseq2_paired_sensitivity_marker_overlap.tsv",
-      "degs/mg_selected/numbers.json",
-      "enrichment/mg_selected/go_bp_ora_up.tsv",
-      "enrichment/mg_selected/go_bp_ora_down.tsv",
-      "enrichment/mg_selected/go_bp_gsea.tsv",
-      "enrichment/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv",
-      "enrichment/mg_selected/go_bp_ora_up_simplified.tsv",
-      "enrichment/mg_selected/go_bp_ora_down_simplified.tsv",
-      "enrichment/mg_selected/go_bp_gsea_simplified.tsv",
-      "enrichment/mg_selected/go_bp_ora_up_bayes_simplified.tsv",
-      "enrichment/mg_selected/go_bp_ora_down_bayes_simplified.tsv",
-      "figures/mg_selected/mg_selected_go_ora_up_dotplot.png",
-      "figures/mg_selected/mg_selected_go_ora_up_dotplot.pdf",
-      "figures/mg_selected/mg_selected_go_ora_down_dotplot.png",
-      "figures/mg_selected/mg_selected_go_ora_down_dotplot.pdf",
-      "figures/mg_selected/mg_selected_go_gsea_dotplot.png",
-      "figures/mg_selected/mg_selected_go_gsea_dotplot.pdf",
-      "figures/mg_selected/mg_selected_go_ora_up_bayes_dotplot.png",
-      "figures/mg_selected/mg_selected_go_ora_up_bayes_dotplot.pdf",
-      "figures/mg_selected/mg_selected_go_ora_down_bayes_dotplot.png",
-      "figures/mg_selected/mg_selected_go_ora_down_bayes_dotplot.pdf",
-      "notebook/figures/mg_selected_go_ora_up_dotplot.png",
-      "notebook/figures/mg_selected_go_ora_down_dotplot.png",
-      "notebook/figures/mg_selected_go_gsea_dotplot.png",
-      "notebook/figures/mg_selected_go_ora_up_bayes_dotplot.png",
-      "notebook/figures/mg_selected_go_ora_down_bayes_dotplot.png",
-      "figures/mg_selected/mg_selected_de_volcano.png",
-      "figures/mg_selected/mg_selected_de_volcano.pdf",
-      "notebook/figures/mg_selected_de_volcano.png"
-    )
-
-    mg_marker_command <- stage_records[["mg-markers"]]$command
-    expected_marker_options <- c(
-      "'scripts/11-find-mg-markers.R'",
-      "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
-      "'--branch-tag' 'pflog_mg_selected_no_filter_cc'",
-      "'--dims' '20'",
-      "'--resolution' '0.5'",
-      "'--layer' 'data'",
-      "'--counts-layer' 'counts'",
-      "'--confirm-no-merge'"
-    )
-    for (expected_option in expected_marker_options) {
-      if (!command_has(mg_marker_command, expected_option)) {
+      ) {
         problems <- c(
           problems,
           stage_problem(
             invocation$label,
             "mg-markers",
-            paste0("command containing ", shQuote(expected_option)),
-            mg_marker_command
+            paste(
+              "all seven protected MG marker outputs",
+              paste(expected_marker_outputs, collapse = ", ")
+            ),
+            stage_records[["mg-markers"]]$expects
           )
         )
       }
-    }
-    if (
-      !stage_outputs_match(
-        stage_records[["mg-markers"]],
-        expected_marker_outputs
-      )
-    ) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "mg-markers",
-          paste(
-            "all seven protected MG marker outputs",
-            paste(expected_marker_outputs, collapse = ", ")
-          ),
-          stage_records[["mg-markers"]]$expects
-        )
-      )
-    }
 
-    mg_de_command <- stage_records[["mg-de"]]$command
-    expected_de_options <- c(
-      "'scripts/12-run-mg-de.R'",
-      "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
-      "'--cluster-column' 'cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5'",
-      "'--counts-layer' 'counts'",
-      "'--lfc-shrink-type' 'apeglm'"
-    )
-    for (expected_option in expected_de_options) {
-      if (!command_has(mg_de_command, expected_option)) {
-        problems <- c(
-          problems,
-          stage_problem(
-            invocation$label,
-            "mg-de",
-            paste0("command containing ", shQuote(expected_option)),
-            mg_de_command
+      mg_de_command <- stage_records[["mg-de"]]$command
+      expected_de_options <- c(
+        "'scripts/12-run-mg-de.R'",
+        "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
+        "'--cluster-column' 'cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5'",
+        "'--counts-layer' 'counts'",
+        "'--lfc-shrink-type' 'apeglm'"
+      )
+      for (expected_option in expected_de_options) {
+        if (!command_has(mg_de_command, expected_option)) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              "mg-de",
+              paste0("command containing ", shQuote(expected_option)),
+              mg_de_command
+            )
           )
-        )
+        }
       }
-    }
-    if (
-      !stage_outputs_match(
-        stage_records[["mg-de"]],
-        expected_de_outputs
-      )
-    ) {
-      problems <- c(
-        problems,
-        stage_problem(
-          invocation$label,
-          "mg-de",
-          paste(
-            "all protected MG DE outputs",
-            paste(expected_de_outputs, collapse = ", ")
-          ),
-          stage_records[["mg-de"]]$expects
-        )
-      )
-    }
-
-    overwrite_stages <- names(stage_records)[vapply(
-      stage_records,
-      function(record) command_has(record$command, "'--overwrite'"),
-      logical(1)
-    )]
-    expected_overwrite_stages <- if (isTRUE(invocation$overwrite)) {
-      c("mg-markers", "mg-de")
-    } else {
-      character()
-    }
-    if (!identical(overwrite_stages, expected_overwrite_stages)) {
-      problems <- c(
-        problems,
-        paste0(
-          invocation$label,
-          ": --overwrite stage mismatch; expected ",
-          paste(expected_overwrite_stages, collapse = ", "),
-          "; got ",
-          paste(overwrite_stages, collapse = ", ")
-        )
-      )
-    }
-
-    marker_index <- match("mg-markers", observed_stages)
-    de_index <- match("mg-de", observed_stages)
-    figure_indices <- match(names(figure_stage_contracts), observed_stages)
-    last_figure_index <- if (anyNA(figure_indices)) {
-      NA_integer_
-    } else {
-      max(figure_indices)
-    }
-    if (
-      is.na(marker_index) ||
-        is.na(de_index) ||
-        is.na(last_figure_index) ||
-        marker_index <= last_figure_index ||
-        de_index <= marker_index
-    ) {
-      problems <- c(
-        problems,
-        paste0(
-          invocation$label,
-          ": marker/DE stage order mismatch; expected mg-markers then mg-de after all figure stages; got ",
-          paste(observed_stages, collapse = ", ")
-        )
-      )
-    }
-    terminal_stage_contracts <- list(
-      "render-notebook" = list(
-        command = "command: 'quarto' 'render' 'notebook/sc_analysis.qmd'",
-        expects = "notebook/sc_analysis.html"
-      ),
-      "tripwires" = list(
-        command = "command: 'Rscript' 'tools/run-tripwires.R'",
-        expects = "tools/run-tripwires.R"
-      )
-    )
-    if (
-      !identical(
-        tail(observed_stages, 3L),
-        c("mg-de", "render-notebook", "tripwires")
-      )
-    ) {
-      problems <- c(
-        problems,
-        paste0(
-          invocation$label,
-          ": terminal stage order mismatch; expected mg-de then render-notebook then tripwires; got ",
-          paste(tail(observed_stages, 3L), collapse = ", ")
-        )
-      )
-    }
-    for (terminal_stage in names(terminal_stage_contracts)) {
-      contract <- terminal_stage_contracts[[terminal_stage]]
-      record <- stage_records[[terminal_stage]]
-      if (!identical(record$command, contract$command)) {
-        problems <- c(
-          problems,
-          stage_problem(
-            invocation$label,
-            terminal_stage,
-            paste0("exact command ", shQuote(contract$command)),
-            record$command
-          )
-        )
-      }
-      output_paths <- stage_output_paths(record)
       if (
-        length(output_paths) != 1L ||
-          !path_has_suffix(output_paths[[1L]], contract$expects)
+        !stage_outputs_match(
+          stage_records[["mg-de"]],
+          expected_de_outputs
+        )
       ) {
         problems <- c(
           problems,
           stage_problem(
             invocation$label,
-            terminal_stage,
-            paste0("exact expected output path ", shQuote(contract$expects)),
-            record$expects
+            "mg-de",
+            paste(
+              "all protected MG DE outputs",
+              paste(expected_de_outputs, collapse = ", ")
+            ),
+            stage_records[["mg-de"]]$expects
           )
         )
+      }
+
+      overwrite_stages <- names(stage_records)[vapply(
+        stage_records,
+        function(record) command_has(record$command, "'--overwrite'"),
+        logical(1)
+      )]
+      expected_overwrite_stages <- if (isTRUE(invocation$overwrite)) {
+        c("mg-markers", "mg-de")
+      } else {
+        character()
+      }
+      if (!identical(overwrite_stages, expected_overwrite_stages)) {
+        problems <- c(
+          problems,
+          paste0(
+            invocation$label,
+            ": --overwrite stage mismatch; expected ",
+            paste(expected_overwrite_stages, collapse = ", "),
+            "; got ",
+            paste(overwrite_stages, collapse = ", ")
+          )
+        )
+      }
+
+      marker_index <- match("mg-markers", observed_stages)
+      de_index <- match("mg-de", observed_stages)
+      figure_indices <- match(names(figure_stage_contracts), observed_stages)
+      last_figure_index <- if (anyNA(figure_indices)) {
+        NA_integer_
+      } else {
+        max(figure_indices)
+      }
+      if (
+        is.na(marker_index) ||
+          is.na(de_index) ||
+          is.na(last_figure_index) ||
+          marker_index <= last_figure_index ||
+          de_index <= marker_index
+      ) {
+        problems <- c(
+          problems,
+          paste0(
+            invocation$label,
+            ": marker/DE stage order mismatch; expected mg-markers then mg-de after all figure stages; got ",
+            paste(observed_stages, collapse = ", ")
+          )
+        )
+      }
+      terminal_stage_contracts <- list(
+        "render-notebook" = list(
+          command = "command: 'quarto' 'render' 'notebook/sc_analysis.qmd'",
+          expects = "notebook/sc_analysis.html"
+        ),
+        "tripwires" = list(
+          command = "command: 'Rscript' 'tools/run-tripwires.R'",
+          expects = "tools/run-tripwires.R"
+        )
+      )
+      if (
+        !identical(
+          tail(observed_stages, 3L),
+          c("mg-de", "render-notebook", "tripwires")
+        )
+      ) {
+        problems <- c(
+          problems,
+          paste0(
+            invocation$label,
+            ": terminal stage order mismatch; expected mg-de then render-notebook then tripwires; got ",
+            paste(tail(observed_stages, 3L), collapse = ", ")
+          )
+        )
+      }
+      for (terminal_stage in names(terminal_stage_contracts)) {
+        contract <- terminal_stage_contracts[[terminal_stage]]
+        record <- stage_records[[terminal_stage]]
+        if (!identical(record$command, contract$command)) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              terminal_stage,
+              paste0("exact command ", shQuote(contract$command)),
+              record$command
+            )
+          )
+        }
+        output_paths <- stage_output_paths(record)
+        if (
+          length(output_paths) != 1L ||
+            !path_has_suffix(output_paths[[1L]], contract$expects)
+        ) {
+          problems <- c(
+            problems,
+            stage_problem(
+              invocation$label,
+              terminal_stage,
+              paste0("exact expected output path ", shQuote(contract$expects)),
+              record$expects
+            )
+          )
+        }
       }
     }
   }
@@ -1954,7 +2004,9 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     "Pipeline input(s) do not exist: ",
     missing_input
   )
-  missing_input_result <- run_pipeline(c("--input", missing_input))
+  missing_input_result <- run_pipeline(
+    c("--regenerate-frozen", "--input", missing_input)
+  )
   if (identical(missing_input_result$status, 0L)) {
     problems <- c(
       problems,
@@ -2080,10 +2132,10 @@ tripwire_just_public_interface <- function(root) {
   plan_lines <- function(output) {
     output[grepl(
       paste0(
-        "^(mode: dry-run|input_source: |overwrite: |",
+        "^(mode: dry-run|regenerate_frozen: |input_source: |overwrite: |",
         "source_cluster_column: |mg_cluster_column: |mg_pca_dims: |",
-        "first_stage: |final_stage: |stage_count: |stage: |",
-        "command: |expects: )"
+        "first_stage: |final_stage: |stage_count: |stage: |command: |",
+        "expects: )"
       ),
       output,
       perl = TRUE
@@ -2100,46 +2152,87 @@ tripwire_just_public_interface <- function(root) {
 
   successful_invocations <- list(
     list(
-      label = "counts-qc default",
+      label = "frozen downstream default",
       just_args = c("--quiet", "run-dry-run"),
       direct_args = c(shQuote(script), "--dry-run"),
       input_source = "counts-qc",
+      regenerate_frozen = FALSE,
       overwrite = FALSE,
-      expected_stage_count = 24L
+      expected_stage_count = 9L,
+      expected_first_stage = "summarize-mg"
     ),
     list(
-      label = "legacy",
-      just_args = c("--quiet", "run-dry-run", "legacy", "false"),
-      direct_args = c(shQuote(script), "--dry-run", "--input-source", "legacy"),
-      input_source = "legacy",
-      overwrite = FALSE,
-      expected_stage_count = 22L
-    ),
-    list(
-      label = "explicit existing RDS",
+      label = "counts-qc frozen regeneration",
       just_args = c(
         "--quiet",
-        "run-dry-run",
+        "regenerate-frozen-dry-run",
+        "counts-qc",
+        "false"
+      ),
+      direct_args = c(
+        shQuote(script),
+        "--dry-run",
+        "--regenerate-frozen",
+        "--input-source",
+        "counts-qc"
+      ),
+      input_source = "counts-qc",
+      regenerate_frozen = TRUE,
+      overwrite = FALSE,
+      expected_stage_count = 24L,
+      expected_first_stage = "process-counts"
+    ),
+    list(
+      label = "legacy frozen regeneration",
+      just_args = c(
+        "--quiet",
+        "regenerate-frozen-dry-run",
+        "legacy",
+        "false"
+      ),
+      direct_args = c(
+        shQuote(script),
+        "--dry-run",
+        "--regenerate-frozen",
+        "--input-source",
+        "legacy"
+      ),
+      input_source = "legacy",
+      regenerate_frozen = TRUE,
+      overwrite = FALSE,
+      expected_stage_count = 22L,
+      expected_first_stage = "preprocess-source"
+    ),
+    list(
+      label = "explicit frozen regeneration",
+      just_args = c(
+        "--quiet",
+        "regenerate-frozen-dry-run",
         shQuote(explicit_input),
         "false"
       ),
       direct_args = c(
         shQuote(script),
         "--dry-run",
+        "--regenerate-frozen",
         "--input",
         shQuote(explicit_input)
       ),
       input_source = "explicit",
+      regenerate_frozen = TRUE,
       overwrite = FALSE,
-      expected_stage_count = 22L
+      expected_stage_count = 22L,
+      expected_first_stage = "preprocess-source"
     ),
     list(
-      label = "counts-qc overwrite",
-      just_args = c("--quiet", "run-dry-run", "counts-qc", "true"),
+      label = "frozen downstream overwrite",
+      just_args = c("--quiet", "run-dry-run", "true"),
       direct_args = c(shQuote(script), "--dry-run", "--overwrite"),
       input_source = "counts-qc",
+      regenerate_frozen = FALSE,
       overwrite = TRUE,
-      expected_stage_count = 24L
+      expected_stage_count = 9L,
+      expected_first_stage = "summarize-mg"
     )
   )
 
@@ -2190,6 +2283,10 @@ tripwire_just_public_interface <- function(root) {
 
     expected_header <- c(
       "mode: dry-run",
+      paste0(
+        "regenerate_frozen: ",
+        tolower(as.character(invocation$regenerate_frozen))
+      ),
       paste0("input_source: ", invocation$input_source),
       paste0("overwrite: ", tolower(as.character(invocation$overwrite)))
     )
@@ -2222,20 +2319,13 @@ tripwire_just_public_interface <- function(root) {
     }
     if (
       length(observed_stages) == 0L ||
-        !identical(
-          observed_stages[[1L]],
-          if (identical(invocation$input_source, "counts-qc")) {
-            "process-counts"
-          } else {
-            "preprocess-source"
-          }
-        )
+        !identical(observed_stages[[1L]], invocation$expected_first_stage)
     ) {
       problems <- c(
         problems,
         paste0(
           invocation$label,
-          ": source-dependent first stage is wrong: ",
+          ": first stage is wrong: ",
           paste(observed_stages, collapse = ", ")
         )
       )
@@ -2243,27 +2333,14 @@ tripwire_just_public_interface <- function(root) {
     has_counts_stages <- all(
       c("process-counts", "qc-filtering") %in% observed_stages
     )
-    if (
-      identical(invocation$input_source, "counts-qc") &&
-        !isTRUE(has_counts_stages)
-    ) {
+    should_have_counts_stages <- isTRUE(invocation$regenerate_frozen) &&
+      identical(invocation$input_source, "counts-qc")
+    if (!identical(has_counts_stages, should_have_counts_stages)) {
       problems <- c(
         problems,
         paste0(
           invocation$label,
-          ": counts-qc plan is missing process-counts/qc-filtering stages."
-        )
-      )
-    }
-    if (
-      !identical(invocation$input_source, "counts-qc") &&
-        isTRUE(has_counts_stages)
-    ) {
-      problems <- c(
-        problems,
-        paste0(
-          invocation$label,
-          ": legacy/explicit plan unexpectedly includes counts-qc stages."
+          ": count-stage inclusion does not match regeneration mode."
         )
       )
     }
@@ -2287,7 +2364,7 @@ tripwire_just_public_interface <- function(root) {
 
   invalid <- run_process(
     just,
-    c("--quiet", "run-dry-run", "counts-qc", "not-a-boolean")
+    c("--quiet", "run-dry-run", "not-a-boolean")
   )
   if (identical(invalid$status, 0L)) {
     problems <- c(

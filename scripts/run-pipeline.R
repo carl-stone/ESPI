@@ -1,16 +1,18 @@
 #!/usr/bin/env Rscript
 
-# Print the deterministic analysis plan or execute it through the figure stages.
+# Print or execute the deterministic downstream analysis plan.
 #
 # Usage:
-#   Rscript scripts/run-pipeline.R --dry-run \
+#   Rscript scripts/run-pipeline.R [--dry-run] [--overwrite]
+#   Rscript scripts/run-pipeline.R --regenerate-frozen \
 #     [--input-source counts-qc|legacy | --input <seurat.rds>] [--overwrite]
 #
 # Arguments:
-#   --dry-run       Print the pipeline contract without checking or writing inputs.
-#   --input-source  Use the named counts-qc or legacy source object.
-#   --input         Use an explicit Seurat RDS input path.
-#   --overwrite     Permit replacement of protected marker and DE outputs.
+#   --dry-run            Print the pipeline contract without checking or writing inputs.
+#   --regenerate-frozen  Explicitly run count processing through MG selection.
+#   --input-source       Select counts-qc or legacy input for frozen regeneration.
+#   --input              Select an explicit Seurat RDS for frozen regeneration.
+#   --overwrite          Permit replacement of protected marker and DE outputs.
 
 suppressPackageStartupMessages({
   library(here)
@@ -29,6 +31,7 @@ input_path <- NULL
 input_source_supplied <- FALSE
 dry_run <- FALSE
 overwrite <- FALSE
+regenerate_frozen <- FALSE
 BRANCH_FILTER_TOKEN_INDEX <- 2L
 BRANCH_NORMALIZATION_TOKEN_INDEX <- 1L
 SAMPLE_METADATA_PATH_INDEX <- 2L
@@ -40,6 +43,11 @@ while (argument_index <= length(arguments)) {
 
   if (identical(argument, "--dry-run")) {
     dry_run <- TRUE
+    argument_index <- argument_index + 1L
+    next
+  }
+  if (identical(argument, "--regenerate-frozen")) {
+    regenerate_frozen <- TRUE
     argument_index <- argument_index + 1L
     next
   }
@@ -73,6 +81,15 @@ while (argument_index <= length(arguments)) {
 if (!is.null(input_path) && input_source_supplied) {
   stop("Use either --input or --input-source, not both.", call. = FALSE)
 }
+if (
+  !isTRUE(regenerate_frozen) &&
+    (input_source_supplied || !is.null(input_path))
+) {
+  stop(
+    "--input-source and --input require --regenerate-frozen.",
+    call. = FALSE
+  )
+}
 if (!input_source %in% c("counts-qc", "legacy")) {
   stop(
     "--input-source must be one of counts-qc or legacy.",
@@ -93,6 +110,7 @@ run_spec <- list(
   input_source = input_source,
   input_path = input_path,
   overwrite = overwrite,
+  regenerate_frozen = regenerate_frozen,
   normalization = "pflog",
   filter_cell_cycle_hvgs = FALSE,
   cluster_elbow_n = 20L,
@@ -1696,31 +1714,7 @@ preflight_protected_outputs <- function(stages) {
   }
 }
 
-# ---- dry run ----
-
-if (dry_run) {
-  contract_lines <- c(
-    "mode: dry-run",
-    paste0("input_source: ", run_spec$input_source),
-    paste0("overwrite: ", tolower(as.character(run_spec$overwrite))),
-    paste0("source_cluster_column: ", run_spec$source_cluster_column),
-    paste0("mg_cluster_column: ", run_spec$mg_cluster_column),
-    paste0("mg_pca_dims: ", run_spec$mg_pca_dims),
-    paste0("first_stage: ", stage_plan[[1]]$name),
-    "final_stage: tripwires",
-    paste0("stage_count: ", length(stage_plan))
-  )
-  base::cat(contract_lines, sep = "\n")
-  for (stage in stage_plan) {
-    base::cat(
-      paste0("stage: ", stage$name),
-      paste0("command: ", render_command(stage$command)),
-      paste0("expects: ", paste(stage$expects, collapse = ";")),
-      sep = "\n"
-    )
-  }
-  quit(status = 0L, save = "no")
-}
+# ---- execution plan ----
 
 source_execution_stage_names <- c(
   "preprocess-source",
@@ -1732,56 +1726,94 @@ source_execution_stage_names <- c(
   ),
   "summarize-source"
 )
-mg_execution_stage_names <- c(
+frozen_mg_stage_names <- c(
   "select-mg",
+  "marker-heatmap-source",
+  "module-heatmap-source",
   "cluster-mg-no-filter-cc",
   "cluster-mg-filter-cc",
-  "summarize-mg"
-)
-figure_execution_stage_names <- c(
-  "marker-heatmap-source",
   "marker-heatmap-mg-no-filter-cc",
-  "marker-heatmap-mg-filter-cc",
-  "module-heatmap-source",
+  "marker-heatmap-mg-filter-cc"
+)
+downstream_mg_stage_names <- c(
+  "summarize-mg",
   "module-heatmap-mg-no-filter-cc",
   "module-heatmap-mg-filter-cc",
   "mg-figures-no-filter-cc",
-  "mg-figures-filter-cc"
-)
-analysis_execution_stage_names <- c(
+  "mg-figures-filter-cc",
   "mg-markers",
   "mg-de",
   "render-notebook",
   "tripwires"
 )
-execution_stage_names <- if (identical(run_spec$input_source, "counts-qc")) {
-  c(
-    "process-counts",
-    "qc-filtering",
-    source_execution_stage_names,
-    mg_execution_stage_names,
-    figure_execution_stage_names,
-    analysis_execution_stage_names
-  )
+frozen_regeneration_stage_names <- c(
+  if (identical(run_spec$input_source, "counts-qc")) {
+    c("process-counts", "qc-filtering")
+  },
+  source_execution_stage_names,
+  frozen_mg_stage_names,
+  downstream_mg_stage_names
+)
+execution_stage_names <- if (isTRUE(run_spec$regenerate_frozen)) {
+  frozen_regeneration_stage_names
 } else {
-  c(
-    source_execution_stage_names,
-    mg_execution_stage_names,
-    figure_execution_stage_names,
-    analysis_execution_stage_names
-  )
+  downstream_mg_stage_names
 }
 execution_stages <- stage_plan[
   match(execution_stage_names, vapply(stage_plan, `[[`, character(1), "name"))
 ]
 if (any(vapply(execution_stages, is.null, logical(1)))) {
   stop(
-    "Source execution stages are not available in the pipeline plan.",
+    "Execution stages are not available in the pipeline plan.",
     call. = FALSE
   )
 }
 
-preflight_source_inputs()
+# ---- dry run ----
+
+if (dry_run) {
+  contract_lines <- c(
+    "mode: dry-run",
+    paste0(
+      "regenerate_frozen: ",
+      tolower(as.character(run_spec$regenerate_frozen))
+    ),
+    paste0("input_source: ", run_spec$input_source),
+    paste0("overwrite: ", tolower(as.character(run_spec$overwrite))),
+    paste0("source_cluster_column: ", run_spec$source_cluster_column),
+    paste0("mg_cluster_column: ", run_spec$mg_cluster_column),
+    paste0("mg_pca_dims: ", run_spec$mg_pca_dims),
+    paste0("first_stage: ", execution_stages[[1]]$name),
+    "final_stage: tripwires",
+    paste0("stage_count: ", length(execution_stages))
+  )
+  base::cat(contract_lines, sep = "\n")
+  for (stage in execution_stages) {
+    base::cat(
+      paste0("stage: ", stage$name),
+      paste0("command: ", render_command(stage$command)),
+      paste0("expects: ", paste(stage$expects, collapse = ";")),
+      sep = "\n"
+    )
+  }
+  quit(status = 0L, save = "no")
+}
+
+if (isTRUE(run_spec$regenerate_frozen)) {
+  preflight_source_inputs()
+} else {
+  missing_frozen_inputs <- unname(mg_branch_paths)[
+    !file.exists(unname(mg_branch_paths))
+  ]
+  if (length(missing_frozen_inputs) > 0L) {
+    stop(
+      "Frozen MG-selected input(s) do not exist: ",
+      paste(missing_frozen_inputs, collapse = "; "),
+      ". Use `just regenerate-frozen` only when intentionally rebuilding them.",
+      call. = FALSE
+    )
+  }
+}
 preflight_protected_outputs(execution_stages)
 for (stage in execution_stages) {
   run_stage(stage)

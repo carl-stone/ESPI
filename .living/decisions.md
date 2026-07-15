@@ -781,3 +781,11 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The lint boundary should match code owned and executed by this project, not inert vendored references.
 
 **Consequences**: Findings in covered scopes must be fixed or recorded with a structured `ANALYSIS_OK` waiver; excluded skillpack content does not affect the project lint gate.
+
+### [2026-07-15] Freeze the pipeline through MG clustering
+
+**Decision**: Routine `just run` starts from the existing clustered MG-selected RDS objects. Scripts `01` through `07`, every `04-cluster.R` call, source summaries, and script `06` marker heatmaps run only through the explicit `just regenerate-frozen` interface or deliberate low-level recovery.
+
+**Rationale**: The upstream cell selection and clustering choices now define the fixed analysis cohort. Routine downstream work must not silently regenerate those artifacts.
+
+**Consequences**: `just run [overwrite]` begins at the MG cluster summary. Full regeneration requires an explicit recipe name and source argument.

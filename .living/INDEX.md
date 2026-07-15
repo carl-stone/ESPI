@@ -5,9 +5,9 @@ Last audit: 2026-07-15
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 6 sections | 2026-07-09 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit, Cross-References |
-| decisions.md | 56 entries (large — read selectively) | 2026-07-14 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
-| learnings.md | 44 entries (large — read selectively) | 2026-07-14 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
-| log/ | 68 sessions | 2026-07-14 | espi (68) |
+| decisions.md | 57 entries (large — read selectively) | 2026-07-15 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
+| learnings.md | 45 entries (large — read selectively) | 2026-07-15 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
+| log/ | 68 sessions | 2026-07-15 | espi (68) |
 | findings/ | 4 findings across 2 topics | 2026-07-14 | condition-response, population-structure |
 
 ## Local skills
@@ -28,6 +28,8 @@ Last summarized: 2026-07-15 (heuristic)
 
 ## Most recent (10)
 
+- [2026-07-15] L-45: Pipeline interface changes require both contract tripwires
+- [2026-07-15] D-57: Freeze the pipeline through MG clustering
 - [2026-07-14] L-40: Label-permutation tripwires must preserve derived sample identity
 - [2026-07-14] L-41: Anchored Markdown wrappers must be removed as a pair
 - [2026-07-14] L-42: Volcano label ranking and significance encoding can use different statistics
@@ -36,8 +38,6 @@ Last summarized: 2026-07-15 (heuristic)
 - [2026-07-14] D-52: Remove differential detection and report primary DE with a volcano plot
 - [2026-07-14] D-53: Permute condition labels only after preserving sample identity
 - [2026-07-14] D-54: Balance volcano labels by effect direction
-- [2026-07-14] D-55: Use apeglm shrinkage and simplified GO summaries
-- [2026-07-14] D-56: Lint first-party R scopes, not inert skillpacks
 
 ## By tag
 
@@ -52,9 +52,9 @@ Last summarized: 2026-07-15 (heuristic)
 - `notebook`: L-2, L-7, L-16, L-25, D-20, D-21, D-22, D-23, D-26, D-27, D-28, D-29, D-33
 - `scripts`: L-29, L-30, L-34, D-5, D-9, D-36, D-37, D-38, D-39, D-41, D-42, D-48
 - `validation`: L-8, L-19, L-29, L-31, L-32, L-36, L-37, L-38, D-39, D-40, D-51
+- `workflow`: L-28, L-30, L-33, L-34, L-37, L-44, L-45, D-42, D-48, D-51
 - `clustering`: L-4, L-37, L-38, D-5, D-6, D-11, D-43, D-47, D-50
 - `qc-filtering`: L-31, L-32, L-33, L-36, D-39, D-40, D-45, D-46, D-49
-- `workflow`: L-28, L-30, L-33, L-34, L-37, L-44, D-42, D-48, D-51
 - `differential-detection`: L-14, L-15, L-18, L-24, D-17, D-18, D-32, D-35
 - `omp`: L-12, L-13, D-13, D-14, D-15, D-16, D-30
 - `session-logs`: L-10, L-20, L-21, L-22, L-23, D-28, D-30
@@ -70,6 +70,7 @@ Last summarized: 2026-07-15 (heuristic)
 - `mitochondrial`: L-32, L-36, D-40, D-45
 - `todo`: L-23, D-27, D-34, D-35
 - `tooling`: L-19, L-27, D-36, D-56
+- `tripwires`: L-40, L-41, L-45, D-53
 - `umap`: L-25, L-26, D-21, D-33
 - `abundance`: D-24, D-25, D-26
 - `conventions`: D-2, D-4, D-28
@@ -82,7 +83,7 @@ Last summarized: 2026-07-15 (heuristic)
 - `reporting`: L-16, D-6, D-28
 - `single-cell`: D-2, D-7, D-37
 - `skillpacks`: L-3, D-4, D-56
-- `tripwires`: L-40, L-41, D-53
+- `cli`: L-44, L-45
 - `collaboration`: D-34, D-35
 - `condition`: L-25, D-33
 - `doublets`: L-36, D-45
@@ -106,7 +107,6 @@ Last summarized: 2026-07-15 (heuristic)
 - `bioinformatics`: D-2
 - `box`: L-2
 - `causal-inference`: D-25
-- `cli`: L-44
 - `clr`: D-24
 - `clusterprofiler`: L-43
 - `clustree`: L-5
@@ -133,6 +133,7 @@ Last summarized: 2026-07-15 (heuristic)
 - `palette`: D-29
 - `parameters`: D-11
 - `parsing`: L-41
+- `pipeline`: L-45
 - `pseudobulk`: D-10
 - `quarto`: L-2
 - `read-tool`: L-8

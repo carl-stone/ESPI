@@ -4,16 +4,24 @@ set positional-arguments
 _default:
     just --list
 
-# Run the canonical pipeline from counts-qc, legacy, or an explicit RDS
+# Run downstream analysis from the frozen MG-selected objects
 [group: "Canonical pipeline"]
-run source="counts-qc" overwrite="false": (_run-pipeline source overwrite "false")
+run overwrite="false": (_run-pipeline overwrite "false" "false" "counts-qc")
 
-# Print the canonical pipeline plan without changing files
+# Print the downstream plan without changing files
 [group: "Canonical pipeline"]
-run-dry-run source="counts-qc" overwrite="false": (_run-pipeline source overwrite "true")
+run-dry-run overwrite="false": (_run-pipeline overwrite "true" "false" "counts-qc")
 
-# Build arguments for the canonical pipeline runner
-_run-pipeline source="counts-qc" overwrite="false" dry_run="false":
+# Explicitly regenerate frozen count processing through MG selection
+[group: "Expert and maintenance"]
+regenerate-frozen source="counts-qc" overwrite="false": (_run-pipeline overwrite "false" "true" source)
+
+# Print the full frozen-stage regeneration plan
+[group: "Expert and maintenance"]
+regenerate-frozen-dry-run source="counts-qc" overwrite="false": (_run-pipeline overwrite "true" "true" source)
+
+# Build arguments for the pipeline runner
+_run-pipeline overwrite="false" dry_run="false" regenerate_frozen="false" source="counts-qc":
     #!/usr/bin/env bash
     set -euo pipefail
     case "{{overwrite}}" in
@@ -25,14 +33,17 @@ _run-pipeline source="counts-qc" overwrite="false" dry_run="false":
             ;;
     esac
     args=()
-    case "{{source}}" in
-        counts-qc|legacy)
-            args+=(--input-source "{{source}}")
-            ;;
-        *)
-            args+=(--input "{{source}}")
-            ;;
-    esac
+    if [ "{{regenerate_frozen}}" = "true" ]; then
+        args+=(--regenerate-frozen)
+        case "{{source}}" in
+            counts-qc|legacy)
+                args+=(--input-source "{{source}}")
+                ;;
+            *)
+                args+=(--input "{{source}}")
+                ;;
+        esac
+    fi
     if [ "{{dry_run}}" = "true" ]; then
         args+=(--dry-run)
     fi

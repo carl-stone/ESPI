@@ -19,68 +19,45 @@ repository](https://github.com/carl-stone/ESPI) with:
 pak::pak("carl-stone/ESPI")
 ```
 
-## End-to-end workflow
+## Frozen analysis workflow
 
-Run from the repository root. Inspect the resolved contract first, then
-run the full pipeline:
+The count processing, QC, source preprocessing and clustering, source
+summaries and marker heatmaps, MG selection, and MG clustering are
+frozen. Routine commands consume the existing clustered MG-selected RDS
+objects; they do not run scripts `01` through `07` or `04-cluster.R`.
+
+Inspect the downstream plan, then run it:
 
 ``` sh
 just run-dry-run
 just run
 ```
 
-The canonical positional forms are
-`just run-dry-run [source] [overwrite]` and
-`just run [source] [overwrite]`; omit both arguments to use
-`source=counts-qc` and `overwrite=false`. The dry run prints the
-resolved source, overwrite setting, stage order, and expected outputs
-without writing. The full run executes that plan.
-
-`source` may be:
-
-- `counts-qc`: process the raw matrices and metadata, run QC, and
-  continue with the analysis.
-- `legacy`: use `INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds`
-  and start at preprocessing.
-- A quoted explicit Seurat RDS path, such as `"/path/to/my_input.rds"`,
-  and start at preprocessing.
-
-`overwrite` is `false` or `true`. With `false`, existing protected
-marker and DE outputs stop the run; `true` permits their replacement. A
-dry run never writes, regardless of the overwrite value. For example:
+These commands start at `scripts/08-summarize-mg-clusters.R`, regenerate
+the downstream MG figures, marker tables, DE and enrichment outputs,
+render `notebook/sc_analysis.qmd`, and run `tools/run-tripwires.R`. The
+optional `overwrite` argument is `false` or `true`; existing protected
+marker and DE outputs stop the run unless replacement is explicitly
+allowed:
 
 ``` sh
-just run-dry-run legacy false
-just run "path/to/my_input.rds" true
+just run-dry-run true
+just run true
 ```
 
-For a `counts-qc` run, `scripts/01-process-counts.R` creates the
-combined raw object and `scripts/02-qc-filtering.R` writes QC outputs.
-`percent.mt` uses all 37 observed mitochondrial features, whose labels
-are mixed (including `mt-Rnr1`, `mt-Rnr2`, and non-`mt-` labels).
-`DropletUtils::emptyDrops()` supplies the cell-call FDR and `is_cell`
-flag. `scDblFinder` runs per sample on called barcodes above the count
-and feature floors and supplies doublet scores and singlet/doublet
-calls. Called singlets define sample-specific lower three-MAD thresholds
-for log10 counts and detected features and an upper three-MAD threshold
-for mitochondrial percentage. The saved filtered object contains 4,146
-source cells that pass those three MAD criteria; `is_cell` and
-`is_singlet` remain separate from `pass_qc`. `percent.ribo` remains
-diagnostic only.
+Only regenerate frozen data deliberately. Inspect the complete
+regeneration plan before executing it:
 
-The stage flow is:
-
-``` text
-counts-qc -> process counts -> QC -\
-legacy / explicit RDS -------------> preprocess -> source cluster grid
-                                      -> summarize -> select MG (PCA 50)
-                                      -> MG cluster grids -> figures/markers/DE
-                                      -> render notebook -> tripwires
+``` sh
+just regenerate-frozen-dry-run counts-qc false
+just regenerate-frozen counts-qc false
 ```
 
-A successful full run renders `notebook/sc_analysis.qmd` and then runs
-`tools/run-tripwires.R`; it stops if a stage or its outputs fail
-validation.
+For explicit regeneration, `source` may be `counts-qc`, `legacy`, or a
+quoted Seurat RDS path. The regeneration recipe runs count processing
+when applicable, source preprocessing and clustering, source summaries
+and marker heatmaps, MG selection and clustering, then the downstream
+analysis.
 
 Current selected identifiers and counts:
 
@@ -89,9 +66,8 @@ Current selected identifiers and counts:
 | Source | `pflog_no_filter_cc`; `cluster_pflog_no_filter_cc_dims30_res0.3` | 4,146 cells; 9 clusters; exclude source clusters 2, 7, and 8; retain 3,456 |
 | MG-selected | `pflog_mg_selected_no_filter_cc`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` | MG PCA/candidate depth 50; 8 chosen clusters |
 
-If a checkpoint needs recovery, use the existing low-level entry points
-below. The canonical `just run` command remains the preferred way to
-execute the complete workflow.
+Use the low-level entry points below only for intentional checkpoint
+recovery.
 
 | Checkpoint | Existing recipe or script |
 |----|----|

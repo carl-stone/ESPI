@@ -30,23 +30,30 @@ just notebook
 
 ## Routine Pipeline
 
-Use the canonical wrapper for a complete analysis run:
+Routine runs start from the frozen clustered MG-selected RDS objects:
 
 ```sh
-just run [source] [overwrite]
-just run-dry-run [source] [overwrite]
+just run [overwrite]
+just run-dry-run [overwrite]
 ```
 
-`source` defaults to `counts-qc` and accepts `counts-qc`, `legacy`, or a
-quoted explicit RDS path. `overwrite` defaults to `false`; set it to `true`
-only when intentionally replacing protected marker or DE outputs. The
-dry-run prints the deterministic plan without changing files. A full run
-validates each stage, renders the notebook, and then runs tripwires.
+`overwrite` defaults to `false`; set it to `true` only when intentionally
+replacing protected marker or DE outputs. The dry run prints the downstream
+plan without changing files. A run begins at the MG summary, validates each
+stage, renders the notebook, and then runs tripwires. It does not execute
+scripts `01` through `07` or `04-cluster.R`.
 
-`counts-qc` runs count processing and QC before preprocessing the source.
-`legacy` uses the existing
-`INPUT_OBJECT_DIR/pipseq_processed_matrix_with_egfp.rds`. An explicit RDS
-path bypasses named-source selection and uses that object as the source.
+Regenerate the frozen count processing, QC, source preprocessing and
+clustering, source summaries and marker heatmaps, MG selection, and MG
+clustering only with the explicit expert recipes:
+
+```sh
+just regenerate-frozen-dry-run [source] [overwrite]
+just regenerate-frozen [source] [overwrite]
+```
+
+For regeneration, `source` defaults to `counts-qc` and also accepts `legacy`
+or a quoted explicit RDS path.
 
 The current selected branches are:
 
