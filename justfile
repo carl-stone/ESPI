@@ -211,7 +211,7 @@ mg-figures input="" branch_tag="pflog_mg_selected_no_filter_cc" elbow_n="20" dim
 
 # Run mg-selected DE and enrichment
 [group: "Expert and maintenance"]
-mg-de input="" cluster_column="cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5" condition_col="" control_label="" estim_label="" counts_layer="counts" deg_dir="" enrichment_dir="" lfc_shrink_type="normal" overwrite="false":
+mg-de input="" cluster_column="cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5" condition_col="" control_label="" estim_label="" counts_layer="counts" deg_dir="" enrichment_dir="" lfc_shrink_type="apeglm" overwrite="false":
     #!/usr/bin/env bash
     set -euo pipefail
     args=(--cluster-column "{{cluster_column}}" --counts-layer "{{counts_layer}}" --lfc-shrink-type "{{lfc_shrink_type}}")
@@ -227,7 +227,7 @@ mg-de input="" cluster_column="cluster_pflog_mg_selected_no_filter_cc_dims20_res
 # Re-run default mg-selected DE and replace existing outputs
 [group: "Expert and maintenance"]
 mg-de-overwrite:
-    just mg-de "" "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5" "" "" "" "counts" "" "" "normal" "true"
+    just mg-de "" "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5" "" "" "" "counts" "" "" "apeglm" "true"
 
 # Render the Quarto notebook
 [group: "Expert and maintenance"]

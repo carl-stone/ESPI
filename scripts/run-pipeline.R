@@ -235,6 +235,12 @@ mg_figure_paths <- function(branch, dims, resolution) {
       dims,
       resolution_tag_value
     ),
+    coexpression = sprintf(
+      "mg_selected_ascl1_hes6_coexpression_%s_dims%d_res%s",
+      branch,
+      dims,
+      resolution_tag_value
+    ),
     abundance = sprintf(
       "mg_selected_cluster_abundance_enrichment_%s_dims%d_res%s",
       branch,
@@ -1110,19 +1116,41 @@ de_protected_outputs <- c(
       "go_bp_ora_up.tsv",
       "go_bp_ora_down.tsv",
       "go_bp_gsea.tsv",
-      "go_bp_gsea_symbol_entrez_mapping.tsv"
+      "go_bp_gsea_symbol_entrez_mapping.tsv",
+      "go_bp_ora_up_simplified.tsv",
+      "go_bp_ora_down_simplified.tsv",
+      "go_bp_gsea_simplified.tsv",
+      "go_bp_ora_up_bayes_simplified.tsv",
+      "go_bp_ora_down_bayes_simplified.tsv"
     )
   ),
   file.path(
     de_figure_dir,
     c(
       "mg_selected_de_volcano.png",
-      "mg_selected_de_volcano.pdf"
+      "mg_selected_de_volcano.pdf",
+      "mg_selected_go_ora_up_dotplot.png",
+      "mg_selected_go_ora_up_dotplot.pdf",
+      "mg_selected_go_ora_down_dotplot.png",
+      "mg_selected_go_ora_down_dotplot.pdf",
+      "mg_selected_go_gsea_dotplot.png",
+      "mg_selected_go_gsea_dotplot.pdf",
+      "mg_selected_go_ora_up_bayes_dotplot.png",
+      "mg_selected_go_ora_up_bayes_dotplot.pdf",
+      "mg_selected_go_ora_down_bayes_dotplot.png",
+      "mg_selected_go_ora_down_bayes_dotplot.pdf"
     )
   ),
   file.path(
     here::here("notebook", "figures"),
-    "mg_selected_de_volcano.png"
+    c(
+      "mg_selected_de_volcano.png",
+      "mg_selected_go_ora_up_dotplot.png",
+      "mg_selected_go_ora_down_dotplot.png",
+      "mg_selected_go_gsea_dotplot.png",
+      "mg_selected_go_ora_up_bayes_dotplot.png",
+      "mg_selected_go_ora_down_bayes_dotplot.png"
+    )
   )
 )
 
@@ -1552,7 +1580,7 @@ stage_plan <- c(
         "--counts-layer",
         run_spec$counts_layer,
         "--lfc-shrink-type",
-        "normal",
+        "apeglm",
         overwrite_argument
       ),
       de_protected_outputs,

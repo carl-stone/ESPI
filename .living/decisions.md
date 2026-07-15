@@ -756,3 +756,15 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: Separate ranking guarantees representation of both directions without changing the FDR-based visual evidence.
 
 **Consequences**: The primary-model volcano now carries at most 40 labels, balanced by fold-change direction; notebook prose distinguishes raw-P-value label ranking from adjusted-P-value plotting and significance.
+
+### [2026-07-14] Use apeglm shrinkage and simplified GO summaries
+
+**Tags**: differential-expression, enrichment, plotting, mg-selected, reproducibility
+
+**Context**: The MG-selected DE stage defaulted to normal-prior LFC shrinkage and wrote only raw GO ORA/GSEA tables. The notebook lacked a dedicated enrichment section and a direct Ascl1/Hes6 coexpression view.
+
+**Decision**: Default DESeq2 LFC shrinkage to `apeglm`. Filter GO results to FDR-significant terms before `clusterProfiler::simplify()`, and compare ORA results with deterministic `enrichit::bayes_enrich()` selection before simplifying. Keep these helpers inline in the executable scripts because they serve one analysis stage.
+
+**Rationale**: `apeglm` is the requested shrinkage model; simplifying only enriched terms preserves the inferential scope and avoids unnecessary semantic-similarity work. Inline helpers keep the one-off analysis flow visible.
+
+**Consequences**: The pipeline now protects five simplified tables, five PNG/PDF dotplots, their notebook links, and both branch-specific Ascl1/Hes6 scatter outputs. Notebook section 4 reports the enrichment results.

@@ -9,7 +9,7 @@
 #     --cluster-column <cluster metadata column> \
 #     --condition-col <condition metadata column> \
 #     --counts-layer <raw counts layer> \
-#     --lfc-shrink-type <normal|apeglm> \
+#     --lfc-shrink-type <normal|apeglm>  (default apeglm) \
 #     --overwrite
 # Defaults target the mg-selected no-filter-cc pFlog branch:
 #   CURRENT_OBJECT_DIR/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds
@@ -26,6 +26,9 @@
 #   ENRICHMENT_DIR/mg_selected/go_bp_ora_{up,down}.tsv
 #   ENRICHMENT_DIR/mg_selected/go_bp_gsea.tsv
 #   ENRICHMENT_DIR/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv
+#   ENRICHMENT_DIR/mg_selected/*_simplified.tsv
+#   FIGURE_DIR/mg_selected/mg_selected_go_*_dotplot.(png|pdf)
+#   notebook/figures/mg_selected_go_*_dotplot.png symlinks
 #   FIGURE_DIR/mg_selected/mg_selected_de_volcano.(png|pdf)
 #   notebook/figures/mg_selected_de_volcano.png symlink
 
@@ -95,6 +98,8 @@ required_packages <- c(
   "DESeq2",
   "clusterProfiler",
   "org.Mm.eg.db",
+  "enrichit",
+  "enrichplot",
   "ggplot2",
   "ggrepel",
   "Matrix",
@@ -148,7 +153,7 @@ volcano_notebook_png_path <- here::here(
   "figures",
   basename(volcano_png_path)
 )
-lfc_shrink_type <- get_arg(cli_args, "--lfc-shrink-type", "normal")
+lfc_shrink_type <- get_arg(cli_args, "--lfc-shrink-type", "apeglm")
 overwrite_outputs <- "--overwrite" %in% cli_args
 if (!lfc_shrink_type %in% c("normal", "apeglm")) {
   stop(
@@ -172,6 +177,9 @@ ESTIM_LEVEL <- "estim"
 CONTRAST_DIRECTION <- "estim_vs_control"
 CDKN1B_GENE <- "Cdkn1b"
 GSEA_SEED <- SEED
+BAYES_SEED <- SEED
+ENRICH_SIG_CUTOFF <- 0.05
+ENRICH_DOTPLOT_SHOW_N <- 15L
 
 # ---- helpers ----
 
@@ -678,7 +686,7 @@ map_genes_to_entrez <- function(symbols) {
   unique(mapped)
 }
 
-write_go_ora <- function(significant_symbols, background_map, direction, path) {
+run_go_ora <- function(significant_symbols, background_map, direction, path) {
   significant_map <- background_map[
     background_map$SYMBOL %in% significant_symbols,
     ,
@@ -727,9 +735,10 @@ write_go_ora <- function(significant_symbols, background_map, direction, path) {
   }
   enrichment_table$direction <- direction
   write_tsv(enrichment_table, path)
+  return(enrichment)
 }
 
-write_go_gsea <- function(result_table, background_map, path, mapping_path) {
+run_go_gsea <- function(result_table, background_map, path, mapping_path) {
   ranked <- result_table[
     !is.na(result_table$stat),
     c("gene", "stat"),
@@ -805,6 +814,121 @@ write_go_gsea <- function(result_table, background_map, path, mapping_path) {
     return(invisible(NULL))
   }
   write_tsv(gsea_table, path)
+  return(gsea)
+}
+
+significant_enrichresult <- function(x, cutoff = ENRICH_SIG_CUTOFF) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  res <- x@result
+  keep <- !is.na(res$p.adjust) & res$p.adjust < cutoff
+  if (!any(keep)) {
+    return(NULL)
+  }
+  x@result <- res[keep, , drop = FALSE]
+  x
+}
+
+write_simplified <- function(x, path, label) {
+  if (is.null(x)) {
+    write_reason_tsv(
+      path,
+      paste0("no significant terms to simplify for ", label),
+      n_input_genes = 0L,
+      n_mapped_genes = 0L,
+      min_required = 1L
+    )
+    return(NULL)
+  }
+  simplified <- clusterProfiler::simplify(x)
+  tbl <- as.data.frame(simplified)
+  if (nrow(tbl) == 0L) {
+    write_reason_tsv(
+      path,
+      paste0("no simplified terms for ", label),
+      n_input_genes = nrow(x@result),
+      n_mapped_genes = 0L,
+      min_required = 1L
+    )
+    return(NULL)
+  }
+  write_tsv(tbl, path)
+  simplified
+}
+
+write_bayes_simplified <- function(x, path, label, seed) {
+  if (is.null(x)) {
+    write_reason_tsv(
+      path,
+      paste0("no significant terms for bayes+simplify: ", label),
+      n_input_genes = 0L,
+      n_mapped_genes = 0L,
+      min_required = 1L
+    )
+    return(NULL)
+  }
+  bayes <- enrichit::bayes_enrich(x, seed = seed)
+  simplified <- clusterProfiler::simplify(bayes)
+  tbl <- as.data.frame(simplified)
+  if (nrow(tbl) == 0L) {
+    write_reason_tsv(
+      path,
+      paste0("no bayes+simplified terms for ", label),
+      n_input_genes = nrow(x@result),
+      n_mapped_genes = 0L,
+      min_required = 1L
+    )
+    return(NULL)
+  }
+  write_tsv(tbl, path)
+  simplified
+}
+
+save_enrichment_dotplot <- function(
+  x,
+  png_path,
+  pdf_path,
+  title,
+  show_n = ENRICH_DOTPLOT_SHOW_N,
+  is_gsea = FALSE
+) {
+  if (is.null(x) || nrow(as.data.frame(x)) == 0L) {
+    plot <- ggplot2::ggplot() +
+      ggplot2::annotate(
+        "text",
+        x = 0,
+        y = 0,
+        label = paste0("No enrichment terms: ", title)
+      ) +
+      ggplot2::theme_void()
+  } else if (isTRUE(is_gsea)) {
+    plot <- enrichplot::dotplot(
+      x,
+      showCategory = show_n,
+      split = ".sign"
+    ) +
+      ggplot2::facet_grid(. ~ .sign) +
+      ggplot2::ggtitle(title)
+  } else {
+    plot <- enrichplot::dotplot(x, showCategory = show_n) +
+      ggplot2::ggtitle(title)
+  }
+  ggplot2::ggsave(
+    png_path,
+    plot,
+    width = 8,
+    height = 7,
+    bg = "white"
+  )
+  ggplot2::ggsave(
+    pdf_path,
+    plot,
+    width = 8,
+    height = 7,
+    bg = "white"
+  )
+  link_notebook_png(png_path)
 }
 
 # ---- validation ----
@@ -1034,6 +1158,42 @@ output_paths <- c(
   file.path(enrichment_dir, "go_bp_ora_down.tsv"),
   file.path(enrichment_dir, "go_bp_gsea.tsv"),
   file.path(enrichment_dir, "go_bp_gsea_symbol_entrez_mapping.tsv"),
+  file.path(
+    enrichment_dir,
+    c(
+      "go_bp_ora_up_simplified.tsv",
+      "go_bp_ora_down_simplified.tsv",
+      "go_bp_gsea_simplified.tsv",
+      "go_bp_ora_up_bayes_simplified.tsv",
+      "go_bp_ora_down_bayes_simplified.tsv"
+    )
+  ),
+  file.path(
+    figure_dir,
+    paste0(
+      c(
+        "mg_selected_go_ora_up_dotplot",
+        "mg_selected_go_ora_down_dotplot",
+        "mg_selected_go_gsea_dotplot",
+        "mg_selected_go_ora_up_bayes_dotplot",
+        "mg_selected_go_ora_down_bayes_dotplot"
+      ),
+      rep(c(".png", ".pdf"), each = 5L)
+    )
+  ),
+  file.path(
+    here::here("notebook", "figures"),
+    paste0(
+      c(
+        "mg_selected_go_ora_up_dotplot",
+        "mg_selected_go_ora_down_dotplot",
+        "mg_selected_go_gsea_dotplot",
+        "mg_selected_go_ora_up_bayes_dotplot",
+        "mg_selected_go_ora_down_bayes_dotplot"
+      ),
+      ".png"
+    )
+  ),
   volcano_png_path,
   volcano_pdf_path,
   volcano_notebook_png_path
@@ -1257,19 +1417,19 @@ up_genes <- sig_de$gene[
 down_genes <- sig_de$gene[
   !is.na(sig_de$log2FoldChange) & sig_de$log2FoldChange < 0
 ]
-write_go_ora(
+ora_up <- run_go_ora(
   up_genes,
   background_map,
   direction = "up_estim_vs_control",
   path = file.path(enrichment_dir, "go_bp_ora_up.tsv")
 )
-write_go_ora(
+ora_down <- run_go_ora(
   down_genes,
   background_map,
   direction = "down_estim_vs_control",
   path = file.path(enrichment_dir, "go_bp_ora_down.tsv")
 )
-write_go_gsea(
+gsea <- run_go_gsea(
   full_de,
   background_map,
   path = file.path(enrichment_dir, "go_bp_gsea.tsv"),
@@ -1277,6 +1437,71 @@ write_go_gsea(
     enrichment_dir,
     "go_bp_gsea_symbol_entrez_mapping.tsv"
   )
+)
+
+ora_up_sig <- significant_enrichresult(ora_up)
+ora_down_sig <- significant_enrichresult(ora_down)
+gsea_sig <- significant_enrichresult(gsea)
+
+s_up <- write_simplified(
+  ora_up_sig,
+  file.path(enrichment_dir, "go_bp_ora_up_simplified.tsv"),
+  "GO ORA up"
+)
+s_down <- write_simplified(
+  ora_down_sig,
+  file.path(enrichment_dir, "go_bp_ora_down_simplified.tsv"),
+  "GO ORA down"
+)
+s_gsea <- write_simplified(
+  gsea_sig,
+  file.path(enrichment_dir, "go_bp_gsea_simplified.tsv"),
+  "GO GSEA"
+)
+
+b_up <- write_bayes_simplified(
+  ora_up_sig,
+  file.path(enrichment_dir, "go_bp_ora_up_bayes_simplified.tsv"),
+  "GO ORA up",
+  BAYES_SEED
+)
+b_down <- write_bayes_simplified(
+  ora_down_sig,
+  file.path(enrichment_dir, "go_bp_ora_down_bayes_simplified.tsv"),
+  "GO ORA down",
+  BAYES_SEED
+)
+
+save_enrichment_dotplot(
+  s_up,
+  file.path(figure_dir, "mg_selected_go_ora_up_dotplot.png"),
+  file.path(figure_dir, "mg_selected_go_ora_up_dotplot.pdf"),
+  "GO BP ORA up (simplified)"
+)
+save_enrichment_dotplot(
+  s_down,
+  file.path(figure_dir, "mg_selected_go_ora_down_dotplot.png"),
+  file.path(figure_dir, "mg_selected_go_ora_down_dotplot.pdf"),
+  "GO BP ORA down (simplified)"
+)
+save_enrichment_dotplot(
+  s_gsea,
+  file.path(figure_dir, "mg_selected_go_gsea_dotplot.png"),
+  file.path(figure_dir, "mg_selected_go_gsea_dotplot.pdf"),
+  "GO BP GSEA (simplified)",
+  is_gsea = TRUE
+)
+save_enrichment_dotplot(
+  b_up,
+  file.path(figure_dir, "mg_selected_go_ora_up_bayes_dotplot.png"),
+  file.path(figure_dir, "mg_selected_go_ora_up_bayes_dotplot.pdf"),
+  "GO BP ORA up (bayes + simplified)"
+)
+save_enrichment_dotplot(
+  b_down,
+  file.path(figure_dir, "mg_selected_go_ora_down_bayes_dotplot.png"),
+  file.path(figure_dir, "mg_selected_go_ora_down_bayes_dotplot.pdf"),
+  "GO BP ORA down (bayes + simplified)"
 )
 
 # ---- reportable values ----

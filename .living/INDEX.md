@@ -5,9 +5,9 @@ Last audit: 2026-07-14
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 6 sections | 2026-07-09 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit, Cross-References |
-| decisions.md | 54 entries (large — read selectively) | 2026-07-14 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
-| learnings.md | 42 entries (large — read selectively) | 2026-07-14 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
-| log/ | 66 sessions | 2026-07-14 | espi (66) |
+| decisions.md | 55 entries (large — read selectively) | 2026-07-14 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
+| learnings.md | 43 entries (large — read selectively) | 2026-07-14 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
+| log/ | 67 sessions | 2026-07-14 | espi (67) |
 | findings/ | 4 findings across 2 topics | 2026-07-14 | condition-response, population-structure |
 
 ## Local skills
@@ -19,9 +19,9 @@ Last summarized: 2026-07-14 (heuristic)
 
 ## Tag clusters
 
-- **mg-selected** (34 entries) — D-43, D-47, D-50, D-52, D-54
-- **reproducibility** (23 entries) — D-48, D-50, D-51, D-52, D-53
-- **plotting** (22 entries) — D-31, D-32, D-33, D-52, D-54
+- **mg-selected** (35 entries) — D-47, D-50, D-52, D-54, D-55
+- **reproducibility** (25 entries) — D-50, D-51, D-52, D-53, D-55
+- **plotting** (23 entries) — D-32, D-33, D-52, D-54, D-55
 - **mycelium** (21 entries) — D-14, D-15, D-16, D-18, D-30
 - **data-lineage** (17 entries) — D-41, D-44, D-45, D-46, D-49
 - **hooks** (15 entries) — D-13, D-14, D-15, D-16, D-30
@@ -31,25 +31,25 @@ Last summarized: 2026-07-14 (heuristic)
 - [2026-07-14] L-40: Label-permutation tripwires must preserve derived sample identity
 - [2026-07-14] L-41: Anchored Markdown wrappers must be removed as a pair
 - [2026-07-14] L-42: Volcano label ranking and significance encoding can use different statistics
+- [2026-07-14] L-43: Simplify only significant enrichment terms
 - [2026-07-14] D-52: Remove differential detection and report primary DE with a volcano plot
 - [2026-07-14] D-53: Permute condition labels only after preserving sample identity
 - [2026-07-14] D-54: Balance volcano labels by effect direction
+- [2026-07-14] D-55: Use apeglm shrinkage and simplified GO summaries
 - [2026-07-13] L-36: MAD-derived thresholds are not necessarily stricter than fixed floors
 - [2026-07-13] L-37: MG candidate PCA must cover the largest requested clustering dimension
-- [2026-07-13] L-38: MG validators must derive branch-specific chosen columns
-- [2026-07-13] L-39: Recursive just calls can suppress canonical dry-run output
 
 ## By tag
 
-- `mg-selected`: L-14, L-15, L-17, L-18, L-19, L-24, L-25, L-26, L-37, L-38, D-10, D-11, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24, D-25, D-26, D-27, D-29, D-31, D-32, D-33, D-34, D-35, D-43, D-47, D-50, D-52, D-54
-- `reproducibility`: L-9, L-10, L-11, L-27, L-34, D-5, D-9, D-12, D-36, D-37, D-38, D-41, D-42, D-43, D-44, D-45, D-46, D-47, D-48, D-50, D-51, D-52, D-53
-- `plotting`: L-5, L-6, L-18, L-24, L-25, L-26, L-33, L-35, L-42, D-8, D-20, D-21, D-22, D-23, D-24, D-27, D-29, D-31, D-32, D-33, D-52, D-54
+- `mg-selected`: L-14, L-15, L-17, L-18, L-19, L-24, L-25, L-26, L-37, L-38, D-10, D-11, D-17, D-18, D-19, D-20, D-21, D-22, D-23, D-24, D-25, D-26, D-27, D-29, D-31, D-32, D-33, D-34, D-35, D-43, D-47, D-50, D-52, D-54, D-55
+- `reproducibility`: L-9, L-10, L-11, L-27, L-34, L-43, D-5, D-9, D-12, D-36, D-37, D-38, D-41, D-42, D-43, D-44, D-45, D-46, D-47, D-48, D-50, D-51, D-52, D-53, D-55
+- `plotting`: L-5, L-6, L-18, L-24, L-25, L-26, L-33, L-35, L-42, D-8, D-20, D-21, D-22, D-23, D-24, D-27, D-29, D-31, D-32, D-33, D-52, D-54, D-55
 - `mycelium`: L-1, L-3, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, D-1, D-2, D-3, D-4, D-12, D-13, D-14, D-15, D-16, D-18, D-30
 - `data-lineage`: L-12, L-29, L-30, L-31, L-32, L-34, L-36, D-15, D-37, D-38, D-39, D-40, D-41, D-44, D-45, D-46, D-49
 - `hooks`: L-1, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, D-12, D-13, D-14, D-15, D-16, D-30
 - `provenance`: L-20, L-21, L-22, L-23, L-30, L-31, L-32, L-33, L-41, D-30, D-38, D-39, D-40, D-41
+- `differential-expression`: L-9, L-18, L-24, L-42, D-10, D-17, D-20, D-32, D-34, D-35, D-52, D-54, D-55
 - `notebook`: L-2, L-7, L-16, L-25, D-20, D-21, D-22, D-23, D-26, D-27, D-28, D-29, D-33
-- `differential-expression`: L-9, L-18, L-24, L-42, D-10, D-17, D-20, D-32, D-34, D-35, D-52, D-54
 - `scripts`: L-29, L-30, L-34, D-5, D-9, D-36, D-37, D-38, D-39, D-41, D-42, D-48
 - `validation`: L-8, L-19, L-29, L-31, L-32, L-36, L-37, L-38, D-39, D-40, D-51
 - `clustering`: L-4, L-37, L-38, D-5, D-6, D-11, D-43, D-47, D-50
@@ -65,6 +65,7 @@ Last summarized: 2026-07-14 (heuristic)
 - `marker-genes`: L-6, L-24, D-7, D-8, D-32
 - `r-package`: L-6, D-1, D-3, D-8, D-36
 - `session-state`: L-11, L-13, D-13, D-14, D-16
+- `enrichment`: L-43, D-34, D-35, D-55
 - `just`: L-27, L-28, L-39, D-51
 - `mitochondrial`: L-32, L-36, D-40, D-45
 - `todo`: L-23, D-27, D-34, D-35
@@ -84,7 +85,6 @@ Last summarized: 2026-07-14 (heuristic)
 - `collaboration`: D-34, D-35
 - `condition`: L-25, D-33
 - `doublets`: L-36, D-45
-- `enrichment`: D-34, D-35
 - `figures`: L-2, L-7
 - `findallmarkers`: L-17, D-19
 - `heatmap`: D-8, D-31
@@ -105,6 +105,7 @@ Last summarized: 2026-07-14 (heuristic)
 - `box`: L-2
 - `causal-inference`: D-25
 - `clr`: D-24
+- `clusterprofiler`: L-43
 - `clustree`: L-5
 - `compositional-data`: D-25
 - `contrast`: D-44
@@ -112,6 +113,7 @@ Last summarized: 2026-07-14 (heuristic)
 - `cross-references`: D-28
 - `documentation`: L-28
 - `dry-run`: L-39
+- `enrichit`: L-43
 - `fdr`: L-42
 - `fisher-exact`: D-24
 - `github`: L-3

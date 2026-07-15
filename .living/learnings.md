@@ -675,3 +675,19 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: documentation
 
 **structural_mitigation_candidate**: Keep selection-statistic wording beside plot captions whenever ranking differs from the displayed significance scale.
+
+### [2026-07-14] Simplify only significant enrichment terms
+
+**Tags**: enrichment, clusterprofiler, enrichit, reproducibility
+
+**Category**: Enrichment workflow
+
+**What happened**: Raw GO ORA/GSEA objects contained thousands of tested terms, while `simplify()` should collapse only the terms retained as enriched. Bayesian term selection is provided by `enrichit::bayes_enrich()` rather than the installed clusterProfiler release.
+
+**Why it matters**: Simplifying all tested terms is both slow and scientifically broader than the reported FDR-significant enrichment set. Package ownership also determines the runtime dependency and namespace call.
+
+**Resolution**: Subset each enrichment object's `@result` to `p.adjust < 0.05`, call `clusterProfiler::simplify()` on that subset, and call seeded `enrichit::bayes_enrich()` before simplifying the exploratory ORA comparison. Do not assign `@pvalueCutoff` because `gseaResult` has no such slot.
+
+**mitigation_type**: code
+
+**structural_mitigation_candidate**: Keep significance filtering, Bayesian selection, simplification, table writing, and plotting in one explicit enrichment stage.

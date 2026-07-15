@@ -102,7 +102,7 @@ execute the complete workflow.
 | MG subset selection | `Rscript scripts/07-select-mg-subset.R` with source column `cluster_pflog_no_filter_cc_dims30_res0.3` and `--dims 50` |
 | MG clustering and summary | `just cluster-one` / `just summarize-mg-selected` |
 | Figures and marker tables | `just marker-heatmap`, `just cluster-marker-heatmaps`, `just mg-figures`, `just mg-markers-no-merge` |
-| MG DE and enrichment | `just mg-de` (`scripts/12-run-mg-de.R`) |
+| MG DE and enrichment | `just mg-de` (`scripts/12-run-mg-de.R`); defaults to apeglm shrinkage and writes raw plus simplified GO BP ORA/GSEA tables, seeded Bayesian ORA comparisons, and notebook §4 dotplots |
 | Notebook and final checks | `just notebook`, then `just tripwires` |
 
 Use `just --list` to inspect expert and maintenance recipes. Load

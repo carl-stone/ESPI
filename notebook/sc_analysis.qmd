@@ -222,6 +222,8 @@ and the same pink high-expression endpoint as the marker heatmap.
 
 ![MG-selected 3 × 3 PFlog feature UMAP grid for the no-cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-feature-umap-grid}
 
+![Per-cell Ascl1 / Hes6 coexpression for the MG-selected no-cell-cycle-filtered PFlog branch, colored by Leiden cluster. Axes show PFlog-normalized expression.](figures/mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-ascl1-hes6-coexpression}
+
 As a complementary check, I also reviewed the matching PFlog,
 cell-cycle-filtered 20-PC, resolution-0.5 branch. The UMAPs show the Leiden
 cluster IDs and condition overlay for that branch.
@@ -268,3 +270,23 @@ As follow-up summaries of this selected branch, upregulated DEGs are enriched
 for stress/growth and apoptotic-signaling terms, while downregulated DEGs and
 preranked GSEA are dominated by cell-cycle, chromosome-segregation, and
 DNA-replication terms.
+
+## Functional enrichment
+
+I summarized the primary `~ condition` DESeq2 result with GO Biological Process enrichment. Over-representation analysis (ORA) uses the FDR-significant increased and decreased gene sets; preranked GSEA uses the DESeq2 Wald statistic over all tested genes. Redundant ontologies are collapsed with `clusterProfiler::simplify()`. As an exploratory comparison, I also applied Bayesian term selection (`enrichit::bayes_enrich()`) to the ORA results before simplifying. Dotplots show gene ratio (ORA) or the activated/suppressed split (GSEA), with point size for gene count and color for adjusted p-value.
+
+### GO over-representation (simplified)
+
+![Simplified GO BP over-representation for genes increased with E-Stim in the primary MG-selected DESeq2 model.](figures/mg_selected_go_ora_up_dotplot.png){#fig-mg-selected-go-ora-up}
+
+![Simplified GO BP over-representation for genes decreased with E-Stim in the primary MG-selected DESeq2 model.](figures/mg_selected_go_ora_down_dotplot.png){#fig-mg-selected-go-ora-down}
+
+### GO GSEA (simplified)
+
+![Simplified preranked GO BP GSEA ranked by the DESeq2 Wald statistic (E-Stim versus p27CKO), split into activated and suppressed sets.](figures/mg_selected_go_gsea_dotplot.png){#fig-mg-selected-go-gsea}
+
+### Bayesian term selection (exploratory)
+
+![Bayesian-selected then simplified GO BP over-representation for genes increased with E-Stim, from `enrichit::bayes_enrich()`.](figures/mg_selected_go_ora_up_bayes_dotplot.png){#fig-mg-selected-go-ora-up-bayes}
+
+![Bayesian-selected then simplified GO BP over-representation for genes decreased with E-Stim, from `enrichit::bayes_enrich()`.](figures/mg_selected_go_ora_down_bayes_dotplot.png){#fig-mg-selected-go-ora-down-bayes}

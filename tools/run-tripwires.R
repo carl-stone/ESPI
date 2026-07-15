@@ -1422,10 +1422,11 @@ tripwire_pipeline_dry_run_contract <- function(root) {
                 "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
               ),
-              rep(c(".png", ".pdf"), each = 5L)
+              rep(c(".png", ".pdf"), each = 6L)
             )
           ),
           file.path(
@@ -1446,6 +1447,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
                 "mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5"
               ),
@@ -1469,10 +1471,11 @@ tripwire_pipeline_dry_run_contract <- function(root) {
                 "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
               ),
-              rep(c(".png", ".pdf"), each = 5L)
+              rep(c(".png", ".pdf"), each = 6L)
             )
           ),
           file.path(
@@ -1493,6 +1496,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
                 "mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5",
+                "mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_abundance_enrichment_pflog_mg_selected_filter_cc_dims20_res0.5",
                 "mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_filter_cc_dims20_res0.5"
               ),
@@ -1650,6 +1654,26 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "enrichment/mg_selected/go_bp_ora_down.tsv",
       "enrichment/mg_selected/go_bp_gsea.tsv",
       "enrichment/mg_selected/go_bp_gsea_symbol_entrez_mapping.tsv",
+      "enrichment/mg_selected/go_bp_ora_up_simplified.tsv",
+      "enrichment/mg_selected/go_bp_ora_down_simplified.tsv",
+      "enrichment/mg_selected/go_bp_gsea_simplified.tsv",
+      "enrichment/mg_selected/go_bp_ora_up_bayes_simplified.tsv",
+      "enrichment/mg_selected/go_bp_ora_down_bayes_simplified.tsv",
+      "figures/mg_selected/mg_selected_go_ora_up_dotplot.png",
+      "figures/mg_selected/mg_selected_go_ora_up_dotplot.pdf",
+      "figures/mg_selected/mg_selected_go_ora_down_dotplot.png",
+      "figures/mg_selected/mg_selected_go_ora_down_dotplot.pdf",
+      "figures/mg_selected/mg_selected_go_gsea_dotplot.png",
+      "figures/mg_selected/mg_selected_go_gsea_dotplot.pdf",
+      "figures/mg_selected/mg_selected_go_ora_up_bayes_dotplot.png",
+      "figures/mg_selected/mg_selected_go_ora_up_bayes_dotplot.pdf",
+      "figures/mg_selected/mg_selected_go_ora_down_bayes_dotplot.png",
+      "figures/mg_selected/mg_selected_go_ora_down_bayes_dotplot.pdf",
+      "notebook/figures/mg_selected_go_ora_up_dotplot.png",
+      "notebook/figures/mg_selected_go_ora_down_dotplot.png",
+      "notebook/figures/mg_selected_go_gsea_dotplot.png",
+      "notebook/figures/mg_selected_go_ora_up_bayes_dotplot.png",
+      "notebook/figures/mg_selected_go_ora_down_bayes_dotplot.png",
       "figures/mg_selected/mg_selected_de_volcano.png",
       "figures/mg_selected/mg_selected_de_volcano.pdf",
       "notebook/figures/mg_selected_de_volcano.png"
@@ -1705,7 +1729,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds",
       "'--cluster-column' 'cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5'",
       "'--counts-layer' 'counts'",
-      "'--lfc-shrink-type' 'normal'"
+      "'--lfc-shrink-type' 'apeglm'"
     )
     for (expected_option in expected_de_options) {
       if (!command_has(mg_de_command, expected_option)) {

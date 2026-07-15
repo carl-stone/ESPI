@@ -19,6 +19,7 @@
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_umap_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   FIGURE_DIR/mg_selected/mg_selected_condition_umap_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   FIGURE_DIR/mg_selected/mg_selected_feature_umap_<layer>_<branch>_dims<dims>_res<resolution>.(png|pdf)
+#   FIGURE_DIR/mg_selected/mg_selected_ascl1_hes6_coexpression_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.(png|pdf)
 #   TABLE_DIR/mg_selected/mg_selected_cluster_abundance_enrichment_<branch>_dims<dims>_res<resolution>.tsv
 #   FIGURE_DIR/mg_selected/mg_selected_cluster_proportion_by_mouse_<branch>_dims<dims>_res<resolution>.(png|pdf)
@@ -342,6 +343,61 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
     ggplot2::theme(legend.position = "right")
 }
 
+coexpression_scatter_plot <- function(
+  sobj,
+  cluster_column,
+  assay,
+  layer,
+  genes = c("Ascl1", "Hes6")
+) {
+  missing_genes <- base::setdiff(genes, rownames(sobj))
+  if (length(missing_genes) > 0L) {
+    stop(
+      "Coexpression gene(s) missing from the Seurat object: ",
+      paste(missing_genes, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  expression <- SeuratObject::GetAssayData(
+    sobj,
+    assay = assay,
+    layer = layer
+  )[genes, rownames(sobj@meta.data), drop = FALSE]
+  cluster_values <- as.character(sobj@meta.data[[cluster_column]])
+  cluster_levels <- cluster_levels_for_labels(cluster_values)
+  plot_data <- data.frame(
+    x = as.numeric(expression[genes[[1L]], ]),
+    y = as.numeric(expression[genes[[2L]], ]),
+    cluster = factor(cluster_values, levels = cluster_levels),
+    stringsAsFactors = FALSE
+  )
+  ggplot2::ggplot(
+    plot_data,
+    ggplot2::aes(
+      x = .data[["x"]],
+      y = .data[["y"]],
+      color = .data[["cluster"]]
+    )
+  ) +
+    ggplot2::geom_point(size = 0.6, alpha = 0.6, stroke = 0) +
+    ggplot2::labs(
+      x = sprintf("%s (%s)", genes[[1L]], layer),
+      y = sprintf("%s (%s)", genes[[2L]], layer),
+      color = "Cluster",
+      title = sprintf(
+        "%s / %s coexpression by cell",
+        genes[[1L]],
+        genes[[2L]]
+      )
+    ) +
+    ggplot2::guides(
+      color = ggplot2::guide_legend(
+        override.aes = list(size = 2, alpha = 1)
+      )
+    ) +
+    theme_stone(base_size = 11)
+}
+
 # ---- validation ----
 
 if (!file.exists(input_path)) {
@@ -528,6 +584,13 @@ feature_plot <- feature_umap_plot(
     title = sprintf("%s layer marker expression", expression_layer)
   )
 
+coexpression_plot <- coexpression_scatter_plot(
+  sobj = sobj,
+  cluster_column = cluster_column,
+  assay = assay,
+  layer = expression_layer
+)
+
 # ---- output ----
 
 out_dir <- file.path(FIGURE_DIR, "mg_selected")
@@ -550,6 +613,12 @@ condition_out_tag <- sprintf(
 feature_out_tag <- sprintf(
   "mg_selected_feature_umap_%s_%s_dims%d_res%s",
   filename_tag(expression_layer),
+  branch_tag,
+  dims,
+  resolution_tag
+)
+coexpression_out_tag <- sprintf(
+  "mg_selected_ascl1_hes6_coexpression_%s_dims%d_res%s",
   branch_tag,
   dims,
   resolution_tag
@@ -584,6 +653,14 @@ condition_png_path <- file.path(out_dir, sprintf("%s.png", condition_out_tag))
 condition_pdf_path <- file.path(out_dir, sprintf("%s.pdf", condition_out_tag))
 feature_png_path <- file.path(out_dir, sprintf("%s.png", feature_out_tag))
 feature_pdf_path <- file.path(out_dir, sprintf("%s.pdf", feature_out_tag))
+coexpression_png_path <- file.path(
+  out_dir,
+  sprintf("%s.png", coexpression_out_tag)
+)
+coexpression_pdf_path <- file.path(
+  out_dir,
+  sprintf("%s.pdf", coexpression_out_tag)
+)
 abundance_png_path <- file.path(out_dir, sprintf("%s.png", abundance_out_tag))
 abundance_pdf_path <- file.path(out_dir, sprintf("%s.pdf", abundance_out_tag))
 abundance_tsv_path <- file.path(table_dir, sprintf("%s.tsv", abundance_out_tag))
@@ -638,6 +715,20 @@ ggplot2::ggsave(
   feature_plot,
   width = 10.5,
   height = 9.0,
+  bg = "white"
+)
+ggplot2::ggsave(
+  coexpression_png_path,
+  coexpression_plot,
+  width = 6.0,
+  height = 5.0,
+  bg = "white"
+)
+ggplot2::ggsave(
+  coexpression_pdf_path,
+  coexpression_plot,
+  width = 6.0,
+  height = 5.0,
   bg = "white"
 )
 ggplot2::ggsave(
@@ -696,6 +787,7 @@ utils::write.table(
 cluster_notebook_path <- link_notebook_png(cluster_png_path)
 condition_notebook_path <- link_notebook_png(condition_png_path)
 feature_notebook_path <- link_notebook_png(feature_png_path)
+coexpression_notebook_path <- link_notebook_png(coexpression_png_path)
 abundance_notebook_path <- link_notebook_png(abundance_png_path)
 proportion_notebook_path <- link_notebook_png(proportion_png_path)
 
@@ -705,6 +797,8 @@ message("Wrote mg-selected condition UMAP PNG: ", condition_png_path)
 message("Wrote mg-selected condition UMAP PDF: ", condition_pdf_path)
 message("Wrote mg-selected feature UMAP PNG: ", feature_png_path)
 message("Wrote mg-selected feature UMAP PDF: ", feature_pdf_path)
+message("Wrote mg-selected coexpression PNG: ", coexpression_png_path)
+message("Wrote mg-selected coexpression PDF: ", coexpression_pdf_path)
 message("Wrote mg-selected cluster abundance TSV: ", abundance_tsv_path)
 message("Wrote mg-selected cluster abundance PNG: ", abundance_png_path)
 message("Wrote mg-selected cluster abundance PDF: ", abundance_pdf_path)
@@ -721,5 +815,6 @@ message("Wrote mg-selected cluster proportion PDF: ", proportion_pdf_path)
 message("Linked notebook figure: ", cluster_notebook_path)
 message("Linked notebook figure: ", condition_notebook_path)
 message("Linked notebook figure: ", feature_notebook_path)
+message("Linked notebook figure: ", coexpression_notebook_path)
 message("Linked notebook figure: ", abundance_notebook_path)
 message("Linked notebook figure: ", proportion_notebook_path)
