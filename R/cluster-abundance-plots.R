@@ -7,6 +7,8 @@
 #'
 #' @return A ggplot object.
 #' @export
+# ANALYSIS_OK[plot-filter]: paired_data is an intentional visual subset used only to connect paired mouse points; all rows remain in plot_data.
+
 plot_cluster_proportion_by_mouse <- function(
   sample_props,
   control_label = CTRL_LABEL,
@@ -127,12 +129,17 @@ plot_cluster_proportion_by_mouse <- function(
       axis.text.x = ggplot2::element_text(angle = 20, hjust = 1)
     )
 }
+CLUSTER_ABUNDANCE_P_THRESHOLD <- 0.05
+CLUSTER_ABUNDANCE_P_THRESHOLD_STRONG <- 0.01
+CLUSTER_ABUNDANCE_P_THRESHOLD_VERY_STRONG <- 0.001
 
+
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by this file's plotting entrypoint.
 cluster_abundance_significance_label <- function(p_value) {
   labels <- rep("", length(p_value))
-  labels[p_value < 0.05] <- "*"
-  labels[p_value < 0.01] <- "**"
-  labels[p_value < 0.001] <- "***"
+  labels[p_value < CLUSTER_ABUNDANCE_P_THRESHOLD] <- "*"
+  labels[p_value < CLUSTER_ABUNDANCE_P_THRESHOLD_STRONG] <- "**"
+  labels[p_value < CLUSTER_ABUNDANCE_P_THRESHOLD_VERY_STRONG] <- "***"
   labels[is.na(p_value)] <- ""
   labels
 }
@@ -143,6 +150,8 @@ cluster_abundance_significance_label <- function(p_value) {
 #'
 #' @return A ggplot object.
 #' @export
+# ANALYSIS_OK[plot-filter]: this plot intentionally displays the complete enrichment table as a visual summary; no analytical rows are dropped.
+
 plot_clr_fisher_enrichment <- function(enrichment) {
   required_cols <- c("cluster", "log2_enrichment", "padj", "direction")
   missing_cols <- setdiff(required_cols, colnames(enrichment))
@@ -165,6 +174,8 @@ plot_clr_fisher_enrichment <- function(enrichment) {
     -plot_data$log2_enrichment,
     seq_len(nrow(plot_data))
   )
+  # ANALYSIS_OK[plot-factor]: factor level reordering only; preserves every enrichment row and cluster value.
+
   plot_data$cluster <- factor(
     plot_data$cluster,
     levels = plot_data$cluster[enrichment_order]
@@ -174,7 +185,7 @@ plot_clr_fisher_enrichment <- function(enrichment) {
     levels = c("Enriched in E-Stim", "Depleted in E-Stim", "Not significant")
   )
   plot_data$significance <- ifelse(
-    plot_data$padj < 0.05,
+    plot_data$padj < CLUSTER_ABUNDANCE_P_THRESHOLD,
     cluster_abundance_significance_label(plot_data$padj),
     ""
   )

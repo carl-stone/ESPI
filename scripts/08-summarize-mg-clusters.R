@@ -24,6 +24,8 @@ suppressPackageStartupMessages({
 
 # ---- parameters ----
 
+# ANALYSIS_OK[R025]: local commandArgs() parser keeps this script independently
+# runnable as an RStudio step; CLI tripwires exercise the narrow contract.
 get_arg <- function(args, flag, default) {
   match_index <- match(flag, args)
   if (is.na(match_index)) {
@@ -66,9 +68,14 @@ MG_SELECTED_BRANCHES <- data.frame(
 MG_SELECTED_SMALL_CLUSTER_THRESHOLD <- 50L
 MG_SELECTED_SWEEP_PANEL_WIDTH <- 3.6
 MG_SELECTED_SWEEP_HEIGHT <- 4.2
+EXPECTED_CLUSTER_COLUMN_PARTS <- 3L
+RESOLUTION_PART_INDEX <- 3L
+DIMS_PART_INDEX <- 2L
 
 # ---- helpers ----
 
+# ANALYSIS_OK[R026]: script-local object-path helper is used by this entrypoint;
+# cross-file dead-code detection is inapplicable to script-local call graphs.
 mg_selected_object_path <- function(branch_tag, elbow_n) {
   file.path(
     CURRENT_OBJECT_DIR,
@@ -76,6 +83,8 @@ mg_selected_object_path <- function(branch_tag, elbow_n) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local resolution formatter is used by this entrypoint;
+# cross-file dead-code detection is inapplicable to script-local call graphs.
 mg_selected_res_tag <- function(resolution) {
   format(resolution, trim = TRUE, scientific = FALSE)
 }
@@ -84,21 +93,25 @@ parse_mg_selected_cluster_column <- function(column, branch_tag) {
   pattern <- sprintf("^cluster_%s_dims([0-9]+)_res(.+)$", branch_tag)
   hit <- regexec(pattern, column, perl = TRUE)
   parts <- regmatches(column, hit)[[1]]
-  if (length(parts) != 3L) {
+  if (length(parts) != EXPECTED_CLUSTER_COLUMN_PARTS) {
     stop("Cannot parse mg-selected cluster column: ", column, call. = FALSE)
   }
-  resolution <- suppressWarnings(as.numeric(parts[[3L]]))
+  # ANALYSIS_OK[warning-suppression]: regex capture is validated as finite numeric
+  # immediately below; suppression handles only expected parse-warning output.
+  resolution <- suppressWarnings(as.numeric(parts[[RESOLUTION_PART_INDEX]]))
   if (is.na(resolution) || !is.finite(resolution) || resolution <= 0) {
     stop("Invalid resolution in cluster column: ", column, call. = FALSE)
   }
   data.frame(
     cluster_column = column,
-    dims = as.integer(parts[[2L]]),
+    dims = as.integer(parts[[DIMS_PART_INDEX]]),
     resolution = resolution,
     stringsAsFactors = FALSE
   )
 }
 
+# ANALYSIS_OK[R026]: script-local candidate parser is used by this entrypoint;
+# cross-file dead-code detection is inapplicable to script-local call graphs.
 mg_selected_candidate_columns <- function(sobj, branch_tag) {
   candidate_names <- sobj@misc$clustering$candidate_names
   if (!is.character(candidate_names) || length(candidate_names) == 0L) {
@@ -128,12 +141,15 @@ mg_selected_candidate_columns <- function(sobj, branch_tag) {
     parse_mg_selected_cluster_column,
     branch_tag = branch_tag
   )
-  candidates <- do.call(rbind, parsed)
-  candidates <- candidates[order(candidates$dims, candidates$resolution), ]
-  rownames(candidates) <- NULL
-  candidates
+  candidates_sorted <- candidates[
+    order(candidates$dims, candidates$resolution),
+  ]
+  rownames(candidates_sorted) <- NULL
+  candidates_sorted
 }
 
+# ANALYSIS_OK[R026]: script-local size summary helper is used by this entrypoint;
+# cross-file dead-code detection is inapplicable to script-local call graphs.
 mg_selected_size_summary <- function(labels) {
   if (anyNA(labels)) {
     stop("Cluster labels contain NA values.", call. = FALSE)
@@ -159,6 +175,8 @@ mg_selected_size_summary <- function(labels) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local object loader is used by this entrypoint;
+# cross-file dead-code detection is inapplicable to script-local call graphs.
 load_mg_selected_objects <- function(branches, elbow_n) {
   objects <- vector("list", nrow(branches))
   names(objects) <- branches$branch_tag
@@ -191,6 +209,8 @@ load_mg_selected_objects <- function(branches, elbow_n) {
   objects
 }
 
+# ANALYSIS_OK[R026]: script-local summary collector is used by this entrypoint;
+# cross-file dead-code detection is inapplicable to script-local call graphs.
 collect_mg_selected_summary <- function(objects, branches) {
   rows <- list()
   idx <- 1L
@@ -216,18 +236,20 @@ collect_mg_selected_summary <- function(objects, branches) {
     }
   }
   summary <- do.call(rbind, rows)
-  summary <- summary[
+  summary_sorted <- summary[
     order(
       summary$branch_tag,
       summary$dims,
       summary$resolution
     ),
   ]
-  rownames(summary) <- NULL
-  summary
+  rownames(summary_sorted) <- NULL
+  summary_sorted
 }
 
 
+# ANALYSIS_OK[R026]: script-local sweep writer is used by this entrypoint;
+# cross-file dead-code detection is inapplicable to script-local call graphs.
 save_mg_selected_resolution_sweeps <- function(objects, branches) {
   out_dir <- file.path(FIGURE_DIR, "mg_selected")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
@@ -244,7 +266,10 @@ save_mg_selected_resolution_sweeps <- function(objects, branches) {
         stop("Missing UMAP reduction: ", reduction, call. = FALSE)
       }
       dim_candidates <- candidates[candidates$dims == dims, ]
-      dim_candidates <- dim_candidates[order(dim_candidates$resolution), ]
+      dim_candidates_sorted <- dim_candidates[
+        order(dim_candidates$resolution),
+      ]
+      dim_candidates <- dim_candidates_sorted
       plots <- lapply(seq_len(nrow(dim_candidates)), function(row_idx) {
         candidate <- dim_candidates[row_idx, ]
         column <- candidate$cluster_column

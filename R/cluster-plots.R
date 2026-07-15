@@ -10,6 +10,7 @@
 #'
 #' @return `invisible(NULL)`.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by executable cluster plotting scripts.
 splot_umap_by <- function(sobj, umap, color_by) {
   out_dir <- file.path(FIGURE_DIR, "cluster")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
@@ -53,6 +54,7 @@ splot_umap_by <- function(sobj, umap, color_by) {
 #' @return `invisible(NULL)`.
 #' @import ggraph
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by executable cluster plotting scripts.
 splot_clustree <- function(sobj, prefix, out_tag) {
   out_dir <- file.path(FIGURE_DIR, "cluster")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)

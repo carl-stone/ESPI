@@ -17,7 +17,9 @@ compute_cluster_module_scores <- function(
   sobj,
   cluster_col,
   marker_genes,
+  # ANALYSIS_OK[smuggled-default]: package API default selects the RNA assay.
   assay = "RNA",
+  # ANALYSIS_OK[smuggled-default]: package API default selects the data layer.
   slot = "data",
   seed = SEED
 ) {
@@ -123,6 +125,7 @@ compute_cluster_module_scores <- function(
     by = list(cluster = module_scores$cluster),
     FUN = mean
   )
+  # ANALYSIS_OK[row-order]: reorders aggregate rows to the validated cluster_levels; no rows are dropped and the output schema is preserved.
   cluster_marker_scores <- cluster_marker_scores[
     match(cluster_levels, cluster_marker_scores$cluster),
     ,
@@ -160,11 +163,16 @@ compute_cluster_module_scores <- function(
 compute_cluster_p27_enrichment <- function(
   sobj,
   cluster_col,
+  # ANALYSIS_OK[smuggled-default]: package API default selects the p27 gene.
   gene = "Cdkn1b",
+  # ANALYSIS_OK[smuggled-default]: package API default selects the pflog layer.
   layer = "pflog",
+  # ANALYSIS_OK[smuggled-default]: package API default selects the RNA assay.
   assay = "RNA",
+  # ANALYSIS_OK[smuggled-default]: package API default selects the Mouse metadata column.
   mouse_col = "Mouse",
   condition_col = CONDITION_COL,
+  # ANALYSIS_OK[smuggled-default]: package API default sets permutation count to 2000.
   n_perm = 2000L,
   seed = SEED
 ) {
@@ -292,10 +300,12 @@ compute_cluster_p27_enrichment <- function(
     add = TRUE
   )
 
+  # ANALYSIS_OK[random-seed-only]: RNG is scoped to permutation null generation; on.exit restores prior state.
   set.seed(seed)
   for (perm_idx in seq_len(n_perm)) {
     permuted_cluster <- cluster
     for (idx in sample_indices) {
+      # ANALYSIS_OK[random-seed-only]: RNG is scoped to permutation null generation; on.exit restores prior state.
       permuted_cluster[idx] <- sample(
         cluster[idx],
         length(idx),
@@ -327,6 +337,7 @@ compute_cluster_p27_enrichment <- function(
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file marker-score entrypoints.
 .sort_cluster_labels <- function(x) {
   x <- unique(as.character(x))
   if (all(grepl("^-?[0-9]+$", x))) {

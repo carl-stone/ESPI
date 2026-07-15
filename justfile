@@ -68,6 +68,16 @@ format *paths:
         air format {{paths}}
     fi
 
+# Run scilintr over first-party analysis code
+# scilintr 0.1.1 accepts one root per invocation, so keep this loop scoped.
+[group: "Expert and maintenance"]
+lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for scope in R scripts data-raw tools notebook/sc_analysis.qmd config.local.example.R; do
+        Rscript -e 'scope <- commandArgs(trailingOnly = TRUE)[1]; quit(status = scilintr::main(scope))' "$scope"
+    done
+
 # Run all preprocessing branches from legacy or counts-qc input
 [group: "Expert and maintenance"]
 preprocess input_source="legacy" input="":

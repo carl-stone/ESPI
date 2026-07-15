@@ -39,6 +39,9 @@ output_path <- file.path(INPUT_OBJECT_DIR, "sobj_qc_filtered.rds")
 
 is_cell_FDR <- 0.01
 mad_multiplier <- 3
+CELL_CALL_FDR_THRESHOLD <- is_cell_FDR
+MIN_CELL_COUNTS <- 108L
+MIN_CELL_FEATURES <- 99L
 
 # ---- work ----
 
@@ -94,7 +97,12 @@ cell_call_plot <- ggplot2::ggplot(
   ggplot2::aes(
     x = Total,
     y = -LogProb,
-    color = dplyr::if_else(FDR <= 0.01, "Cell", "Empty", "Empty")
+    color = dplyr::if_else(
+      FDR <= CELL_CALL_FDR_THRESHOLD,
+      "Cell",
+      "Empty",
+      "Empty"
+    )
   )
 ) +
   ggplot2::geom_point(alpha = 0.7, size = 1) +
@@ -124,6 +132,8 @@ ggplot2::ggsave(
 # The custom reference uses complete mouse mitochondrial features with mixed labels.
 mt_features <- rownames(sobj)[
   rownames(sobj) %in%
+    # ANALYSIS_OK[hardcoded-feature-list]: custom-reference mitochondrial symbols;
+    # validated by matching against rownames(sobj) immediately below.
     c(
       "mt-Rnr1",
       "mt-Rnr2",
@@ -203,8 +213,8 @@ sobj[[]] |>
 sobj_cells <- subset(
   sobj,
   subset = is_cell &
-    nCount_RNA >= 108 &
-    nFeature_RNA >= 99
+    nCount_RNA >= MIN_CELL_COUNTS &
+    nFeature_RNA >= MIN_CELL_FEATURES
 )
 sce <- as.SingleCellExperiment(sobj_cells, assay = "RNA")
 
@@ -367,8 +377,10 @@ readr::write_tsv(
   file.path(table_dir, "sample_qc_mad_thresholds.tsv")
 )
 
+n_qc_md_before_threshold_join <- nrow(qc_md)
 qc_md <- qc_md |>
   left_join(qc_thresholds, by = "Sample")
+stopifnot(nrow(qc_md) == n_qc_md_before_threshold_join)
 
 count_sample_qc_plot <- ggplot(qc_md, aes(x = nCount_RNA)) +
   geom_histogram() +
@@ -500,8 +512,10 @@ ggsave(
 )
 
 ## Now set flags for each threshold
+n_sobj_metadata_before_threshold_join <- nrow(sobj[[]])
 sobj[[]] <- sobj[[]] |>
   left_join(qc_thresholds, by = "Sample")
+stopifnot(nrow(sobj[[]]) == n_sobj_metadata_before_threshold_join)
 
 sobj$fail_low_counts <- sobj$nCount_RNA < sobj$min_count_mad
 sobj$fail_low_features <- sobj$nFeature_RNA < sobj$min_feature_mad

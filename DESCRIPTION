@@ -30,7 +30,8 @@ Imports:
     SingleCellExperiment
 Suggests:
     biomaRt,
-    devtools
+    devtools,
+    scilintr
 Remotes:
     cleartools/scclrR,
     erocoar/gghalves

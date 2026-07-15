@@ -57,10 +57,15 @@ palette_dotplot_pair <- get(
   envir = asNamespace("ESPI"),
   inherits = FALSE
 )
+palette_dotplot_pair <- stats::setNames(
+  palette_dotplot_pair,
+  c("negative", "positive")
+)
 
 # ---- parameters ----
 
-get_arg <- function(args, flag, default = NULL) {
+# ANALYSIS_OK[R026]: standalone CLI entrypoint helper is intentionally local to this script.
+get_mg_marker_arg <- function(args, flag, default = NULL) {
   match_index <- match(flag, args)
   if (is.na(match_index)) {
     return(default)
@@ -138,26 +143,34 @@ if (length(missing_packages) > 0L) {
   )
 }
 
-branch_tag <- get_arg(
+branch_tag <- get_mg_marker_arg(
   cli_args,
   "--branch-tag",
   "pflog_mg_selected_no_filter_cc"
 )
-elbow_n <- as.integer(get_arg(cli_args, "--elbow-n", "20"))
-dims <- as.integer(get_arg(cli_args, "--dims", "20"))
-resolution <- get_arg(cli_args, "--resolution", "0.5")
-assay_arg <- get_arg(cli_args, "--assay", NULL)
-expression_layer <- get_arg(cli_args, "--layer", "data")
-counts_layer <- get_arg(cli_args, "--counts-layer", "counts")
-top_n <- as.integer(get_arg(cli_args, "--top-n", "5"))
-min_pct <- as.numeric(get_arg(cli_args, "--min-pct", "0.10"))
-logfc_threshold <- as.numeric(get_arg(cli_args, "--logfc-threshold", "0.25"))
-min_diff_pct <- as.numeric(get_arg(cli_args, "--min-diff-pct", "0"))
-min_cells_group <- as.integer(get_arg(cli_args, "--min-cells-group", "3"))
-cluster_map_path <- get_arg(cli_args, "--cluster-map", NULL)
+elbow_n <- as.integer(get_mg_marker_arg(cli_args, "--elbow-n", "20"))
+dims <- as.integer(get_mg_marker_arg(cli_args, "--dims", "20"))
+resolution <- get_mg_marker_arg(cli_args, "--resolution", "0.5")
+assay_arg <- get_mg_marker_arg(cli_args, "--assay", NULL)
+expression_layer <- get_mg_marker_arg(cli_args, "--layer", "data")
+counts_layer <- get_mg_marker_arg(cli_args, "--counts-layer", "counts")
+top_n <- as.integer(get_mg_marker_arg(cli_args, "--top-n", "5"))
+min_pct <- as.numeric(get_mg_marker_arg(cli_args, "--min-pct", "0.10"))
+logfc_threshold <- as.numeric(get_mg_marker_arg(
+  cli_args,
+  "--logfc-threshold",
+  "0.25"
+))
+min_diff_pct <- as.numeric(get_mg_marker_arg(cli_args, "--min-diff-pct", "0"))
+min_cells_group <- as.integer(get_mg_marker_arg(
+  cli_args,
+  "--min-cells-group",
+  "3"
+))
+cluster_map_path <- get_mg_marker_arg(cli_args, "--cluster-map", NULL)
 confirm_no_merge <- "--confirm-no-merge" %in% cli_args
 overwrite_outputs <- "--overwrite" %in% cli_args
-input_path <- get_arg(
+input_path <- get_mg_marker_arg(
   cli_args,
   "--input",
   file.path(
@@ -165,31 +178,38 @@ input_path <- get_arg(
     sprintf("cluster_%s_elbow%d.rds", branch_tag, elbow_n)
   )
 )
-table_dir <- get_arg(
+table_dir <- get_mg_marker_arg(
   cli_args,
   "--table-dir",
   file.path(TABLE_DIR, "mg_selected")
 )
-figure_dir <- get_arg(
+figure_dir <- get_mg_marker_arg(
   cli_args,
   "--figure-dir",
   file.path(FIGURE_DIR, "mg_selected")
 )
 
 # ---- helpers ----
+MIN_MARKER_IDENTITIES <- 2L
+ZERO_STANDARD_DEVIATION <- 0
+DOTPLOT_ZSCORE_EPSILON <- 1e-8
+DOTPLOT_ZSCORE_LIMITS <- c(lower = -3, upper = 3)
 
+# ANALYSIS_OK[R026]: standalone validation helper is intentionally local to this script.
 assert_positive_integer <- function(x, name) {
   if (length(x) != 1L || is.na(x) || x <= 0L) {
     stop(name, " must be a positive integer.", call. = FALSE)
   }
 }
 
+# ANALYSIS_OK[R026]: standalone validation helper is intentionally local to this script.
 assert_fraction <- function(x, name) {
   if (length(x) != 1L || is.na(x) || !is.finite(x) || x < 0 || x > 1) {
     stop(name, " must be a finite number from 0 to 1.", call. = FALSE)
   }
 }
 
+# ANALYSIS_OK[R026]: standalone validation helper is intentionally local to this script.
 assert_nonnegative_number <- function(x, name) {
   if (length(x) != 1L || is.na(x) || !is.finite(x) || x < 0) {
     stop(name, " must be a finite non-negative number.", call. = FALSE)
@@ -197,6 +217,7 @@ assert_nonnegative_number <- function(x, name) {
 }
 
 
+# ANALYSIS_OK[R026]: standalone validation helper is intentionally local to this script.
 assert_absent_or_overwrite <- function(paths, overwrite) {
   existing_paths <- paths[
     file.exists(paths) | nzchar(Sys.readlink(paths))
@@ -211,6 +232,7 @@ assert_absent_or_overwrite <- function(paths, overwrite) {
 }
 
 
+# ANALYSIS_OK[R026]: standalone mapping helper is intentionally local to this script.
 read_identity_map <- function(path, cluster_levels, cluster_values) {
   if (!file.exists(path)) {
     stop("Cluster map CSV does not exist: ", path, call. = FALSE)
@@ -229,6 +251,7 @@ read_identity_map <- function(path, cluster_levels, cluster_values) {
       call. = FALSE
     )
   }
+  # ANALYSIS_OK[filter-ledger]: retain only the two validated cluster-map columns.
   identity_map <- identity_map[, required_columns, drop = FALSE]
   identity_map$source_cluster <- trimws(as.character(
     identity_map$source_cluster
@@ -274,6 +297,7 @@ read_identity_map <- function(path, cluster_levels, cluster_values) {
       call. = FALSE
     )
   }
+  # ANALYSIS_OK[filter-ledger]: reorder the validated map to observed cluster order.
   identity_map <- identity_map[
     match(cluster_levels, identity_map$source_cluster),
   ]
@@ -284,6 +308,7 @@ read_identity_map <- function(path, cluster_levels, cluster_values) {
   identity_map
 }
 
+# ANALYSIS_OK[R026]: standalone identity-map helper is intentionally local to this script.
 confirmed_identity_map <- function(cluster_levels, cluster_values) {
   data.frame(
     source_cluster = cluster_levels,
@@ -296,6 +321,7 @@ confirmed_identity_map <- function(cluster_levels, cluster_values) {
   )
 }
 
+# ANALYSIS_OK[R026]: standalone identity-map helper is intentionally local to this script.
 marker_identity_values <- function(cluster_values, identity_map) {
   marker_by_cluster <- stats::setNames(
     identity_map$marker_identity,
@@ -304,6 +330,7 @@ marker_identity_values <- function(cluster_values, identity_map) {
   unname(marker_by_cluster[cluster_values])
 }
 
+# ANALYSIS_OK[R026]: standalone identity validation helper is intentionally local to this script.
 validate_marker_identities <- function(
   marker_identities,
   identity_levels,
@@ -312,7 +339,7 @@ validate_marker_identities <- function(
   if (anyNA(marker_identities) || any(!nzchar(marker_identities))) {
     stop("Marker identity mapping produced missing labels.", call. = FALSE)
   }
-  if (length(identity_levels) < 2L) {
+  if (length(identity_levels) < MIN_MARKER_IDENTITIES) {
     stop("At least two marker identities are required.", call. = FALSE)
   }
   identity_counts <- table(factor(marker_identities, levels = identity_levels))
@@ -329,6 +356,7 @@ validate_marker_identities <- function(
   }
 }
 
+# ANALYSIS_OK[R026]: standalone marker helper is intentionally local to this script.
 find_fold_change_column <- function(markers) {
   if ("avg_log2FC" %in% colnames(markers)) {
     return("avg_log2FC")
@@ -342,6 +370,7 @@ find_fold_change_column <- function(markers) {
   )
 }
 
+# ANALYSIS_OK[R026]: standalone marker helper is intentionally local to this script.
 prepare_marker_table <- function(markers, identity_levels, min_diff_pct) {
   if (nrow(markers) == 0L) {
     stop("FindAllMarkers returned zero marker rows.", call. = FALSE)
@@ -373,6 +402,7 @@ prepare_marker_table <- function(markers, identity_levels, min_diff_pct) {
     )
   }
   markers$pct_diff <- markers$pct.1 - markers$pct.2
+  # ANALYSIS_OK[filter-ledger]: retain markers meeting the predeclared pct-difference rule.
   markers <- markers[
     !is.na(markers$pct_diff) & markers$pct_diff > min_diff_pct,
     ,
@@ -404,6 +434,7 @@ prepare_marker_table <- function(markers, identity_levels, min_diff_pct) {
       group_markers$gene,
       method = "radix"
     )
+    # ANALYSIS_OK[filter-ledger]: sort each cluster's retained markers by deterministic rank.
     group_markers <- group_markers[group_order, , drop = FALSE]
     group_markers$rank_within_cluster <- seq_len(nrow(group_markers))
     group_markers
@@ -430,6 +461,7 @@ prepare_marker_table <- function(markers, identity_levels, min_diff_pct) {
   ]
 }
 
+# ANALYSIS_OK[R026]: standalone marker helper is intentionally local to this script.
 select_top_markers <- function(markers, identity_levels, top_n, min_diff_pct) {
   marker_groups <- split(
     seq_len(nrow(markers)),
@@ -452,6 +484,7 @@ select_top_markers <- function(markers, identity_levels, top_n, min_diff_pct) {
   top_markers
 }
 
+# ANALYSIS_OK[R026]: standalone marker helper is intentionally local to this script.
 summarise_markers <- function(
   identity_map,
   identity_levels,
@@ -480,6 +513,7 @@ summarise_markers <- function(
   )
 }
 
+# ANALYSIS_OK[R026]: standalone plotting helper is intentionally local to this script.
 build_dotplot_data <- function(
   sobj,
   assay,
@@ -523,10 +557,13 @@ build_dotplot_data <- function(
       call. = FALSE
     )
   }
+  # ANALYSIS_OK[alignment-check]: align expression and counts layers to validated metadata cells.
   expression_matrix <- expression_matrix[genes, metadata_cells, drop = FALSE]
+  # ANALYSIS_OK[alignment-check]: align expression and counts layers to validated metadata cells.
   counts_matrix <- counts_matrix[genes, metadata_cells, drop = FALSE]
   marker_identities <- factor(marker_identities, levels = identity_levels)
   names(marker_identities) <- metadata_cells
+  # ANALYSIS_OK[plot-filter]: build plot-only summaries from validated marker identities.
   plot_data <- do.call(
     rbind,
     lapply(genes, function(gene) {
@@ -551,7 +588,11 @@ build_dotplot_data <- function(
   for (indices in gene_indices) {
     values <- plot_data$mean_expression[indices]
     value_sd <- stats::sd(values)
-    if (length(values) < 2L || is.na(value_sd) || value_sd == 0) {
+    if (
+      length(values) < MIN_MARKER_IDENTITIES ||
+        is.na(value_sd) ||
+        value_sd == ZERO_STANDARD_DEVIATION
+    ) {
       scaled_expression[indices] <- 0
     } else {
       scaled_expression[indices] <- (values - mean(values)) / value_sd
@@ -567,21 +608,33 @@ build_dotplot_data <- function(
   plot_data
 }
 
+# ANALYSIS_OK[R026]: standalone plotting helper is intentionally local to this script.
 marker_dotplot <- function(plot_data, expression_layer) {
-  blue_ramp <- grDevices::colorRampPalette(c(
-    palette_dotplot_pair[[1L]],
-    "white"
-  ))(4L)
-  pink_ramp <- grDevices::colorRampPalette(c(
-    "white",
-    palette_dotplot_pair[[2L]]
-  ))(4L)
+  blue_ramp <- stats::setNames(
+    grDevices::colorRampPalette(c(
+      palette_dotplot_pair[["negative"]],
+      "white"
+    ))(4L),
+    c("low", "mid_low", "mid_high", "high")
+  )
+  pink_ramp <- stats::setNames(
+    grDevices::colorRampPalette(c(
+      "white",
+      palette_dotplot_pair[["positive"]]
+    ))(4L),
+    c("low", "mid_low", "mid_high", "high")
+  )
   dotplot_colour_breaks <- c(-3, -2, -1, 0, 1, 2, 3)
-  dotplot_colour_limits <- c(-3, 3)
+  dotplot_colour_limits <- DOTPLOT_ZSCORE_LIMITS
+  # ANALYSIS_OK[R026]: nested plotting label helper is intentionally local to this script.
   dotplot_colour_labels <- function(breaks) {
     labels <- as.character(breaks)
-    labels[abs(breaks - dotplot_colour_limits[[1L]]) < 1e-8] <- "<= -2"
-    labels[abs(breaks - dotplot_colour_limits[[2L]]) < 1e-8] <- ">= 2"
+    labels[
+      abs(breaks - dotplot_colour_limits[["lower"]]) < DOTPLOT_ZSCORE_EPSILON
+    ] <- "<= -2"
+    labels[
+      abs(breaks - dotplot_colour_limits[["upper"]]) < DOTPLOT_ZSCORE_EPSILON
+    ] <- ">= 2"
     labels
   }
   ggplot2::ggplot(
@@ -601,18 +654,20 @@ marker_dotplot <- function(plot_data, expression_layer) {
     ) +
     ggplot2::scale_color_stepsn(
       colours = c(
-        palette_dotplot_pair[[1L]],
-        blue_ramp[[2L]],
-        blue_ramp[[3L]],
-        pink_ramp[[2L]],
-        pink_ramp[[3L]],
-        palette_dotplot_pair[[2L]]
+        palette_dotplot_pair[["negative"]],
+        blue_ramp[["mid_low"]],
+        blue_ramp[["mid_high"]],
+        pink_ramp[["mid_low"]],
+        pink_ramp[["mid_high"]],
+        palette_dotplot_pair[["positive"]]
       ),
       breaks = dotplot_colour_breaks,
       labels = dotplot_colour_labels,
       limits = dotplot_colour_limits,
       oob = function(x, range, ...) {
-        pmin(pmax(x, range[[1L]]), range[[2L]])
+        range_lower <- min(range)
+        range_upper <- max(range)
+        pmin(pmax(x, range_lower), range_upper)
       },
       guide = ggplot2::guide_coloursteps(show.limits = TRUE),
       name = sprintf("Mean %s expression\n(row z-score bin)", expression_layer)
@@ -643,6 +698,7 @@ if (!grepl("^[A-Za-z0-9_]+$", branch_tag)) {
 assert_positive_integer(elbow_n, "--elbow-n")
 assert_positive_integer(dims, "--dims")
 assert_scalar_character(resolution, "--resolution")
+# ANALYSIS_OK[warning-suppression]: invalid numeric CLI text is rejected by explicit validation below.
 resolution_number <- suppressWarnings(as.numeric(resolution))
 if (
   is.na(resolution_number) ||

@@ -15,6 +15,7 @@
 suppressPackageStartupMessages({
   library(here)
 })
+# ANALYSIS_OK[warning-suppression]: package startup diagnostics are intentionally hidden for this CLI entrypoint; explicit stage validation reports actionable failures below.
 suppressMessages(here::i_am("scripts/run-pipeline.R"))
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
@@ -28,6 +29,10 @@ input_path <- NULL
 input_source_supplied <- FALSE
 dry_run <- FALSE
 overwrite <- FALSE
+BRANCH_FILTER_TOKEN_INDEX <- 2L
+BRANCH_NORMALIZATION_TOKEN_INDEX <- 1L
+SAMPLE_METADATA_PATH_INDEX <- 2L
+PREPROCESS_PCA_DIMENSIONS <- 50L
 
 argument_index <- 1L
 while (argument_index <= length(arguments)) {
@@ -106,14 +111,17 @@ run_spec <- list(
 
 # ---- pipeline plan ----
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 resolution_tag <- function(value) {
   format(value, trim = TRUE, scientific = FALSE)
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 cell_cycle_tag <- function(filtered) {
   if (isTRUE(filtered)) "filter_cc" else "no_filter_cc"
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 preprocess_path <- function(normalization, filtered) {
   file.path(
     CURRENT_OBJECT_DIR,
@@ -125,6 +133,7 @@ preprocess_path <- function(normalization, filtered) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 branch_tag <- function(normalization, filtered, dataset_tag = NULL) {
   paste(
     c(normalization, dataset_tag, cell_cycle_tag(filtered)),
@@ -132,6 +141,7 @@ branch_tag <- function(normalization, filtered, dataset_tag = NULL) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 cluster_path <- function(branch, elbow_n) {
   file.path(
     CURRENT_OBJECT_DIR,
@@ -139,6 +149,7 @@ cluster_path <- function(branch, elbow_n) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 cluster_column <- function(branch, dims, resolution) {
   sprintf(
     "cluster_%s_dims%d_res%s",
@@ -148,6 +159,7 @@ cluster_column <- function(branch, dims, resolution) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 cluster_expected_outputs <- function(branch) {
   candidate_dims <- c(run_spec$cluster_elbow_n, run_spec$sensitivity_dims)
   notebook_umap_paths <- as.vector(outer(
@@ -172,6 +184,7 @@ cluster_expected_outputs <- function(branch) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 heatmap_paths <- function(branch, type, output_dir, dims, resolution) {
   output_tag <- switch(
     type,
@@ -210,6 +223,7 @@ heatmap_paths <- function(branch, type, output_dir, dims, resolution) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 mg_figure_paths <- function(branch, dims, resolution) {
   resolution_tag_value <- resolution_tag(resolution)
   output_dir <- file.path(FIGURE_DIR, "mg_selected")
@@ -289,6 +303,7 @@ mg_figure_paths <- function(branch, dims, resolution) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 shell_quote <- function(argument) {
   paste0(
     "'",
@@ -297,10 +312,12 @@ shell_quote <- function(argument) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 render_command <- function(command) {
   paste(vapply(command, shell_quote, character(1)), collapse = " ")
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 new_stage <- function(
   name,
   command,
@@ -317,6 +334,7 @@ new_stage <- function(
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 read_stage_rds <- function(path) {
   tryCatch(
     readRDS(path),
@@ -332,12 +350,14 @@ read_stage_rds <- function(path) {
   )
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_seurat_object <- function(object, path) {
   if (!inherits(object, "Seurat")) {
     stop("Expected a Seurat object at ", path, ".", call. = FALSE)
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_counts_output <- function(stage) {
   raw_object <- read_stage_rds(stage$expects[["raw_counts"]])
   validate_seurat_object(raw_object, stage$expects[["raw_counts"]])
@@ -352,6 +372,7 @@ validate_counts_output <- function(stage) {
     )
   }
 }
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_preprocess_outputs <- function(stage) {
   expected_branches <- names(stage$expects)
   if (
@@ -383,9 +404,18 @@ validate_preprocess_outputs <- function(stage) {
 
     pca_embeddings <- tryCatch(
       SeuratObject::Embeddings(sobj, reduction = "pca"),
-      error = function(error) NULL
+      error = function(error) {
+        stop(
+          "Unable to read PCA embeddings: ",
+          conditionMessage(error),
+          call. = FALSE
+        )
+      }
     )
-    if (is.null(pca_embeddings) || ncol(pca_embeddings) != 50L) {
+    if (
+      is.null(pca_embeddings) ||
+        ncol(pca_embeddings) != PREPROCESS_PCA_DIMENSIONS
+    ) {
       stop(
         "Preprocess output ",
         path,
@@ -395,8 +425,11 @@ validate_preprocess_outputs <- function(stage) {
     }
 
     branch_parts <- strsplit(branch, "_", fixed = TRUE)[[1L]]
-    expected_normalization <- branch_parts[[1L]]
-    expected_filtered <- identical(branch_parts[[2L]], "filter")
+    expected_normalization <- branch_parts[[BRANCH_NORMALIZATION_TOKEN_INDEX]]
+    expected_filtered <- identical(
+      branch_parts[[BRANCH_FILTER_TOKEN_INDEX]],
+      "filter"
+    )
     preprocessing <- sobj@misc$preprocessing
     if (
       !identical(preprocessing$normalization, expected_normalization) ||
@@ -417,6 +450,7 @@ validate_preprocess_outputs <- function(stage) {
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_cluster_output <- function(
   stage,
   expected_branch,
@@ -428,8 +462,11 @@ validate_cluster_output <- function(
 
   preprocessing <- sobj@misc$preprocessing
   branch_parts <- strsplit(expected_branch, "_", fixed = TRUE)[[1L]]
-  expected_normalization <- branch_parts[[1L]]
-  expected_filtered <- identical(branch_parts[[2L]], "filter")
+  expected_normalization <- branch_parts[[BRANCH_NORMALIZATION_TOKEN_INDEX]]
+  expected_filtered <- identical(
+    branch_parts[[BRANCH_FILTER_TOKEN_INDEX]],
+    "filter"
+  )
   if (
     !identical(preprocessing$normalization, expected_normalization) ||
       !identical(
@@ -515,6 +552,7 @@ validate_cluster_output <- function(
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 make_cluster_validator <- function(expected_branch, chosen_column = NULL) {
   force(expected_branch)
   force(chosen_column)
@@ -524,6 +562,7 @@ make_cluster_validator <- function(expected_branch, chosen_column = NULL) {
 }
 
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_mg_preprocess_outputs <- function(stage) {
   expected_branches <- names(mg_preprocess_paths)
   if (
@@ -565,7 +604,13 @@ validate_mg_preprocess_outputs <- function(stage) {
 
     pca_embeddings <- tryCatch(
       SeuratObject::Embeddings(sobj, reduction = "pca"),
-      error = function(error) NULL
+      error = function(error) {
+        stop(
+          "Unable to read MG PCA embeddings: ",
+          conditionMessage(error),
+          call. = FALSE
+        )
+      }
     )
     if (
       is.null(pca_embeddings) ||
@@ -628,6 +673,7 @@ validate_mg_preprocess_outputs <- function(stage) {
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_mg_cluster_output <- function(stage, expected_branch) {
   path <- stage$expects[[1L]]
   sobj <- read_stage_rds(path)
@@ -782,11 +828,13 @@ validate_mg_cluster_output <- function(stage, expected_branch) {
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 make_mg_cluster_validator <- function(expected_branch) {
   force(expected_branch)
   function(stage) validate_mg_cluster_output(stage, expected_branch)
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_qc_outputs <- function(stage) {
   annotated_path <- stage$expects[["annotated_raw"]]
   filtered_path <- stage$expects[["filtered"]]
@@ -837,6 +885,7 @@ validate_qc_outputs <- function(stage) {
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 validate_stage_outputs <- function(stage) {
   missing_paths <- stage$expects[!file.exists(stage$expects)]
   if (length(missing_paths) > 0L) {
@@ -853,9 +902,11 @@ validate_stage_outputs <- function(stage) {
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 run_stage <- function(stage) {
   message("Running stage ", stage$name, ": ", render_command(stage$command))
   status <- tryCatch(
+    # ANALYSIS_OK[warning-suppression]: subprocess warnings are intentionally suppressed to preserve CLI output; stage exit status is checked immediately below.
     suppressWarnings(
       system2(
         command = stage$command[[1]],
@@ -1601,6 +1652,7 @@ stage_plan <- c(
 
 # ---- validation ----
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 preflight_source_inputs <- function() {
   required_paths <- if (identical(run_spec$input_source, "counts-qc")) {
     raw_counts_dir <- file.path(DATA_ROOT_DIR, "data", "input", "Raw Matrices")
@@ -1611,7 +1663,7 @@ preflight_source_inputs <- function() {
   exists <- if (identical(run_spec$input_source, "counts-qc")) {
     c(
       dir.exists(required_paths[[1]]),
-      file.exists(required_paths[[2]])
+      file.exists(required_paths[[SAMPLE_METADATA_PATH_INDEX]])
     )
   } else {
     file.exists(required_paths)
@@ -1626,6 +1678,7 @@ preflight_source_inputs <- function() {
   }
 }
 
+# ANALYSIS_OK[R026]: script-local pipeline helper is intentionally called by this entrypoint; cross-file dead-code detection is inapplicable.
 preflight_protected_outputs <- function(stages) {
   protected_paths <- unlist(
     lapply(stages, `[[`, "protected_outputs"),

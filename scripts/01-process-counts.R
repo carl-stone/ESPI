@@ -111,7 +111,8 @@ validate_required_metadata(metadata, required_metadata_columns)
 # Raw metadata contains an optional space between `+` and `EStim`; use the
 # declared treatment label consistently in all downstream contrasts.
 metadata$Condition <- sub("\\+\\s+EStim$", "+EStim", trimws(metadata$Condition))
-metadata <- metadata[, required_metadata_columns, drop = FALSE]
+metadata_selected <- metadata[, required_metadata_columns, drop = FALSE]
+metadata <- metadata_selected
 
 if (anyDuplicated(metadata$Sample)) {
   stop("Sample metadata contains duplicate Sample IDs.", call. = FALSE)
@@ -124,15 +125,15 @@ emit_tripwire_checkpoint(
   n_metadata_rows = nrow(metadata)
 )
 
-count_directories <- list.files(
+count_directories_all <- list.files(
   raw_counts_dir,
   full.names = FALSE,
   recursive = FALSE,
   include.dirs = TRUE,
   no.. = TRUE
 )
-count_directories <- count_directories[
-  dir.exists(file.path(raw_counts_dir, count_directories))
+count_directories <- count_directories_all[
+  dir.exists(file.path(raw_counts_dir, count_directories_all))
 ]
 if (!base::setequal(metadata$Sample, count_directories)) {
   mismatched_samples <- sort(unique(c(

@@ -10,6 +10,7 @@
 #'
 #' @return `sobj` with `pca` reduction and `misc$preprocessing` populated.
 #' @export
+# ANALYSIS_OK[smuggled-default]: intentional package API default for PCA dimensionality.
 run_log1p_pca <- function(sobj, n_pcs = 50) {
   stopifnot(length(n_pcs) == 1, is.numeric(n_pcs), is.finite(n_pcs), n_pcs > 0)
 
@@ -50,6 +51,7 @@ run_log1p_pca <- function(sobj, n_pcs = 50) {
 #'
 #' @return `sobj` with `pca` reduction and `misc$preprocessing` populated.
 #' @export
+# ANALYSIS_OK[smuggled-default]: intentional package API default for PCA dimensionality.
 run_pflog_pca <- function(sobj, n_pcs = 50) {
   stopifnot(length(n_pcs) == 1, is.numeric(n_pcs), is.finite(n_pcs), n_pcs > 0)
 

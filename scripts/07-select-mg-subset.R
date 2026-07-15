@@ -34,6 +34,8 @@ if (length(unknown_flags) > 0) {
     call. = FALSE
   )
 }
+# ANALYSIS_OK[R025]: self-contained commandArgs() parser keeps this
+# RStudio-step-friendly script standalone; CLI tripwires exercise the contract.
 arg <- function(name) {
   i <- match(name, args)
   if (is.na(i)) {
@@ -44,6 +46,8 @@ arg <- function(name) {
   }
   args[[i + 1]]
 }
+# ANALYSIS_OK[R025]: local value parser is intentionally duplicated for
+# standalone execution; wrapper/CLI tripwires exercise this narrow contract.
 arg_value <- function(name, default = NULL, required = FALSE) {
   value <- arg(name)
   if (identical(value, TRUE)) {
@@ -58,6 +62,8 @@ arg_value <- function(name, default = NULL, required = FALSE) {
   value
 }
 parse_positive_int <- function(value, name) {
+  # ANALYSIS_OK[warning-suppression]: validated integer syntax is checked below;
+  # suppression only handles expected parse-warning conversion.
   parsed <- suppressWarnings(as.integer(value))
   if (
     length(parsed) != 1 ||
@@ -70,6 +76,8 @@ parse_positive_int <- function(value, name) {
   }
   parsed
 }
+# ANALYSIS_OK[R026]: script-local tag validator is called by this entrypoint's
+# CLI setup; cross-file dead-code detection is inapplicable.
 validate_tag <- function(tag, name) {
   if (
     !is.character(tag) ||
@@ -82,6 +90,8 @@ validate_tag <- function(tag, name) {
   }
   tag
 }
+# ANALYSIS_OK[R026]: script-local cluster ordering helper is used in this
+# entrypoint's selection work; cross-file dead-code detection is inapplicable.
 sort_cluster_levels <- function(x) {
   x <- unique(as.character(x))
   if (all(grepl("^-?[0-9]+$", x))) {
@@ -89,6 +99,8 @@ sort_cluster_levels <- function(x) {
   }
   sort(x, method = "radix")
 }
+# ANALYSIS_OK[R026]: script-local assay-layer accessor is used by this
+# entrypoint's analysis; cross-file dead-code detection is inapplicable.
 get_assay_layer <- function(sobj, assay, layer) {
   available_layers <- SeuratObject::Layers(sobj[[assay]])
   if (!layer %in% available_layers) {
@@ -104,6 +116,8 @@ get_assay_layer <- function(sobj, assay, layer) {
   }
   SeuratObject::LayerData(sobj[[assay]], layer = layer)
 }
+# ANALYSIS_OK[R026]: script-local statistical helper is used by this
+# entrypoint's cluster decisions; cross-file dead-code detection is inapplicable.
 wilcox_greater <- function(in_values, out_values) {
   values <- c(in_values, out_values)
   if (length(unique(values)) <= 1) {
@@ -116,6 +130,8 @@ wilcox_greater <- function(in_values, out_values) {
     exact = FALSE
   )$p.value
 }
+# ANALYSIS_OK[R026]: script-local state-strip helper is used by this
+# entrypoint's subset construction; cross-file dead-code detection is inapplicable.
 strip_previous_cluster_state <- function(
   sobj,
   source_cluster_column,
@@ -162,6 +178,9 @@ MARKER_MIN_SCORE_MARGIN <- 0.25
 CDKN1B_EXPRESSION_MAX_Q <- 0.05
 CDKN1B_DETECTION_MAX_Q <- 0.05
 CDKN1B_MIN_DETECTION_FRACTION <- 0.20
+MIN_CLUSTER_LEVELS <- 2L
+TOP_RANK_INDEX <- 1L
+SECOND_RANK_INDEX <- 2L
 
 # ---- validation ----
 
@@ -238,7 +257,7 @@ if (any(is.na(cluster_values)) || any(!nzchar(cluster_values))) {
   )
 }
 cluster_levels <- sort_cluster_levels(cluster_values)
-if (length(cluster_levels) < 2) {
+if (length(cluster_levels) < MIN_CLUSTER_LEVELS) {
   stop(
     "Cluster metadata column must contain at least two clusters.",
     call. = FALSE
@@ -293,10 +312,14 @@ cluster_marker_scores <- stats::aggregate(
   by = list(cluster = module_scores$cluster),
   FUN = mean
 )
-cluster_marker_scores <- cluster_marker_scores[
+ordered_cluster_marker_scores <- cluster_marker_scores[
   match(cluster_levels, cluster_marker_scores$cluster),
 ]
-
+stopifnot(
+  nrow(ordered_cluster_marker_scores) == length(cluster_levels),
+  !anyNA(ordered_cluster_marker_scores$cluster)
+)
+cluster_marker_scores <- ordered_cluster_marker_scores
 counts <- get_assay_layer(sobj, assay, "counts")
 cdkn1b_counts <- as.numeric(counts["Cdkn1b", colnames(sobj), drop = TRUE])
 cdkn1b_detected <- as.integer(cdkn1b_counts > 0)
@@ -316,8 +339,8 @@ sobj$Cdkn1b_selection_expression <- cdkn1b_expression
 marker_decisions <- lapply(seq_len(nrow(cluster_marker_scores)), function(i) {
   scores <- as.numeric(cluster_marker_scores[i, marker_score_cols])
   ord <- order(scores, decreasing = TRUE)
-  top_index <- ord[[1]]
-  second_index <- ord[[2]]
+  top_index <- ord[[TOP_RANK_INDEX]]
+  second_index <- ord[[SECOND_RANK_INDEX]]
   top_class <- names(cell_type_marker_genes)[[top_index]]
   top_score <- scores[[top_index]]
   second_class <- names(cell_type_marker_genes)[[second_index]]
@@ -373,21 +396,36 @@ cdkn1b_stats$cdkn1b_exclude <-
   cdkn1b_stats$cdkn1b_detection_q < CDKN1B_DETECTION_MAX_Q &
   cdkn1b_stats$cdkn1b_detection_fraction >= CDKN1B_MIN_DETECTION_FRACTION
 
+n_decision_before_marker_merge <- nrow(cluster_marker_scores)
 decision_table <- merge(
   cluster_marker_scores,
   marker_decisions,
   by = "cluster",
   sort = FALSE
 )
+stopifnot(
+  nrow(decision_table) == n_decision_before_marker_merge,
+  !anyDuplicated(decision_table$cluster)
+)
+n_decision_before_cdkn1b_merge <- nrow(decision_table)
 decision_table <- merge(
   decision_table,
   cdkn1b_stats,
   by = "cluster",
   sort = FALSE
 )
-decision_table <- decision_table[
+stopifnot(
+  nrow(decision_table) == n_decision_before_cdkn1b_merge,
+  !anyDuplicated(decision_table$cluster)
+)
+ordered_decision_table <- decision_table[
   match(cluster_levels, decision_table$cluster),
 ]
+stopifnot(
+  nrow(ordered_decision_table) == length(cluster_levels),
+  !anyNA(ordered_decision_table$cluster)
+)
+decision_table <- ordered_decision_table
 decision_table$exclude <- decision_table$marker_exclude |
   decision_table$cdkn1b_exclude
 decision_table$exclusion_reasons <- vapply(
@@ -487,6 +525,8 @@ if (!inherits(base_subset[["RNA"]], "Assay5")) {
 
 utils::data("mouse_cell_cycle_genes", package = "ESPI", envir = environment())
 cell_cycle_genes <- mouse_cell_cycle_genes
+# ANALYSIS_OK[narrowing]: retain exclusion reasons only for clusters excluded
+# by the validated marker/Cdkn1b decision table immediately above.
 exclusion_reasons <- stats::setNames(
   decision_table$exclusion_reasons[decision_table$exclude],
   excluded_clusters

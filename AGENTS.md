@@ -19,6 +19,7 @@ NEVER edit README.md directly; it is generated from README.Rmd. After you edit R
 
 Update `README.Rmd`, `AGENTS.md`, and other package documentation as needed to reflect changes in the analysis pipeline.
 Routine workflow rule: use `just run [source] [overwrite]` (or `just run-dry-run [source] [overwrite]`) with defaults `counts-qc` and `false`; source may be `counts-qc`, `legacy`, or a quoted explicit RDS path. Treat `just preprocess*` and raw `Rscript` stages as expert recovery only. A full run renders the notebook, then runs tripwires.
+`just lint` runs scilintr across first-party analysis scopes; fix findings or document a structured `ANALYSIS_OK` waiver.
 
 ------------------------------------------------------------------------
 

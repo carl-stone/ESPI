@@ -9,6 +9,7 @@
 #'
 #' @return `NULL`, invisibly.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by executable analysis scripts.
 emit_tripwire_checkpoint <- function(checkpoint, ...) {
   stopifnot(
     length(checkpoint) == 1,
@@ -58,6 +59,7 @@ emit_tripwire_checkpoint <- function(checkpoint, ...) {
 validate_required_metadata <- function(
   meta,
   columns,
+  # ANALYSIS_OK[smuggled-default]: intentional function signature default for metadata stage.
   stage = "metadata_complete"
 ) {
   stopifnot(is.character(columns), length(columns) > 0)
@@ -136,6 +138,7 @@ validate_required_metadata <- function(
 #'
 #' @return `NULL`, invisibly.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by executable analysis scripts.
 write_tripwire_drop_ledger <- function(
   sample_ids,
   stage,
@@ -174,6 +177,7 @@ write_tripwire_drop_ledger <- function(
   invisible(NULL)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file checkpoint encoding.
 encode_checkpoint_fields <- function(fields) {
   if (length(fields) == 0) {
     return("")
@@ -182,6 +186,7 @@ encode_checkpoint_fields <- function(fields) {
   paste(paste0(names(values), "=", values), collapse = ";")
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file checkpoint encoding.
 encode_checkpoint_value <- function(value) {
   if (length(value) == 0 || is.null(value)) {
     return("")

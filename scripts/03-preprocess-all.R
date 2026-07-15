@@ -35,6 +35,8 @@ suppressPackageStartupMessages({
 preprocess_script <- here::here("scripts", "03-preprocess.R")
 
 args <- commandArgs(trailingOnly = TRUE)
+# ANALYSIS_OK[R025]: wrapper keeps a local commandArgs() parser so it remains
+# independently runnable in an RStudio step; CLI tripwires exercise the contract.
 arg <- function(name) {
   i <- match(name, args)
   if (is.na(i)) {
@@ -45,6 +47,8 @@ arg <- function(name) {
   }
   args[[i + 1]]
 }
+# ANALYSIS_OK[R025]: local value parser is intentionally duplicated for
+# standalone wrapper execution; CLI tripwires exercise this narrow contract.
 arg_value <- function(name) {
   value <- arg(name)
   if (identical(value, TRUE)) {

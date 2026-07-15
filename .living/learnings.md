@@ -691,3 +691,18 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **mitigation_type**: code
 
 **structural_mitigation_candidate**: Keep significance filtering, Bayesian selection, simplification, table writing, and plotting in one explicit enrichment stage.
+### [2026-07-14] scilintr requires one-root calls and explicit status propagation
+
+**Tags**: scilintr, lint, cli, workflow
+
+**Category**: Tooling integration
+
+**What happened**: scilintr 0.1.1 `main()` accepts one root per invocation and does not propagate its result as the process exit status when called directly. The lint gate therefore could not rely on `.scilintr.yml` severity alone.
+
+**Why it matters**: A multi-root call or an unwrapped CLI call can omit scopes or let findings pass without failing `just lint`.
+
+**Resolution**: `just lint` loops over each configured first-party scope and invokes `quit(status = scilintr::main(scope))`; findings are fixed or covered by structured `ANALYSIS_OK` waivers.
+
+**mitigation_type**: workflow
+
+**structural_mitigation_candidate**: Keep the one-root loop and explicit exit-status wrapper beside the lint recipe so future scilintr upgrades can be checked against the same contract.

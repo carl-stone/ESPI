@@ -24,6 +24,8 @@ mouse_cell_cycle_genes <- orthologs$external_gene_name[
   orthologs$hsapiens_homolog_associated_gene_name %in% human_cell_cycle_genes
 ]
 mouse_cell_cycle_genes <- sort(unique(mouse_cell_cycle_genes))
+# ANALYSIS_OK[R005]: remove empty ortholog names intentionally after mapping;
+# the explicit `nzchar` predicate and `save()` below record the filtered dataset.
 mouse_cell_cycle_genes <- mouse_cell_cycle_genes[nzchar(mouse_cell_cycle_genes)]
 
 save(

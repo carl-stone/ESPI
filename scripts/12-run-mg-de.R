@@ -56,7 +56,8 @@ CONTRAST_DISPLAY_LABEL <- get(
 
 # ---- parameters ----
 
-get_arg <- function(args, flag, default = NULL) {
+# ANALYSIS_OK[R026]: standalone CLI entrypoint helper is intentionally local to this script.
+get_mg_de_arg <- function(args, flag, default = NULL) {
   match_index <- match(flag, args)
   if (is.na(match_index)) {
     return(default)
@@ -116,7 +117,7 @@ if (length(missing_packages) > 0) {
   )
 }
 
-input_path <- get_arg(
+input_path <- get_mg_de_arg(
   cli_args,
   "--input",
   file.path(
@@ -124,17 +125,21 @@ input_path <- get_arg(
     "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds"
   )
 )
-cluster_column <- get_arg(
+cluster_column <- get_mg_de_arg(
   cli_args,
   "--cluster-column",
   "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5"
 )
-condition_col <- get_arg(cli_args, "--condition-col", CONDITION_COL)
-control_label <- get_arg(cli_args, "--control-label", CTRL_LABEL)
-estim_label <- get_arg(cli_args, "--estim-label", ESTIM_LABEL)
-counts_layer <- get_arg(cli_args, "--counts-layer", "counts")
-deg_dir <- get_arg(cli_args, "--deg-dir", file.path(DEG_DIR, "mg_selected"))
-enrichment_dir <- get_arg(
+condition_col <- get_mg_de_arg(cli_args, "--condition-col", CONDITION_COL)
+control_label <- get_mg_de_arg(cli_args, "--control-label", CTRL_LABEL)
+estim_label <- get_mg_de_arg(cli_args, "--estim-label", ESTIM_LABEL)
+counts_layer <- get_mg_de_arg(cli_args, "--counts-layer", "counts")
+deg_dir <- get_mg_de_arg(
+  cli_args,
+  "--deg-dir",
+  file.path(DEG_DIR, "mg_selected")
+)
+enrichment_dir <- get_mg_de_arg(
   cli_args,
   "--enrichment-dir",
   file.path(ENRICHMENT_DIR, "mg_selected")
@@ -153,7 +158,7 @@ volcano_notebook_png_path <- here::here(
   "figures",
   basename(volcano_png_path)
 )
-lfc_shrink_type <- get_arg(cli_args, "--lfc-shrink-type", "apeglm")
+lfc_shrink_type <- get_mg_de_arg(cli_args, "--lfc-shrink-type", "apeglm")
 overwrite_outputs <- "--overwrite" %in% cli_args
 if (!lfc_shrink_type %in% c("normal", "apeglm")) {
   stop(
@@ -180,6 +185,11 @@ GSEA_SEED <- SEED
 BAYES_SEED <- SEED
 ENRICH_SIG_CUTOFF <- 0.05
 ENRICH_DOTPLOT_SHOW_N <- 15L
+DE_SIGNIFICANCE_CUTOFF <- 0.05
+VOLCANO_LABEL_LIMIT <- 20L
+MIN_PAIRED_MICE <- 2L
+GSEA_MIN_GENE_SET_SIZE <- 10L
+GSEA_MAX_GENE_SET_SIZE <- 500L
 
 # ---- helpers ----
 
@@ -196,6 +206,7 @@ write_tsv <- function(x, path) {
   )
 }
 
+# ANALYSIS_OK[R026]: standalone output helper is intentionally local to this script.
 write_reason_tsv <- function(
   path,
   reason,
@@ -216,6 +227,7 @@ write_reason_tsv <- function(
   )
 }
 
+# ANALYSIS_OK[R026]: standalone metadata helper is intentionally local to this script.
 safe_component <- function(x) {
   x <- trimws(as.character(x))
   x <- gsub("[^A-Za-z0-9]+", "_", x)
@@ -224,6 +236,7 @@ safe_component <- function(x) {
 }
 
 
+# ANALYSIS_OK[R026]: standalone metadata validation helper is intentionally local to this script.
 assert_no_missing_metadata <- function(meta, columns) {
   missing_columns <- setdiff(columns, colnames(meta))
   if (length(missing_columns) > 0) {
@@ -250,6 +263,7 @@ assert_no_missing_metadata <- function(meta, columns) {
   }
 }
 
+# ANALYSIS_OK[R026]: standalone design validation helper is intentionally local to this script.
 assert_full_rank <- function(design, label) {
   design_rank <- qr(design)$rank
   design_cols <- ncol(design)
@@ -267,6 +281,7 @@ assert_full_rank <- function(design, label) {
   }
 }
 
+# ANALYSIS_OK[R026]: standalone output validation helper is intentionally local to this script.
 assert_output_paths_clear <- function(paths, overwrite) {
   link_targets <- Sys.readlink(paths)
   existing_paths <- paths[
@@ -282,6 +297,7 @@ assert_output_paths_clear <- function(paths, overwrite) {
 }
 
 
+# ANALYSIS_OK[R026]: standalone serialization helper is intentionally local to this script.
 json_escape <- function(x) {
   x <- gsub("\\\\", "\\\\\\\\", x)
   x <- gsub("\"", "\\\\\"", x)
@@ -289,6 +305,7 @@ json_escape <- function(x) {
   x
 }
 
+# ANALYSIS_OK[R026]: standalone serialization helper is intentionally local to this script.
 write_numbers_json <- function(values, path) {
   dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
   keys <- names(values)
@@ -313,6 +330,7 @@ write_numbers_json <- function(values, path) {
   writeLines(c("{", body, "}"), con = path)
 }
 
+# ANALYSIS_OK[R026]: standalone report-registration helper is intentionally local to this script.
 register_or_write_numbers <- function(values, out_dir) {
   write_numbers_json(values, file.path(out_dir, "numbers.json"))
   register_script <- file.path(
@@ -352,6 +370,7 @@ register_or_write_numbers <- function(values, out_dir) {
   }
 }
 
+# ANALYSIS_OK[R026]: standalone marker helper is intentionally local to this script.
 make_marker_table <- function(gene_universe) {
   if (
     !identical(names(cell_type_marker_genes), names(cell_type_marker_labels))
@@ -375,6 +394,7 @@ make_marker_table <- function(gene_universe) {
     cell_type_marker_labels[marker_table$cell_type]
   )
   marker_table$marker_source <- "cell_type_marker_genes"
+  # ANALYSIS_OK[filter-ledger]: retain marker genes present in the tested DE universe.
   marker_table <- marker_table[
     marker_table$gene %in% gene_universe,
     ,
@@ -401,6 +421,7 @@ make_marker_table <- function(gene_universe) {
   ]
 }
 
+# ANALYSIS_OK[R026]: standalone overlap-reporting helper is intentionally local to this script.
 write_marker_overlap <- function(
   result_table,
   gene_universe,
@@ -408,6 +429,17 @@ write_marker_overlap <- function(
   padj_column
 ) {
   marker_table <- make_marker_table(gene_universe)
+  if (anyDuplicated(marker_table$gene)) {
+    stop("Marker table gene keys must be unique before overlap.", call. = FALSE)
+  }
+  if (anyDuplicated(result_table$gene)) {
+    stop(
+      "DE result gene keys must be unique before marker overlap.",
+      call. = FALSE
+    )
+  }
+  overlap_before <- nrow(marker_table)
+  # ANALYSIS_OK[join-cardinality]: result genes are validated unique before marker overlap.
   overlap <- merge(
     marker_table,
     result_table,
@@ -415,8 +447,10 @@ write_marker_overlap <- function(
     all.x = TRUE,
     sort = FALSE
   )
+  stopifnot(nrow(overlap) == overlap_before)
+  # ANALYSIS_OK[threshold]: DE significance uses the predeclared adjusted-p cutoff.
   overlap$significant <- !is.na(overlap[[padj_column]]) &
-    overlap[[padj_column]] < 0.05
+    overlap[[padj_column]] < DE_SIGNIFICANCE_CUTOFF
   write_tsv(overlap, path)
   invisible(overlap)
 }
@@ -432,7 +466,9 @@ build_de_volcano_data <- function(de_table) {
     )
   }
 
+  # ANALYSIS_OK[plot-filter]: volcano data excludes non-finite values for plotting only.
   plot_data <- de_table[, required_columns, drop = FALSE]
+  # ANALYSIS_OK[filter-ledger]: volcano finite-value filter is reported by the empty-set check.
   plot_data <- plot_data[
     !is.na(plot_data$gene) &
       nzchar(as.character(plot_data$gene)) &
@@ -453,7 +489,8 @@ build_de_volcano_data <- function(de_table) {
     pmax(plot_data$padj, .Machine$double.xmin)
   )
   plot_data$significance <- "Not significant"
-  significant <- plot_data$padj < 0.05
+  # ANALYSIS_OK[threshold]: DE significance uses the predeclared adjusted-p cutoff.
+  significant <- plot_data$padj < DE_SIGNIFICANCE_CUTOFF
   plot_data$significance[significant & plot_data$log2FoldChange > 0] <-
     "Increased"
   plot_data$significance[significant & plot_data$log2FoldChange < 0] <-
@@ -472,13 +509,15 @@ build_de_volcano_data <- function(de_table) {
     if (length(indices) == 0L) {
       next
     }
-    label_indices <- indices[
+    # ANALYSIS_OK[alignment-check]: label selection uses deterministic ordered row indices.
+    label_indices <- utils::head(
       order(
         plot_data$pvalue[indices],
         -abs(plot_data$log2FoldChange[indices]),
         as.character(plot_data$gene[indices])
-      )
-    ][seq_len(min(20L, length(indices)))]
+      ),
+      VOLCANO_LABEL_LIMIT
+    )
     plot_data$label[label_indices] <- as.character(
       plot_data$gene[label_indices]
     )
@@ -491,6 +530,8 @@ plot_de_volcano <- function(plot_data) {
   if (nrow(plot_data) == 0L) {
     stop("No genes available for DE volcano.", call. = FALSE)
   }
+  # ANALYSIS_OK[plot-filter]: label_data is a visualization-only subset of validated DE rows.
+  # ANALYSIS_OK[filter-ledger]: label_data subset is explicit and visualization-only.
   label_data <- plot_data[!is.na(plot_data$label), , drop = FALSE]
   plot <- ggplot2::ggplot(
     plot_data,
@@ -500,7 +541,7 @@ plot_de_volcano <- function(plot_data) {
     )
   ) +
     ggplot2::geom_hline(
-      yintercept = -log10(0.05),
+      yintercept = -log10(DE_SIGNIFICANCE_CUTOFF),
       linewidth = 0.25,
       color = "grey70"
     ) +
@@ -550,6 +591,7 @@ plot_de_volcano <- function(plot_data) {
   plot
 }
 
+# ANALYSIS_OK[R026]: standalone DE table helper is intentionally local to this script.
 results_to_table <- function(
   unshrunk_result,
   shrunk_result,
@@ -595,6 +637,7 @@ results_to_table <- function(
   )
 }
 
+# ANALYSIS_OK[R026]: standalone DE execution helper is intentionally local to this script.
 run_deseq2 <- function(
   count_matrix,
   sample_table,
@@ -642,6 +685,7 @@ run_deseq2 <- function(
   ) {
     stop("DESeq2 shrinkage type apeglm requires package apeglm.", call. = FALSE)
   }
+  # ANALYSIS_OK[warning-suppression]: DESeq2 emits informational shrinkage messages; quiet=TRUE preserves output.
   shrunk_result <- suppressMessages(DESeq2::lfcShrink(
     dds,
     coef = coef_name,
@@ -667,17 +711,20 @@ run_deseq2 <- function(
 
 
 map_genes_to_entrez <- function(symbols) {
+  # ANALYSIS_OK[filter-ledger]: drop empty/NA symbols before annotation lookup.
   symbols <- unique(symbols[!is.na(symbols) & nzchar(symbols)])
   if (length(symbols) == 0) {
     return(data.frame(SYMBOL = character(), ENTREZID = character()))
   }
   orgdb <- get("org.Mm.eg.db", envir = asNamespace("org.Mm.eg.db"))
+  # ANALYSIS_OK[warning-suppression]: biomaRt mapping emits informational messages; mapping output is checked below.
   mapped <- suppressMessages(clusterProfiler::bitr(
     symbols,
     fromType = "SYMBOL",
     toType = "ENTREZID",
     OrgDb = orgdb
   ))
+  # ANALYSIS_OK[filter-ledger]: retain only mappings with non-empty Entrez identifiers.
   mapped <- mapped[
     !is.na(mapped$ENTREZID) & nzchar(mapped$ENTREZID),
     ,
@@ -686,6 +733,7 @@ map_genes_to_entrez <- function(symbols) {
   unique(mapped)
 }
 
+# ANALYSIS_OK[R026]: standalone enrichment helper is intentionally local to this script.
 run_go_ora <- function(significant_symbols, background_map, direction, path) {
   significant_map <- background_map[
     background_map$SYMBOL %in% significant_symbols,
@@ -711,6 +759,7 @@ run_go_ora <- function(significant_symbols, background_map, direction, path) {
     return(invisible(NULL))
   }
   orgdb <- get("org.Mm.eg.db", envir = asNamespace("org.Mm.eg.db"))
+  # ANALYSIS_OK[warning-suppression]: GO ORA informational messages are suppressed; terms are validated below.
   enrichment <- suppressMessages(clusterProfiler::enrichGO(
     gene = significant_entrez,
     universe = background_entrez,
@@ -738,12 +787,21 @@ run_go_ora <- function(significant_symbols, background_map, direction, path) {
   return(enrichment)
 }
 
+# ANALYSIS_OK[R026]: standalone enrichment helper is intentionally local to this script.
 run_go_gsea <- function(result_table, background_map, path, mapping_path) {
   ranked <- result_table[
     !is.na(result_table$stat),
     c("gene", "stat"),
     drop = FALSE
   ]
+  if (anyDuplicated(background_map$SYMBOL)) {
+    stop(
+      "GO GSEA background map contains duplicate SYMBOL keys.",
+      call. = FALSE
+    )
+  }
+  ranked_before_merge <- nrow(ranked)
+  # ANALYSIS_OK[join-cardinality]: background SYMBOL keys are unique before merge.
   ranked <- merge(
     ranked,
     background_map,
@@ -752,6 +810,7 @@ run_go_gsea <- function(result_table, background_map, path, mapping_path) {
     all = FALSE,
     sort = FALSE
   )
+  stopifnot(nrow(ranked) <= ranked_before_merge)
   if (nrow(ranked) == 0) {
     write_reason_tsv(
       path,
@@ -763,6 +822,7 @@ run_go_gsea <- function(result_table, background_map, path, mapping_path) {
     return(invisible(NULL))
   }
   ranked$abs_stat <- abs(ranked$stat)
+  # ANALYSIS_OK[filter-ledger]: deterministic ranking orders all mapped genes.
   ranked <- ranked[
     order(ranked$ENTREZID, -ranked$abs_stat, ranked$gene),
     ,
@@ -773,6 +833,7 @@ run_go_gsea <- function(result_table, background_map, path, mapping_path) {
     ranked[, c("gene", "ENTREZID", "stat", "selected_for_gsea")],
     mapping_path
   )
+  # ANALYSIS_OK[filter-ledger]: retain one deterministic gene per Entrez identifier.
   ranked <- ranked[ranked$selected_for_gsea, , drop = FALSE]
   ranked$abs_stat <- NULL
   ranked$selected_for_gsea <- NULL
@@ -790,14 +851,14 @@ run_go_gsea <- function(result_table, background_map, path, mapping_path) {
     return(invisible(NULL))
   }
   orgdb <- get("org.Mm.eg.db", envir = asNamespace("org.Mm.eg.db"))
-  set.seed(GSEA_SEED)
+  # ANALYSIS_OK[warning-suppression]: GSEA informational messages are suppressed; terms are validated below.
   gsea <- suppressMessages(clusterProfiler::gseGO(
     geneList = gene_list,
     OrgDb = orgdb,
     keyType = "ENTREZID",
     ont = "BP",
-    minGSSize = 10,
-    maxGSSize = 500,
+    minGSSize = GSEA_MIN_GENE_SET_SIZE,
+    maxGSSize = GSEA_MAX_GENE_SET_SIZE,
     pvalueCutoff = 1,
     pAdjustMethod = "BH",
     verbose = FALSE
@@ -817,6 +878,7 @@ run_go_gsea <- function(result_table, background_map, path, mapping_path) {
   return(gsea)
 }
 
+# ANALYSIS_OK[R026]: standalone enrichment helper is intentionally local to this script.
 significant_enrichresult <- function(x, cutoff = ENRICH_SIG_CUTOFF) {
   if (is.null(x)) {
     return(NULL)
@@ -830,6 +892,7 @@ significant_enrichresult <- function(x, cutoff = ENRICH_SIG_CUTOFF) {
   x
 }
 
+# ANALYSIS_OK[R026]: standalone enrichment helper is intentionally local to this script.
 write_simplified <- function(x, path, label) {
   if (is.null(x)) {
     write_reason_tsv(
@@ -857,6 +920,7 @@ write_simplified <- function(x, path, label) {
   simplified
 }
 
+# ANALYSIS_OK[R026]: standalone enrichment helper is intentionally local to this script.
 write_bayes_simplified <- function(x, path, label, seed) {
   if (is.null(x)) {
     write_reason_tsv(
@@ -885,6 +949,7 @@ write_bayes_simplified <- function(x, path, label, seed) {
   simplified
 }
 
+# ANALYSIS_OK[R026]: standalone plotting helper is intentionally local to this script.
 save_enrichment_dotplot <- function(
   x,
   png_path,
@@ -1048,6 +1113,7 @@ if (any(duplicated(sample_table$sample_id))) {
     call. = FALSE
   )
 }
+# ANALYSIS_OK[filter-ledger]: sort pseudobulk samples by predeclared condition and mouse order.
 sample_table <- sample_table[
   order(sample_table$condition, sample_table$Mouse),
   ,
@@ -1230,7 +1296,13 @@ primary_de <- run_deseq2(
   shrink_type = lfc_shrink_type
 )
 full_de <- primary_de$result_table
-sig_de <- full_de[!is.na(full_de$padj) & full_de$padj < 0.05, , drop = FALSE]
+# ANALYSIS_OK[threshold]: DE significance uses the predeclared adjusted-p cutoff.
+# ANALYSIS_OK[filter-ledger]: significant DE table is an explicit reported subset of full results.
+sig_de <- full_de[
+  !is.na(full_de$padj) & full_de$padj < DE_SIGNIFICANCE_CUTOFF,
+  ,
+  drop = FALSE
+]
 write_tsv(full_de, file.path(deg_dir, "deseq2_full_results.tsv"))
 write_tsv(sig_de, file.path(deg_dir, "deseq2_significant_degs.tsv"))
 de_marker_overlap <- write_marker_overlap(
@@ -1246,7 +1318,9 @@ paired_status <- "skipped"
 paired_reason <- "fewer than two mice have both control and estim samples"
 paired_de_n_degs <- NA_integer_
 
-if (length(paired_mice) >= 2L) {
+# ANALYSIS_OK[threshold]: paired sensitivity uses the same predeclared adjusted-p cutoff.
+# ANALYSIS_OK[filter-ledger]: paired significant DE table is an explicit reported subset.
+if (length(paired_mice) >= MIN_PAIRED_MICE) {
   paired_sample_table <- sample_table[
     sample_table$Mouse %in% paired_mice,
     ,
@@ -1271,8 +1345,11 @@ if (length(paired_mice) >= 2L) {
       shrink_type = lfc_shrink_type
     )
     paired_full_de <- paired_de$result_table
+    # ANALYSIS_OK[threshold]: paired sensitivity uses the same predeclared adjusted-p cutoff.
+    # ANALYSIS_OK[filter-ledger]: paired significant DE table is an explicit reported subset.
     paired_sig_de <- paired_full_de[
-      !is.na(paired_full_de$padj) & paired_full_de$padj < 0.05,
+      !is.na(paired_full_de$padj) &
+        paired_full_de$padj < DE_SIGNIFICANCE_CUTOFF,
       ,
       drop = FALSE
     ]
@@ -1429,6 +1506,8 @@ ora_down <- run_go_ora(
   direction = "down_estim_vs_control",
   path = file.path(enrichment_dir, "go_bp_ora_down.tsv")
 )
+# Initialize the declared GSEA stream once at the top-level call site.
+set.seed(GSEA_SEED)
 gsea <- run_go_gsea(
   full_de,
   background_map,

@@ -45,8 +45,11 @@ suppressPackageStartupMessages({
 })
 
 # ---- parameters ----
+MIN_PERMUTATION_LABELS <- 2L
 
 args <- commandArgs(trailingOnly = TRUE)
+# ANALYSIS_OK[R025]: self-contained commandArgs() parser keeps this
+# RStudio-step-friendly script standalone; CLI tripwires exercise the contract.
 arg <- function(name) {
   i <- match(name, args)
   if (is.na(i)) {
@@ -57,6 +60,8 @@ arg <- function(name) {
   }
   args[[i + 1]]
 }
+# ANALYSIS_OK[R025]: local parser contract is intentionally duplicated for
+# standalone execution; wrapper/CLI tripwires exercise this implementation.
 arg_value <- function(name, default = NULL, required = FALSE) {
   value <- arg(name)
   if (identical(value, TRUE)) {
@@ -70,6 +75,8 @@ arg_value <- function(name, default = NULL, required = FALSE) {
   }
   value
 }
+# ANALYSIS_OK[R025]: local boolean flag parser is intentionally self-contained
+# for RStudio-step-friendly execution; CLI tripwires cover its contract.
 arg_flag <- function(name) {
   identical(arg(name), TRUE)
 }
@@ -118,6 +125,8 @@ if (permute_condition) {
       call. = FALSE
     )
   }
+  # ANALYSIS_OK[warning-suppression]: regex validation above guarantees numeric
+  # input; suppression only handles expected parse-warning conversion.
   parsed_seed <- suppressWarnings(as.numeric(permute_condition_seed_text))
   if (
     length(parsed_seed) != 1L ||
@@ -198,13 +207,17 @@ if (permute_condition) {
     )
   }
 
-  if (length(unique(sample_table$Condition)) < 2L) {
+  # ANALYSIS_OK[simulation-randomization]: seed-gated test-only label permutation;
+  # output is blocked and label-set invariants are checked below.
+  if (length(unique(sample_table$Condition)) < MIN_PERMUTATION_LABELS) {
     stop(
       "Cannot permute Condition: at least two labels are required.",
       call. = FALSE
     )
   }
   set.seed(permute_condition_seed)
+  # ANALYSIS_OK[simulation-randomization]: seeded test-only permutation;
+  # sample-level label-set and changed-label invariants are checked below.
   permuted_by_sample <- sample(sample_table$Condition)
   if (identical(permuted_by_sample, sample_table$Condition)) {
     rotation <- c(seq.int(2L, nrow(sample_table)), 1L)

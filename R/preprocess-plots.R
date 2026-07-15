@@ -10,6 +10,7 @@
 #'
 #' @return `NULL`, invisibly.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by executable preprocessing scripts.
 splot_qc_metrics_violin <- function(sobj) {
   required_cols <- c(
     "sample_id",
@@ -70,6 +71,7 @@ splot_qc_metrics_violin <- function(sobj) {
 #'
 #' @return `NULL`, invisibly.
 #' @export
+# ANALYSIS_OK[smuggled-default]: intentional package API default for top HVG labels.
 splot_hvg_scatter <- function(sobj, n_top = 10) {
   stopifnot(length(n_top) == 1, is.numeric(n_top), is.finite(n_top), n_top >= 0)
 
@@ -126,6 +128,7 @@ splot_hvg_scatter <- function(sobj, n_top = 10) {
 #'
 #' @return `invisible(NULL)`.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by executable preprocessing scripts.
 splot_dim_heatmap <- function(sobj) {
   norm <- sobj@misc$preprocessing$normalization
   cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {
@@ -182,6 +185,7 @@ splot_dim_heatmap <- function(sobj) {
 #'
 #' @return `invisible(NULL)`.
 #' @export
+# ANALYSIS_OK[smuggled-default]: intentional package API default for elbow PCs.
 splot_elbow <- function(sobj, n_pcs = 50) {
   norm <- sobj@misc$preprocessing$normalization
   cc_tag <- if (isTRUE(sobj@misc$preprocessing$filtered_cell_cycle)) {

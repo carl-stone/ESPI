@@ -1,3 +1,7 @@
+# Expected design cardinality and significance threshold for two-condition abundance tests.
+EXPECTED_CONDITION_COUNT <- 2L
+FDR_THRESHOLD <- 0.05
+
 #' Compute pooled cluster abundance enrichment by condition.
 #'
 #' Uses pooled cell-level cluster x condition counts. Fisher tests use raw counts;
@@ -89,7 +93,9 @@ compute_cluster_abundance <- function(
   counts_mat <- as.matrix(counts_mat)
   storage.mode(counts_mat) <- "integer"
   if (
-    nrow(counts_mat) == 0L || ncol(counts_mat) != 2L || sum(counts_mat) == 0L
+    nrow(counts_mat) == 0L ||
+      ncol(counts_mat) != EXPECTED_CONDITION_COUNT ||
+      sum(counts_mat) == 0L
   ) {
     stop("Cluster x condition count table is empty.", call. = FALSE)
   }
@@ -155,8 +161,8 @@ compute_cluster_abundance <- function(
   padj <- stats::p.adjust(fisher_p, method = "holm")
 
   direction <- rep("Not significant", length(log2_enrichment))
-  direction[padj < 0.05 & log2_enrichment > 0] <- "Enriched in E-Stim"
-  direction[padj < 0.05 & log2_enrichment < 0] <- "Depleted in E-Stim"
+  direction[padj < FDR_THRESHOLD & log2_enrichment > 0] <- "Enriched in E-Stim"
+  direction[padj < FDR_THRESHOLD & log2_enrichment < 0] <- "Depleted in E-Stim"
 
   data.frame(
     cluster = rownames(counts_mat),
@@ -189,6 +195,7 @@ compute_cluster_abundance <- function(
 #' @return Data frame with one row per observed Mouse x Condition sample and
 #'   cluster.
 #' @export
+# ANALYSIS_OK[smuggled-default]: intentional package API default for Mouse metadata.
 compute_sample_cluster_proportions <- function(
   sobj,
   cluster_col,
@@ -286,7 +293,7 @@ compute_sample_cluster_proportions <- function(
   storage.mode(sample_tab) <- "integer"
   if (
     nrow(sample_tab) == 0L ||
-      ncol(sample_tab) != 2L ||
+      ncol(sample_tab) != EXPECTED_CONDITION_COUNT ||
       sum(sample_tab) == 0L
   ) {
     stop("Mouse x condition count table is empty.", call. = FALSE)
@@ -369,6 +376,7 @@ compute_sample_cluster_proportions <- function(
   sample_props
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by the same-file permutation test.
 .sign_vectors <- function(k) {
   if (
     length(k) != 1L ||
@@ -396,6 +404,7 @@ compute_sample_cluster_proportions <- function(
 #' @return Data frame with per-cluster effect estimates, exact randomization
 #'   p-values, BH-adjusted q-values, and singleton sensitivity status.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by executable analysis scripts.
 test_cluster_proportion_randomization <- function(
   sample_props,
   control_label = CTRL_LABEL,
@@ -560,6 +569,7 @@ test_cluster_proportion_randomization <- function(
       ,
       drop = FALSE
     ]
+    # ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file logit calculations.
     get_logit <- function(mouse_id, condition_label) {
       row_idx <- cluster_data$mouse == mouse_id &
         cluster_data$condition == condition_label
@@ -666,6 +676,7 @@ test_cluster_proportion_randomization <- function(
   }
 
   results <- do.call(rbind, result_rows)
+  # ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file q-value adjustment.
   adjust_non_missing <- function(p_value) {
     q_value <- rep(NA_real_, length(p_value))
     observed <- !is.na(p_value)
@@ -676,6 +687,7 @@ test_cluster_proportion_randomization <- function(
   results$q_value_paired_singleton <- adjust_non_missing(
     results$p_value_paired_singleton
   )
+  # ANALYSIS_OK[result-schema]: explicit column selection only reorders/enforces the output schema; no rows are dropped.
   results <- results[,
     c(
       "cluster",

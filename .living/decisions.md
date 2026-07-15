@@ -768,3 +768,16 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: `apeglm` is the requested shrinkage model; simplifying only enriched terms preserves the inferential scope and avoids unnecessary semantic-similarity work. Inline helpers keep the one-off analysis flow visible.
 
 **Consequences**: The pipeline now protects five simplified tables, five PNG/PDF dotplots, their notebook links, and both branch-specific Ascl1/Hes6 scatter outputs. Notebook section 4 reports the enrichment results.
+### [2026-07-14] Lint first-party R scopes, not inert skillpacks
+
+**Tags**: scilintr, lint, tooling, skillpacks
+
+**Context**: The scilintr integration checks ESPI's first-party R analysis scopes. `skillpacks/` contains inert external reference material and is not part of the executable project workflow.
+
+**Decision**: Make `just lint` cover `R/`, `scripts/`, `data-raw/`, `tools/`, `notebook/sc_analysis.qmd`, and `config.local.example.R`, while excluding `skillpacks/`.
+
+**Alternatives considered**: Linting every R-like file would include copied external skill content and produce findings unrelated to ESPI's analysis code.
+
+**Rationale**: The lint boundary should match code owned and executed by this project, not inert vendored references.
+
+**Consequences**: Findings in covered scopes must be fixed or recorded with a structured `ANALYSIS_OK` waiver; excluded skillpack content does not affect the project lint gate.

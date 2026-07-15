@@ -69,7 +69,8 @@ compute_cluster_p27_enrichment <- get(
 
 # ---- parameters ----
 
-get_arg <- function(args, flag, default) {
+# ANALYSIS_OK[R026]: standalone CLI entrypoint helper is intentionally local to this script.
+get_marker_heatmap_arg <- function(args, flag, default) {
   match_index <- match(flag, args)
   if (is.na(match_index)) {
     return(default)
@@ -115,33 +116,37 @@ if (length(missing_packages) > 0) {
 
 HEATMAP_Z_SCORE_LIMIT <- 2
 
-dims <- as.integer(get_arg(cli_args, "--dims", "30"))
+dims <- as.integer(get_marker_heatmap_arg(cli_args, "--dims", "30"))
 if (is.na(dims) || dims <= 0) {
   stop("--dims must be a positive integer.", call. = FALSE)
 }
-resolution <- get_arg(cli_args, "--resolution", "0.3")
+resolution <- get_marker_heatmap_arg(cli_args, "--resolution", "0.3")
 if (!nzchar(resolution)) {
   stop("--resolution must not be empty.", call. = FALSE)
 }
-expression_layer <- get_arg(cli_args, "--layer", "pflog")
+expression_layer <- get_marker_heatmap_arg(cli_args, "--layer", "pflog")
 if (!nzchar(expression_layer)) {
   stop("--layer must not be empty.", call. = FALSE)
 }
-score_slot <- get_arg(cli_args, "--slot", "data")
+score_slot <- get_marker_heatmap_arg(cli_args, "--slot", "data")
 if (!nzchar(score_slot)) {
   stop("--slot must not be empty.", call. = FALSE)
 }
-n_perm <- as.integer(get_arg(cli_args, "--n-perm", "2000"))
+n_perm <- as.integer(get_marker_heatmap_arg(cli_args, "--n-perm", "2000"))
 if (is.na(n_perm) || n_perm <= 0) {
   stop("--n-perm must be a positive integer.", call. = FALSE)
 }
 
-input_path <- get_arg(
+input_path <- get_marker_heatmap_arg(
   cli_args,
   "--input",
   file.path(CURRENT_OBJECT_DIR, "cluster_pflog_no_filter_cc_elbow20.rds")
 )
-out_dir <- get_arg(cli_args, "--out-dir", file.path(FIGURE_DIR, "annotation"))
+out_dir <- get_marker_heatmap_arg(
+  cli_args,
+  "--out-dir",
+  file.path(FIGURE_DIR, "annotation")
+)
 
 # ---- validation ----
 

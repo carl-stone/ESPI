@@ -25,6 +25,7 @@ ENTROPY_LOG_BASE <- 2
 CLUSTREE_STABLE_CHILD_FRACTION <- 0.8
 
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid branch builders.
 cluster_grid_branch_tag <- function(normalization, filtered_cell_cycle) {
   cc_tag <- if (isTRUE(filtered_cell_cycle)) {
     "filter_cc"
@@ -38,6 +39,7 @@ cluster_grid_branch_tag <- function(normalization, filtered_cell_cycle) {
   branch_tag
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid branch labels.
 cluster_grid_branch_label <- function(normalization, filtered_cell_cycle) {
   cc_label <- if (isTRUE(filtered_cell_cycle)) {
     "CC-HVG filtered"
@@ -52,10 +54,12 @@ cluster_grid_branch_label <- function(normalization, filtered_cell_cycle) {
   sprintf("%s, %s", norm_label, cc_label)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid branch builders.
 cluster_grid_res_tag <- function(resolution) {
   format(resolution, trim = TRUE, scientific = FALSE)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by executable grid analysis scripts.
 cluster_grid_branches <- function(
   normalizations = DEFAULT_CLUSTER_NORMALIZATIONS,
   filter_states = DEFAULT_CLUSTER_FILTER_STATES
@@ -83,6 +87,7 @@ cluster_grid_branches <- function(
   do.call(rbind, rows)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by executable grid analysis scripts.
 cluster_grid_object_path <- function(
   branch_tag,
   elbow_n = DEFAULT_CLUSTER_ELBOW_N
@@ -93,6 +98,7 @@ cluster_grid_object_path <- function(
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by executable grid analysis scripts.
 load_cluster_grid_objects <- function(
   elbow_n = DEFAULT_CLUSTER_ELBOW_N,
   normalizations = DEFAULT_CLUSTER_NORMALIZATIONS,
@@ -118,6 +124,7 @@ load_cluster_grid_objects <- function(
   list(branches = branches, paths = paths, objects = objects)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid column parsers.
 parse_cluster_grid_column <- function(column, branch_tag) {
   pattern <- sprintf("^cluster_%s_dims([0-9]+)_res(.+)$", branch_tag)
   hit <- regexec(pattern, column, perl = TRUE)
@@ -134,6 +141,7 @@ parse_cluster_grid_column <- function(column, branch_tag) {
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid loaders.
 cluster_grid_candidate_columns <- function(sobj, branch_tag) {
   candidate_names <- sobj@misc$clustering$candidate_names
   if (is.null(candidate_names) || length(candidate_names) == 0) {
@@ -166,12 +174,14 @@ cluster_grid_candidate_columns <- function(sobj, branch_tag) {
   do.call(rbind, parsed)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid summaries.
 cluster_grid_labels <- function(sobj, column) {
   labels <- sobj@meta.data[[column]]
   names(labels) <- rownames(sobj@meta.data)
   labels
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid comparison summaries.
 best_jaccard_to_reference <- function(labels, reference_labels) {
   contingency <- table(labels, reference_labels)
   cluster_sizes <- rowSums(contingency)
@@ -191,6 +201,7 @@ best_jaccard_to_reference <- function(labels, reference_labels) {
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid summaries.
 cluster_grid_size_summary <- function(
   labels,
   small_cluster_cell_threshold = SMALL_CLUSTER_CELL_THRESHOLD
@@ -216,6 +227,7 @@ cluster_grid_size_summary <- function(
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid summary entrypoints.
 collect_cluster_grid_candidates <- function(grid) {
   rows <- list()
   labels <- list()
@@ -257,11 +269,13 @@ collect_cluster_grid_candidates <- function(grid) {
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file entropy summaries.
 cluster_grid_entropy <- function(labels) {
   proportions <- as.numeric(table(labels)) / length(labels)
   -sum(proportions * log(proportions, base = ENTROPY_LOG_BASE))
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file pairwise metric entrypoints.
 cluster_grid_pairwise_metrics <- function(labels_a, labels_b) {
   if (!setequal(names(labels_a), names(labels_b))) {
     stop("Cell names differ between pairwise clusterings.", call. = FALSE)
@@ -320,6 +334,7 @@ cluster_grid_pairwise_metrics <- function(labels_a, labels_b) {
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid neighbor checks.
 cluster_grid_neighbor_axis <- function(candidate_a, candidate_b) {
   changed_axes <- c(
     normalization = candidate_a$normalization != candidate_b$normalization,
@@ -334,6 +349,7 @@ cluster_grid_neighbor_axis <- function(candidate_a, candidate_b) {
   names(changed_axes)[changed_axes]
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid neighbor checks.
 cluster_grid_is_local_neighbor <- function(candidate_a, candidate_b) {
   axis <- cluster_grid_neighbor_axis(candidate_a, candidate_b)
   if (is.na(axis)) {
@@ -356,6 +372,7 @@ cluster_grid_is_local_neighbor <- function(candidate_a, candidate_b) {
   TRUE
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid stability entrypoints.
 cluster_grid_pairwise_stability <- function(candidate_map) {
   metadata <- candidate_map$metadata
   labels <- candidate_map$labels
@@ -398,6 +415,7 @@ cluster_grid_pairwise_stability <- function(candidate_map) {
   do.call(rbind, rows)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid summarization entrypoints.
 summarize_cluster_grid_pairwise <- function(metadata, pairwise) {
   rows <- lapply(metadata$cluster_column, function(column) {
     local_pairs <- pairwise[
@@ -454,6 +472,7 @@ summarize_cluster_grid_pairwise <- function(metadata, pairwise) {
   do.call(rbind, rows)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid metrics entrypoints.
 cluster_grid_clustree_metrics <- function(labels, next_labels) {
   if (!setequal(names(labels), names(next_labels))) {
     stop("Cell names differ between clustree clusterings.", call. = FALSE)
@@ -491,6 +510,7 @@ cluster_grid_clustree_metrics <- function(labels, next_labels) {
   )
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid summarization entrypoints.
 summarize_cluster_grid_clustree <- function(candidate_map) {
   metadata <- candidate_map$metadata
   labels <- candidate_map$labels
@@ -542,6 +562,7 @@ summarize_cluster_grid_clustree <- function(candidate_map) {
   do.call(rbind, rows)
 }
 
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by same-file grid summarization entrypoints.
 summarize_cluster_grid_column <- function(
   sobj,
   branch_info,
@@ -606,6 +627,7 @@ summarize_cluster_grid_column <- function(
 #'
 #' @return The summary `data.frame`, invisibly.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by the executable analysis pipeline.
 write_cluster_grid_summary <- function(
   reference_column = DEFAULT_CLUSTER_REFERENCE_COLUMN,
   elbow_n = DEFAULT_CLUSTER_ELBOW_N,
@@ -694,6 +716,7 @@ write_cluster_grid_summary <- function(
 #'
 #' @return A list with `summary` and `pairwise` data frames, invisibly.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by the executable analysis pipeline.
 write_cluster_grid_stability_tables <- function(
   elbow_n = DEFAULT_CLUSTER_ELBOW_N,
   summary_out_path = file.path(
@@ -775,6 +798,7 @@ write_cluster_grid_stability_tables <- function(
 #'
 #' @return `invisible(NULL)`.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by the executable analysis pipeline.
 splot_cluster_grid_clustree <- function(
   elbow_n = DEFAULT_CLUSTER_ELBOW_N,
   dims = DEFAULT_CLUSTER_DIMS,
@@ -849,6 +873,7 @@ splot_cluster_grid_clustree <- function(
 #'
 #' @return `invisible(NULL)`.
 #' @export
+# ANALYSIS_OK[R026]: package export is loaded by devtools::load_all and invoked by the executable analysis pipeline.
 splot_umap_resolution_sweep <- function(
   normalization = REPRESENTATIVE_NORMALIZATION,
   filtered_cell_cycle = REPRESENTATIVE_FILTERED_CC,

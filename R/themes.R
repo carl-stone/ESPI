@@ -8,6 +8,7 @@ palette_dotplot_pair <- unname(palette_analysis_three[c("low", "high")])
 
 #' Theme for all figures
 #' @export
+# ANALYSIS_OK[smuggled-default]: intentional package API default for theme base size.
 theme_stone <- function(base_size = 12) {
   ggplot2::theme_bw(base_size = base_size) +
     ggplot2::theme(

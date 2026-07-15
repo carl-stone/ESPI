@@ -39,6 +39,10 @@ palette_dotplot_pair <- get(
   envir = asNamespace("ESPI"),
   inherits = FALSE
 )
+palette_dotplot_pair <- stats::setNames(
+  palette_dotplot_pair,
+  c("negative", "positive")
+)
 CONDITION_COL <- get(
   "CONDITION_COL",
   envir = asNamespace("ESPI"),
@@ -92,7 +96,8 @@ plot_cluster_proportion_by_mouse <- get(
 
 # ---- parameters ----
 
-get_arg <- function(args, flag, default) {
+# ANALYSIS_OK[R026]: standalone CLI entrypoint helper is intentionally local to this script.
+get_mg_figure_arg <- function(args, flag, default) {
   match_index <- match(flag, args)
   if (is.na(match_index)) {
     return(default)
@@ -126,7 +131,7 @@ if (length(unknown_flags) > 0) {
   )
 }
 
-branch_tag <- get_arg(
+branch_tag <- get_mg_figure_arg(
   cli_args,
   "--branch-tag",
   "pflog_mg_selected_no_filter_cc"
@@ -141,17 +146,17 @@ if (
   stop("--branch-tag must be a safe non-empty branch tag.", call. = FALSE)
 }
 
-elbow_n <- as.integer(get_arg(cli_args, "--elbow-n", "20"))
+elbow_n <- as.integer(get_mg_figure_arg(cli_args, "--elbow-n", "20"))
 if (length(elbow_n) != 1L || is.na(elbow_n) || elbow_n <= 0) {
   stop("--elbow-n must be a positive integer.", call. = FALSE)
 }
 
-dims <- as.integer(get_arg(cli_args, "--dims", "20"))
+dims <- as.integer(get_mg_figure_arg(cli_args, "--dims", "20"))
 if (length(dims) != 1L || is.na(dims) || dims <= 0) {
   stop("--dims must be a positive integer.", call. = FALSE)
 }
 
-resolution <- get_arg(cli_args, "--resolution", "0.5")
+resolution <- get_mg_figure_arg(cli_args, "--resolution", "0.5")
 if (
   !is.character(resolution) ||
     length(resolution) != 1L ||
@@ -160,6 +165,7 @@ if (
 ) {
   stop("--resolution must be a non-empty string.", call. = FALSE)
 }
+# ANALYSIS_OK[warning-suppression]: numeric CLI parsing warning is converted into explicit validation below.
 resolution_number <- suppressWarnings(as.numeric(resolution))
 if (
   is.na(resolution_number) ||
@@ -169,7 +175,7 @@ if (
   stop("--resolution must be a positive number string.", call. = FALSE)
 }
 
-expression_layer <- get_arg(cli_args, "--layer", "pflog")
+expression_layer <- get_mg_figure_arg(cli_args, "--layer", "pflog")
 if (
   !is.character(expression_layer) ||
     length(expression_layer) != 1L ||
@@ -179,13 +185,13 @@ if (
   stop("--layer must be a non-empty assay layer name.", call. = FALSE)
 }
 
-feature_list_path <- get_arg(
+feature_list_path <- get_mg_figure_arg(
   cli_args,
   "--feature-list",
   here::here("data", "umap_feature_list.rda")
 )
 
-input_path <- get_arg(
+input_path <- get_mg_figure_arg(
   cli_args,
   "--input",
   file.path(
@@ -194,12 +200,18 @@ input_path <- get_arg(
   )
 )
 
+EXPECTED_UMAP_FEATURE_COUNT <- 9L
+MIN_REDUCTION_DIMENSIONS <- 2L
+PALETTE_NEGATIVE_KEY <- "negative"
+PALETTE_POSITIVE_KEY <- "positive"
 # ---- helpers ----
 
+# ANALYSIS_OK[R026]: standalone filename helper is intentionally local to this script.
 filename_tag <- function(value) {
   gsub("[^A-Za-z0-9_.-]", "_", value)
 }
 
+# ANALYSIS_OK[R026]: standalone feature-loader helper is intentionally local to this script.
 load_umap_feature_list <- function(path) {
   if (!file.exists(path)) {
     stop("Feature list file does not exist: ", path, call. = FALSE)
@@ -223,9 +235,11 @@ load_umap_feature_list <- function(path) {
     stop("UMAP feature list must be a character vector.", call. = FALSE)
   }
   features <- unname(features)
-  if (length(features) != 9L) {
+  if (length(features) != EXPECTED_UMAP_FEATURE_COUNT) {
     stop(
-      "UMAP feature list must contain exactly 9 genes; found ",
+      "UMAP feature list must contain exactly ",
+      EXPECTED_UMAP_FEATURE_COUNT,
+      " genes; found ",
       length(features),
       call. = FALSE
     )
@@ -248,12 +262,20 @@ load_umap_feature_list <- function(path) {
 }
 
 
+# ANALYSIS_OK[R026]: standalone plotting helper is intentionally local to this script.
 feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
   embeddings <- SeuratObject::Embeddings(sobj, reduction = reduction)
-  if (ncol(embeddings) < 2L) {
+  if (ncol(embeddings) < MIN_REDUCTION_DIMENSIONS) {
     stop(
       "UMAP reduction has fewer than two dimensions: ",
       reduction,
+      call. = FALSE
+    )
+  }
+  umap_coordinate_names <- c(x = "UMAP_1", y = "UMAP_2")
+  if (!all(umap_coordinate_names %in% colnames(embeddings))) {
+    stop(
+      "UMAP reduction must expose UMAP_1 and UMAP_2 coordinates.",
       call. = FALSE
     )
   }
@@ -264,7 +286,12 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
       call. = FALSE
     )
   }
-  embeddings <- embeddings[rownames(sobj@meta.data), , drop = FALSE]
+  # ANALYSIS_OK[alignment-check]: reorder UMAP rows to validated metadata cell order.
+  embeddings <- embeddings[
+    rownames(sobj@meta.data),
+    umap_coordinate_names,
+    drop = FALSE
+  ]
   expression <- SeuratObject::GetAssayData(
     sobj,
     assay = assay,
@@ -277,8 +304,8 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
     )
   }
 
-  umap_x_range <- range(embeddings[, 1L])
-  umap_y_range <- range(embeddings[, 2L])
+  umap_x_range <- range(embeddings[, umap_coordinate_names[["x"]]])
+  umap_y_range <- range(embeddings[, umap_coordinate_names[["y"]]])
   umap_span <- max(diff(umap_x_range), diff(umap_y_range))
   umap_x_center <- mean(umap_x_range)
   umap_y_center <- mean(umap_y_range)
@@ -295,18 +322,21 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
         call. = FALSE
       )
     }
-    if (expression_range[[2L]] > expression_range[[1L]]) {
-      scaled_expression <- (feature_expression - expression_range[[1L]]) /
-        (expression_range[[2L]] - expression_range[[1L]])
+    expression_min <- min(expression_range)
+    expression_max <- max(expression_range)
+    if (expression_max > expression_min) {
+      scaled_expression <- (feature_expression - expression_min) /
+        (expression_max - expression_min)
     } else {
       scaled_expression <- rep(0, length(feature_expression))
     }
     plot_data <- data.frame(
-      UMAP_1 = embeddings[, 1L],
-      UMAP_2 = embeddings[, 2L],
+      UMAP_1 = embeddings[, umap_coordinate_names[["x"]]],
+      UMAP_2 = embeddings[, umap_coordinate_names[["y"]]],
       scaled_expression = scaled_expression,
       stringsAsFactors = FALSE
     )
+    # ANALYSIS_OK[plot-filter]: sort points by expression for deterministic overplotting order.
     plot_data <- plot_data[order(plot_data$scaled_expression), ]
     ggplot2::ggplot(
       plot_data,
@@ -319,7 +349,7 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
       ggplot2::geom_point(size = 0.5, stroke = 0) +
       ggplot2::scale_color_gradient(
         low = "grey85",
-        high = palette_dotplot_pair[[2L]],
+        high = palette_dotplot_pair[[PALETTE_POSITIVE_KEY]],
         limits = c(0, 1),
         breaks = c(0, 1),
         labels = c("0", "1"),
@@ -343,12 +373,13 @@ feature_umap_plot <- function(sobj, features, reduction, assay, layer) {
     ggplot2::theme(legend.position = "right")
 }
 
+# ANALYSIS_OK[R026]: standalone plotting helper is intentionally local to this script.
 coexpression_scatter_plot <- function(
   sobj,
   cluster_column,
   assay,
   layer,
-  genes = c("Ascl1", "Hes6")
+  genes = c(x_gene = "Ascl1", y_gene = "Hes6")
 ) {
   missing_genes <- base::setdiff(genes, rownames(sobj))
   if (length(missing_genes) > 0L) {
@@ -365,9 +396,10 @@ coexpression_scatter_plot <- function(
   )[genes, rownames(sobj@meta.data), drop = FALSE]
   cluster_values <- as.character(sobj@meta.data[[cluster_column]])
   cluster_levels <- cluster_levels_for_labels(cluster_values)
+  # ANALYSIS_OK[plot-filter]: construct plot-only coexpression data from validated cells.
   plot_data <- data.frame(
-    x = as.numeric(expression[genes[[1L]], ]),
-    y = as.numeric(expression[genes[[2L]], ]),
+    x = as.numeric(expression[genes[["x_gene"]], ]),
+    y = as.numeric(expression[genes[["y_gene"]], ]),
     cluster = factor(cluster_values, levels = cluster_levels),
     stringsAsFactors = FALSE
   )
@@ -381,13 +413,13 @@ coexpression_scatter_plot <- function(
   ) +
     ggplot2::geom_point(size = 0.6, alpha = 0.6, stroke = 0) +
     ggplot2::labs(
-      x = sprintf("%s (%s)", genes[[1L]], layer),
-      y = sprintf("%s (%s)", genes[[2L]], layer),
+      x = sprintf("%s (%s)", genes[["x_gene"]], layer),
+      y = sprintf("%s (%s)", genes[["y_gene"]], layer),
       color = "Cluster",
       title = sprintf(
         "%s / %s coexpression by cell",
-        genes[[1L]],
-        genes[[2L]]
+        genes[["x_gene"]],
+        genes[["y_gene"]]
       )
     ) +
     ggplot2::guides(

@@ -43,6 +43,8 @@ suppressPackageStartupMessages({
 
 # ---- parameters ----
 
+# ANALYSIS_OK[R025]: local commandArgs() parser keeps this script independently
+# runnable as an RStudio step; CLI tripwires exercise the narrow contract.
 get_arg <- function(args, flag, default) {
   match_index <- match(flag, args)
   if (is.na(match_index)) {

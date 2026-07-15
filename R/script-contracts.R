@@ -6,6 +6,7 @@
 #'
 #' @return A character vector of unique ordered labels.
 #' @export
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and invoked by executable analysis scripts.
 cluster_levels_for_labels <- function(values) {
   labels <- unique(as.character(values))
   if (all(grepl("^-?[0-9]+$", labels))) {
@@ -21,6 +22,7 @@ cluster_levels_for_labels <- function(values) {
 #'
 #' @return `x`, invisibly.
 #' @export
+# ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and invoked by executable analysis scripts.
 assert_scalar_character <- function(x, name) {
   if (!is.character(x) || length(x) != 1L || is.na(x) || !nzchar(x)) {
     stop(name, " must be a non-empty character scalar.", call. = FALSE)

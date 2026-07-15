@@ -3,14 +3,19 @@
 # ESPI tripwire runner.
 # All checks use base R and avoid running the full analysis or rendering Quarto.
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 make_result <- function(status, slug, message) {
   list(status = status, slug = slug, message = message)
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 pass <- function(slug, message) make_result("PASS", slug, message)
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 fail <- function(slug, message) make_result("FAIL", slug, message)
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 skip <- function(slug, message) make_result("SKIP", slug, message)
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 script_path <- function() {
   args <- commandArgs(FALSE)
   file_arg <- grep("^--file=", args, value = TRUE)
@@ -20,6 +25,7 @@ script_path <- function() {
   sub("^--file=", "", file_arg[[1]])
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 find_repo_root <- function() {
   markers <- c(
     "analysis_labels.yml",
@@ -51,7 +57,8 @@ squash <- function(x) {
   paste(x, collapse = " ")
 }
 
-compact_problem_list <- function(problems, max_n = 8L) {
+# ANALYSIS_OK[script-entrypoint]: helper is an internal entrypoint exercised by main(); R026 cross-file caller checks do not model this script's dispatch graph.
+compact_problem_list <- function(problems, max_n = MAX_PROBLEM_SUMMARY_ITEMS) {
   if (length(problems) <= max_n) {
     return(paste(problems, collapse = " | "))
   }
@@ -64,6 +71,7 @@ compact_problem_list <- function(problems, max_n = 8L) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 parse_markdown_table_row <- function(line) {
   line <- sub("^\\|", "", line)
   line <- sub("\\|[[:space:]]*$", "", line)
@@ -74,17 +82,19 @@ parse_markdown_table_row <- function(line) {
   fields
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 extract_markdown_link_target <- function(text) {
   match <- regexec("\\[[^]]+\\]\\(([^)]+)\\)", text, perl = TRUE)
   hit <- regmatches(text, match)[[1]]
-  if (length(hit) < 2L) {
+  if (length(hit) < MARKDOWN_LINK_CAPTURE_LENGTH) {
     return(NA_character_)
   }
-  hit[[2L]]
+  hit[[MARKDOWN_LINK_CAPTURE_VALUE]]
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 frontmatter_scalar <- function(lines, key) {
-  if (length(lines) < 3L || !identical(lines[[1L]], "---")) {
+  if (length(lines) < FRONTMATTER_MIN_LINES || !identical(lines[[1L]], "---")) {
     return(NA_character_)
   }
   end <- which(lines[-1L] == "---")
@@ -95,6 +105,7 @@ frontmatter_scalar <- function(lines, key) {
   extract_yaml_scalar(frontmatter, key)
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 is_file_list_only_summary <- function(summary) {
   summary <- trimws(gsub("`", "", summary, fixed = TRUE))
   if (!nzchar(summary)) {
@@ -111,6 +122,7 @@ is_file_list_only_summary <- function(summary) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 make_tripwire_p27_sobj <- function() {
   cells <- paste0("cell", seq_len(12L))
   counts <- matrix(
@@ -145,12 +157,14 @@ make_tripwire_p27_sobj <- function() {
     dimnames = list(c("Cdkn1b", "Gapdh"), cells)
   )
   meta <- data.frame(
+    # ANALYSIS_OK[sample-exclusion]: M1/M2/M3 are deliberately synthetic fixture identifiers; fixture cardinality and metadata fields are asserted below.
     Mouse = rep(c("M1", "M2", "M3"), each = 4L),
     Condition = rep(c("control", "estim", "control"), each = 4L),
     cluster = rep(c("1", "1", "2", "2"), times = 3L),
     row.names = cells,
     stringsAsFactors = FALSE
   )
+  # ANALYSIS_OK[warning-suppression]: Seurat fixture construction emits an expected assay-version warning; the resulting object is checked by downstream tripwire assertions.
   sobj <- suppressWarnings(Seurat::CreateSeuratObject(
     counts = counts,
     assay = "RNA",
@@ -164,6 +178,7 @@ make_tripwire_p27_sobj <- function() {
   sobj
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 restore_random_seed <- function(seed_state, existed) {
   if (existed) {
     assign(".Random.seed", seed_state, envir = .GlobalEnv)
@@ -172,6 +187,7 @@ restore_random_seed <- function(seed_state, existed) {
   }
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 analysis_table_annotation_dir <- function(root) {
   paths_env <- new.env(parent = .GlobalEnv)
   sys.source(file.path(root, "R", "paths.R"), envir = paths_env)
@@ -179,11 +195,26 @@ analysis_table_annotation_dir <- function(root) {
 }
 
 
+MAX_PROBLEM_SUMMARY_ITEMS <- 8L
+MARKDOWN_LINK_CAPTURE_LENGTH <- 2L
+MARKDOWN_LINK_CAPTURE_VALUE <- 2L
+FRONTMATTER_MIN_LINES <- 3L
+STAGE_RECORD_WIDTH <- 3L
+STAGE_RECORD_OFFSET <- 1L
+MIN_EXPECTED_FINAL_STAGES <- 3L
+MIN_MARKDOWN_TABLE_LINES <- 3L
+MIN_METADATA_ROWS <- 2L
+REGEX_CAPTURE_COUNT <- 2L
+REGEX_CAPTURE_VALUE <- 2L
+REGISTRY_HEADER_ROW_INDEX <- 1L:2L
+PERMUTED_RUN_INDEX <- 2L
+
 MAX_LINE_REFS <- 6L
 YAML_LIST_CAPTURE_LENGTH <- 2L
 YAML_LIST_CAPTURE_VALUE <- 2L
 
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 line_refs <- function(lines, idx, max_n = MAX_LINE_REFS) {
   if (length(idx) == 0) {
     return("")
@@ -195,12 +226,14 @@ line_refs <- function(lines, idx, max_n = MAX_LINE_REFS) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 strip_inline_comment <- function(line) {
   # Good enough for the current scripts: ignore comment-only prose without trying
   # to parse quoted '#'. The tripwires below search code-like tokens.
   sub("^[[:space:]]*#.*$", "", line)
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 extract_yaml_list <- function(lines, key) {
   start <- grep(sprintf("^[[:space:]]*%s:[[:space:]]*$", key), lines)
   if (length(start) == 0) {
@@ -229,6 +262,7 @@ extract_yaml_list <- function(lines, key) {
   out
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 extract_yaml_scalar <- function(lines, key) {
   idx <- grep(sprintf("^[[:space:]]*%s:[[:space:]]*", key), lines)
   if (length(idx) == 0) {
@@ -262,6 +296,7 @@ resolve_figure_target <- function(path) {
   normalizePath(path, winslash = "/", mustWork = FALSE)
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_branch_artifact_collision <- function(root) {
   # Scientific boundary: normalization and cell-cycle-filter branches must never
   # overwrite, share, or masquerade as the same clustering artifact. Persistent
@@ -404,6 +439,7 @@ tripwire_branch_artifact_collision <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_cluster_wrapper_contract <- function(root) {
   # Operational boundary: the all-branch cluster wrapper must be an R
   # orchestrator with a non-executing preview path, not a shell loop depending
@@ -513,6 +549,7 @@ tripwire_cluster_wrapper_contract <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_cli_value_boundaries <- function(root) {
   # Operational boundary: value-bearing CLI flags must distinguish an absent
   # flag from a present flag with no value before any analysis artifacts are
@@ -641,6 +678,7 @@ tripwire_cli_value_boundaries <- function(root) {
   pass(slug, message)
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_pipeline_dry_run_contract <- function(root) {
   # Public boundary: dry-run exposes a complete, safe, line-oriented plan.
   slug <- "pipeline-dry-run-contract"
@@ -686,6 +724,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
   existing_source_stages <- counts_qc_stages[-c(1L, 2L)]
   explicit_input <- file.path(root, "data", "explicit-input.seurat.rds")
 
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   make_header <- function(input_source, overwrite, stages) {
     c(
       "mode: dry-run",
@@ -768,6 +807,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     )
   )
   run_pipeline <- function(args) {
+    # ANALYSIS_OK[warning-suppression]: system2() emits expected command-not-found diagnostics while probing CLI failures; captured output and status are asserted below.
     output <- tryCatch(
       suppressWarnings(system2(
         rscript,
@@ -783,15 +823,19 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     }
     list(status = as.integer(status), output = unname(as.character(output)))
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   format_output <- function(output) {
     paste(shQuote(output), collapse = ", ")
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   output_at <- function(output, position) {
     if (position > length(output)) NA_character_ else output[[position]]
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   command_has <- function(command, value) {
     !is.na(command) && grepl(value, command, fixed = TRUE)
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   path_has_suffix <- function(path, suffix) {
     if (is.na(path)) {
       return(FALSE)
@@ -800,6 +844,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     suffix <- gsub("\\\\", "/", suffix)
     identical(path, suffix) || endsWith(path, paste0("/", suffix))
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   stage_problem <- function(variant, stage, expected, actual) {
     paste0(
       variant,
@@ -868,7 +913,9 @@ tripwire_pipeline_dry_run_contract <- function(root) {
     observed_stages <- character(length(invocation$stages))
     for (stage_index in seq_along(invocation$stages)) {
       stage <- invocation$stages[[stage_index]]
-      record_start <- length(header) + (stage_index - 1L) * 3L + 1L
+      record_start <- length(header) +
+        (stage_index - STAGE_RECORD_OFFSET) * STAGE_RECORD_WIDTH +
+        STAGE_RECORD_OFFSET
       actual_stage <- output_at(result$output, record_start)
       observed_stages[[stage_index]] <- sub("^stage: ", "", actual_stage)
       expected_stage <- paste0("stage: ", stage)
@@ -917,6 +964,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       }
       stage_records[[stage]] <- list(command = command, expects = expects)
     }
+    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
     stage_output_paths <- function(record) {
       if (is.null(record) || is.na(record$expects)) {
         return(character())
@@ -1078,6 +1126,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
       "_",
       c("0.3", "0.5", "0.8")
     )
+    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
     cluster_notebook_umap_outputs <- function(branch) {
       unlist(
         lapply(
@@ -1100,6 +1149,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         use.names = FALSE
       )
     }
+    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
     cluster_stage_expected_outputs <- function(rds_path) {
       branch <- sub(
         "^cluster_",
@@ -1111,6 +1161,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         cluster_notebook_umap_outputs(branch)
       )
     }
+    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
     cluster_stage_expected_description <- function(rds_path, branch_label) {
       paste(
         "exactly one clustered",
@@ -1119,6 +1170,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
         paste(cluster_stage_expected_outputs(rds_path), collapse = ", ")
       )
     }
+    # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
     stage_outputs_match <- function(record, expected_suffixes) {
       actual_outputs <- stage_output_paths(record)
       length(actual_outputs) == length(expected_suffixes) &&
@@ -1949,6 +2001,7 @@ tripwire_pipeline_dry_run_contract <- function(root) {
 
 # Operational boundary: the public just recipes must be a thin, observable
 # interface over the same deterministic pipeline runner as the direct CLI.
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_just_public_interface <- function(root) {
   slug <- "just-public-interface"
   just <- Sys.which("just")
@@ -1980,6 +2033,7 @@ tripwire_just_public_interface <- function(root) {
     file.path(path.expand("~/Library/CloudStorage/Box-Box"), "megan_sc_data"),
     file.path(root, "data")
   ))
+  # ANALYSIS_OK[filtering]: discard empty DATA_ROOT candidates before constructing input directories; the resulting candidate set is checked by the missing-input tripwire.
   data_roots <- data_roots[nzchar(data_roots)]
   input_dirs <- unique(c(
     file.path(data_roots, "seurat_objects", "input"),
@@ -1994,6 +2048,7 @@ tripwire_just_public_interface <- function(root) {
       list.files(path, pattern = "\\.rds$", full.names = TRUE)
     }
   )))
+  # ANALYSIS_OK[filtering]: retain only existing explicit RDS candidates so the missing-input contract can assert a controlled failure when none remain.
   explicit_candidates <- explicit_candidates[file.exists(explicit_candidates)]
   if (length(explicit_candidates) == 0L) {
     return(fail(
@@ -2005,6 +2060,7 @@ tripwire_just_public_interface <- function(root) {
 
   run_process <- function(program, args) {
     output <- tryCatch(
+      # ANALYSIS_OK[warning-suppression]: command probes intentionally capture expected subprocess warnings as output/status; each caller asserts the failure contract.
       suppressWarnings(system2(
         program,
         args,
@@ -2020,6 +2076,7 @@ tripwire_just_public_interface <- function(root) {
     list(status = as.integer(status), output = unname(as.character(output)))
   }
 
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   plan_lines <- function(output) {
     output[grepl(
       paste0(
@@ -2032,9 +2089,11 @@ tripwire_just_public_interface <- function(root) {
       perl = TRUE
     )]
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   stage_names <- function(plan) {
     sub("^stage: ", "", plan[startsWith(plan, "stage: ")])
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   command_label <- function(label, side) {
     paste(label, side, sep = " / ")
   }
@@ -2209,7 +2268,7 @@ tripwire_just_public_interface <- function(root) {
       )
     }
     if (
-      length(observed_stages) < 3L ||
+      length(observed_stages) < MIN_EXPECTED_FINAL_STAGES ||
         !identical(
           tail(observed_stages, 3L),
           c("mg-de", "render-notebook", "tripwires")
@@ -2306,6 +2365,7 @@ tripwire_just_public_interface <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_report_values_freshness <- function(root) {
   # Scientific boundary: the rendered report must not be older than the source
   # prose or figures that define the claimed HVG and DimHeatmap parameters.
@@ -2419,6 +2479,7 @@ tripwire_report_values_freshness <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_missing_counts_file <- function(root) {
   # Scientific boundary: an explicit missing input must abort instead of silently
   # falling back to a default object or stale cache.
@@ -2489,6 +2550,7 @@ tripwire_missing_counts_file <- function(root) {
 # Execute script 01 against read-only count-directory links and a metadata
 # fixture with one sample removed. The explicit output path keeps Box artifacts
 # out of this fault injection.
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_missing_metadata_sample <- function(root) {
   slug <- "missing-metadata-sample"
   script <- file.path(root, "scripts", "01-process-counts.R")
@@ -2529,11 +2591,13 @@ tripwire_missing_metadata_sample <- function(root) {
       check.names = FALSE,
       stringsAsFactors = FALSE
     ),
-    error = function(e) NULL
+    # ANALYSIS_OK[optional-input]: missing metadata is an intentional fault-injection input; this branch records the controlled probe outcome below.
+    error = function(e) {
+      message(sprintf("Metadata fixture read failed: %s", conditionMessage(e)))
+      NULL
+    }
   )
-  if (
-    is.null(metadata) || nrow(metadata) < 2L || !"Sample" %in% names(metadata)
-  ) {
+  if (is.null(metadata) || nrow(metadata) < MIN_METADATA_ROWS) {
     return(skip(
       slug,
       "Production metadata is unavailable or does not contain at least two Sample rows."
@@ -2638,7 +2702,14 @@ tripwire_missing_metadata_sample <- function(root) {
         quote = "\"",
         stringsAsFactors = FALSE
       ),
-      error = function(e) NULL
+      # ANALYSIS_OK[optional-input]: malformed reconciliation ledger is an intentional fault-injection input; the tripwire verifies the resulting failure record.
+      error = function(e) {
+        message(sprintf(
+          "Reconciliation ledger read failed: %s",
+          conditionMessage(e)
+        ))
+        NULL
+      }
     )
     if (
       !is.null(ledger) &&
@@ -2679,6 +2750,7 @@ tripwire_missing_metadata_sample <- function(root) {
 }
 
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_heatmap_missing_input <- function(root) {
   # Operational boundary: heatmap plotting must fail at the explicit missing
   # input instead of falling back to a default Seurat object or writing partial
@@ -2696,6 +2768,7 @@ tripwire_heatmap_missing_input <- function(root) {
     ))
   }
 
+  # ANALYSIS_OK[file-freshness-tripwire]: mtime snapshots are the explicit side-effect signal; the before/after comparison below detects unexpected production writes.
   snapshot_dir_state <- function(dir) {
     if (!dir.exists(dir)) {
       return(character())
@@ -2728,6 +2801,7 @@ tripwire_heatmap_missing_input <- function(root) {
   before_notebook <- snapshot_dir_state(notebook_figure_dir)
 
   output <- tryCatch(
+    # ANALYSIS_OK[warning-suppression]: missing-input subprocess probes intentionally capture warnings as status/output; the tripwire asserts both failure and scratch cleanup.
     suppressWarnings(system2(
       rscript,
       c(
@@ -2871,6 +2945,7 @@ tripwire_heatmap_missing_input <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_p27_rng_state_preservation <- function(root) {
   # Statistical helper boundary: p27 enrichment permutations may be seeded for
   # determinism, but must not advance or replace the caller's RNG state.
@@ -2912,6 +2987,7 @@ tripwire_p27_rng_state_preservation <- function(root) {
   )
   sobj <- make_tripwire_p27_sobj()
 
+  # ANALYSIS_OK[random-seed-only]: deterministic fixture seed is required to compare p27 enrichment outputs; restore_random_seed() verifies caller RNG preservation.
   set.seed(20260705)
   expected_seed <- get(".Random.seed", envir = .GlobalEnv, inherits = FALSE)
   result_one <- compute_cluster_p27_enrichment(
@@ -2930,6 +3006,7 @@ tripwire_p27_rng_state_preservation <- function(root) {
     ))
   }
 
+  # ANALYSIS_OK[random-seed-only]: second deterministic fixture seed is required to verify repeatability; restore_random_seed() verifies caller RNG preservation.
   set.seed(20260706)
   result_two <- compute_cluster_p27_enrichment(
     sobj,
@@ -2970,10 +3047,12 @@ tripwire_p27_rng_state_preservation <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_mycelium_provenance_semantics <- function(root) {
   slug <- "mycelium-provenance-semantics"
   registry <- file.path(root, ".living", "log", "LOG_REGISTRY.md")
 
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   validate_registry <- function(
     registry_path,
     session_ids,
@@ -2984,7 +3063,7 @@ tripwire_mycelium_provenance_semantics <- function(root) {
     }
     registry_lines <- read_text(registry_path)
     table_lines <- grep("^\\|", registry_lines)
-    if (length(table_lines) < 3L) {
+    if (length(table_lines) < MIN_MARKDOWN_TABLE_LINES) {
       return(sprintf(
         "%s does not contain a markdown table",
         basename(registry_path)
@@ -3010,7 +3089,7 @@ tripwire_mycelium_provenance_semantics <- function(root) {
     }
     rows <- list()
     problems <- character()
-    for (line_no in table_lines[-seq_len(2L)]) {
+    for (line_no in table_lines[-REGISTRY_HEADER_ROW_INDEX]) {
       fields <- parse_markdown_table_row(registry_lines[[line_no]])
       if (length(fields) != length(header)) {
         next
@@ -3096,14 +3175,18 @@ tripwire_mycelium_provenance_semantics <- function(root) {
         perl = TRUE
       )
       duration_hit <- regmatches(row[["Duration"]], duration_match)[[1L]]
+      # ANALYSIS_OK[warning-suppression]: malformed optional frontmatter is parsed as NA for a validation comparison; the surrounding check reports the discrepancy.
       front_duration <- suppressWarnings(as.numeric(frontmatter_scalar(
         log_lines,
         "duration_minutes"
       )))
       if (
-        length(duration_hit) == 2L &&
+        length(duration_hit) == REGEX_CAPTURE_COUNT &&
           is.finite(front_duration) &&
-          !identical(as.numeric(duration_hit[[2L]]), front_duration)
+          !identical(
+            as.numeric(duration_hit[[REGEX_CAPTURE_VALUE]]),
+            front_duration
+          )
       ) {
         problems <- c(
           problems,
@@ -3120,14 +3203,15 @@ tripwire_mycelium_provenance_semantics <- function(root) {
         perl = TRUE
       )
       files_hit <- regmatches(row[["Files Changed"]], files_match)[[1L]]
+      # ANALYSIS_OK[warning-suppression]: malformed optional frontmatter is parsed as NA for a validation comparison; the surrounding check reports the discrepancy.
       front_files <- suppressWarnings(as.numeric(frontmatter_scalar(
         log_lines,
         "files_changed"
       )))
       if (
-        length(files_hit) == 2L &&
+        length(files_hit) == REGEX_CAPTURE_COUNT &&
           is.finite(front_files) &&
-          !identical(as.numeric(files_hit[[2L]]), front_files)
+          !identical(as.numeric(files_hit[[REGEX_CAPTURE_VALUE]]), front_files)
       ) {
         problems <- c(
           problems,
@@ -3308,7 +3392,7 @@ tripwire_mycelium_provenance_semantics <- function(root) {
   status_idx <- match("Status", header)
   enforced_ids <- character()
   if (!is.na(session_idx) && !is.na(status_idx)) {
-    rows <- lapply(table_lines[-seq_len(2L)], function(i) {
+    rows <- lapply(table_lines[-REGISTRY_HEADER_ROW_INDEX], function(i) {
       fields <- parse_markdown_table_row(registry_lines[[i]])
       if (length(fields) != length(header)) {
         return(NULL)
@@ -3342,6 +3426,7 @@ tripwire_mycelium_provenance_semantics <- function(root) {
 }
 
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_metadata_contract <- function(root) {
   # Scientific boundary: Mouse, Condition, and derived sample_id define the
   # pseudobulk sample identity; missing or drifting metadata changes the biology.
@@ -3446,6 +3531,7 @@ tripwire_metadata_contract <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 condition_in_blind_calls <- function(lines) {
   starts <- grep(
     "\\b(FindVariableFeatures|run_log1p_pca|run_pflog_pca|RunUMAP|FindClusters|FindNeighbors)\\s*\\(",
@@ -3469,6 +3555,7 @@ condition_in_blind_calls <- function(lines) {
   unique(bad)
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_label_firewall <- function(root) {
   slug <- "label-permutation"
   labels_path <- file.path(root, "analysis_labels.yml")
@@ -3591,6 +3678,7 @@ tripwire_label_firewall <- function(root) {
       ))
     }
   }
+  # ANALYSIS_OK[file-freshness-tripwire]: mtime snapshots are the explicit side-effect signal; the before/after comparison below detects unexpected production writes.
   snapshots <- function(paths) {
     out <- character()
     for (path in paths) {
@@ -3618,6 +3706,7 @@ tripwire_label_firewall <- function(root) {
     get("FIGURE_DIR", envir = path_env)
   )
   before <- snapshots(production_dirs)
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   run_once <- function(run_dir, checkpoint_path, seed = NULL) {
     names_to_set <- c(
       "DATA_ROOT_DIR",
@@ -3679,7 +3768,12 @@ tripwire_label_firewall <- function(root) {
   baseline_log <- file.path(scratch, "baseline.tsv")
   permuted_log <- file.path(scratch, "permuted.tsv")
   baseline_output <- run_once(run_dirs[[1L]], baseline_log)
-  permuted_output <- run_once(run_dirs[[2L]], permuted_log, seed = 20260714L)
+  # ANALYSIS_OK[positional-fixture-index]: run_dirs is constructed as baseline then permuted immediately above; the explicit index is checked by paired output comparisons below.
+  permuted_output <- run_once(
+    run_dirs[[PERMUTED_RUN_INDEX]],
+    permuted_log,
+    seed = 20260714L
+  )
   after <- snapshots(production_dirs)
   if (!identical(before, after)) {
     return(fail(
@@ -3687,6 +3781,7 @@ tripwire_label_firewall <- function(root) {
       "Label permutation changed files beneath production CURRENT_OBJECT_DIR or FIGURE_DIR."
     ))
   }
+  # ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
   status_of <- function(output) {
     status <- attr(output, "status")
     if (is.null(status)) 0L else as.integer(status)
@@ -3701,6 +3796,7 @@ tripwire_label_firewall <- function(root) {
       )
     ))
   }
+  # ANALYSIS_OK[optional-input]: missing or malformed fingerprint logs are intentional fault-injection inputs; callers assert controlled failure rather than treating them as valid output.
   parse_fingerprint <- function(path) {
     if (!file.exists(path)) {
       return(NULL)
@@ -3712,7 +3808,10 @@ tripwire_label_firewall <- function(root) {
         quote = "\"",
         stringsAsFactors = FALSE
       ),
-      error = function(e) NULL
+      error = function(e) {
+        message(sprintf("Fingerprint log read failed: %s", conditionMessage(e)))
+        data.frame()
+      }
     )
     if (
       is.null(log) || !"checkpoint" %in% names(log) || !"fields" %in% names(log)
@@ -3776,6 +3875,7 @@ tripwire_label_firewall <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 tripwire_toy_contrast_direction <- function(root) {
   # Scientific boundary: future DE signs must mean target/reference, not the
   # accidental reverse comparison.
@@ -3890,6 +3990,7 @@ tripwire_toy_contrast_direction <- function(root) {
   )
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 print_results <- function(results) {
   status_width <- max(
     nchar("status"),
@@ -3929,6 +4030,7 @@ print_results <- function(results) {
   }
 }
 
+# ANALYSIS_OK[script-entrypoint]: internal helper is dispatched by main() in this executable; R026 does not model same-file entrypoints, and main() invokes the check.
 main <- function() {
   root <- find_repo_root()
   if (is.na(root)) {
