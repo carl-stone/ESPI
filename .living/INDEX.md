@@ -1,6 +1,6 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-14
+Last audit: 2026-07-15
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
@@ -15,7 +15,7 @@ See `.living/skills/` for project-specific skill packs.
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-07-14 (heuristic)
+Last summarized: 2026-07-15 (heuristic)
 
 ## Tag clusters
 
