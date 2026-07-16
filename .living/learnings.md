@@ -720,3 +720,70 @@ Append-only log of gotchas, surprises, and reusable workflow lessons.
 **Resolution**: Update the explicit stage vector in `pipeline-dry-run-contract` when the canonical boundary or stage order changes, and execute both pipeline interface tripwires.
 
 **structural_mitigation_candidate**: Keep both tripwires driven by the same explicit stage names and mode header.
+### [2026-07-15] ComplexHeatmap cannot independently retain the split-mean dendrogram
+
+**Tags**: plotting, heatmap, clustering
+
+**Category**: ComplexHeatmap split behavior
+
+**What happened**: Setting `cluster_columns = FALSE` while retaining `cluster_column_slices = TRUE` produced neither slice reordering nor a parent dendrogram. ComplexHeatmap constructs that parent only while processing slice clustering.
+
+**Why it matters**: The package settings cannot show cluster-mean relationships while leaving cells in their input order.
+
+**Resolution**: Compute the cluster-mean dendrogram separately, use its `hclust` leaf order directly rather than passing the genes-by-clusters mean matrix to `reorder.dendrogram()`, order the split factor from those leaves, reserve space with `anno_empty()`, and draw the dendrogram across the annotation slice viewports using device coordinates.
+
+**mitigation_type**: code
+
+**structural_mitigation_candidate**: Keep the custom drawing code beside the heatmap construction and verify the rendered figure after ComplexHeatmap upgrades because viewport names are implementation details.
+
+
+### [2026-07-16] Separate source contracts from visible sensitivity oracles
+
+**Tags**: pipeline, heatmap, notebook, sensitivity
+
+**Category**: Publication equivalence
+
+**What happened**: The designated source and MG objects define the primary
+analysis, but the notebook also displays a CC-filtered MG sensitivity heatmap.
+Using only the primary MG object as the figure oracle would have omitted a
+visible publication artifact.
+
+**Why it matters**: Scientific input ownership and report-visible output
+ownership can differ. Phase 03 marker output also must not become an implicit
+phase-04 input when curated package marker data defines the DE overlap.
+
+**Resolution**: Phase 02 validates and loads all three frozen downstream
+objects once, preserves both MG heatmap branches, and compares the ordered
+notebook figure sequence. Phase 04 rebuilds curated marker overlap
+independently. Safe notebook mirrors use temporary regular files with hash and
+dimension checks.
+
+**mitigation_type**: workflow-and-visual-review
+
+### [2026-07-16] Publication cutovers need layered equivalence checks
+
+**Tags**: pipeline, reproducibility, notebook, validation
+
+**Category**: Publication migration verification
+
+**What happened**: Raw file comparison overstated drift because absolute output paths, unordered enrichment gene lists, Quarto caption IDs, and safe PNG re-encoding can change without changing the analysis.
+
+**Why it matters**: Byte equality alone cannot distinguish scientific drift from permitted serialization differences, while visual inspection alone misses table and contract changes.
+
+**Resolution**: Verify fixed inputs first, compare tables after only pre-approved canonicalization, decode figures before comparing pixels, normalize documented volatile DOM identifiers, and compare a fixed-viewport full-page screenshot. Record every allowed normalization before cutover.
+
+**mitigation_type**: layered-equivalence-oracle
+
+### [2026-07-16] Review maintenance paths separately from routine runs
+
+**Tags**: pipeline, dependencies, overwrite, notebook
+
+**Category**: Publication migration review
+
+**What happened**: Downstream publication parity passed while the rarely used frozen-regeneration path still lacked replacement authorization, a direct `SingleCellExperiment` dependency, fresh-root figure directories, and several notebook mirror updates.
+
+**Why it matters**: Successful routine runs do not exercise deliberate regeneration, and deleting a verified notebook destination before replacement makes a transient rename failure destructive.
+
+**Resolution**: Review maintenance entry points independently, declare every direct optional integration, create output directories before work, mirror every report-visible artifact, and preserve the previous regular file until the replacement is verified.
+
+**mitigation_type**: maintenance-path-review

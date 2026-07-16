@@ -789,3 +789,83 @@ Append-only log of non-obvious decisions and their rationale.
 **Rationale**: The upstream cell selection and clustering choices now define the fixed analysis cohort. Routine downstream work must not silently regenerate those artifacts.
 
 **Consequences**: `just run [overwrite]` begins at the MG cluster summary. Full regeneration requires an explicit recipe name and source argument.
+### [2026-07-15] Cluster marker heatmap only at the cluster-mean level
+
+**Tags**: plotting, heatmap, clustering
+
+**Decision**: Preserve input cell order within each cluster. Cluster the scaled-expression means with `hclust(dist(t(cluster_means)))`, use the resulting dendrogram leaf order directly for the column-split factor, and draw only that dendrogram above the heatmap.
+
+**Rationale**: ComplexHeatmap couples its parent slice dendrogram to within-slice clustering; disabling cell clustering also removes the parent dendrogram. Computing and drawing the parent dendrogram separately keeps the intended cluster relationships without implying a meaningful ordering among individual cells.
+
+**Consequences**: The marker heatmap no longer shows per-cell dendrogram branches or the dotted parent/child boundary. Cluster labels remain in the colored block annotation.
+
+
+### [2026-07-16] Freeze all existing Seurat objects and designate two final objects
+
+**Tags**: seurat, reproducibility, frozen, clustering
+
+**Context**: The publication analysis now has fixed source and MG-selected clustering choices. Existing alternative and intermediate Seurat objects remain useful as provenance and sensitivity artifacts but must not be regenerated or silently replaced.
+
+**Decision**: Freeze all 18 existing RDS files under the external `seurat_objects/` root without regeneration. Designate `current/cluster_pflog_no_filter_cc_elbow20.rds` with `cluster_pflog_no_filter_cc_dims30_res0.3` as the final source object and `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds` with `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` as the final MG-selected object. Here, `no_filter_cc` means cell-cycle genes remain eligible as HVGs.
+
+**Rationale**: Fixed object bytes and cluster columns make every downstream publication analysis conditional on one explicit cell cohort and clustering definition.
+
+**Consequences**: `FROZEN_OBJECTS.tsv` records SHA-256 checksums, byte sizes, and roles. All listed RDS files, the manifest, and the `seurat_objects/`, `input/`, and `current/` directories are read-only. Deliberate regeneration now requires explicitly restoring write permissions before using the existing regeneration interface.
+
+### [2026-07-16] Define boundaries for the publication-pipeline restructuring proposal
+
+**Tags**: pipeline, planning, scripts, reproducibility
+
+**Context**: The current analysis framework supports more inputs, stage-level options, validation, and orchestration paths than the final publication analysis needs.
+
+**Draft proposal pending approval**: Use a fixed entire-pipeline cutover with four scientific phase scripts and a minimal R package. Keep one explicit frozen-stage regeneration script; consolidate downstream figures, marker analysis, and DE/enrichment into three fixed scripts. Preserve exact tabular results, visually equivalent figures, and the visible notebook content. Keep only checks that protect scientific meaning. Leave existing artifacts in place.
+
+**Rationale**: A computational biologist should be able to read the scripts in order without learning a custom execution framework, while the frozen objects and publication results remain unchanged.
+
+**Status and consequences**: This is not an adopted architecture. If approved, implement incrementally beside the existing code, prove equivalence phase by phase, then delete replaced scripts, shallow helpers, broad tripwires, compatibility paths, and stage-level CLI options. The proposal is documented in `architecture-restructure-proposal.html`; no restructuring has been implemented.
+
+### [2026-07-16] Adopt the clean four-phase publication cutover
+
+**Tags**: pipeline, architecture, reproducibility
+
+**Context**: The approved publication workflow needs a readable fixed interface
+without dynamic stage selection or framework-only validation.
+
+**Decision**: Use exactly four phase scripts (`01-regenerate-frozen.R`,
+`02-publication-figures.R`, `03-marker-analysis.R`, and `04-de-enrichment.R`)
+and four focused R modules. The five analysis commands are `just run`,
+`just figures`, `just markers`, `just de`, and deliberate
+`just regenerate-frozen`; `load`, `document`, `readme`, `format`, and `lint`
+remain maintenance recipes. Phase 01 refuses writable frozen-object
+directories, and downstream phases use fixed contracts plus one overwrite
+flag.
+
+**Rationale**: A computational biologist can follow the scientific work from
+frozen inputs to publication artifacts without learning an orchestration
+framework, while the existing analysis remains the equivalence oracle.
+
+**Consequences**: Legacy execution paths and broad instrumentation are not
+active interfaces. Notebook figure mirrors are regular files updated through
+temporary copies with hash and dimension checks.
+
+### [2026-07-16] Resolve the source-versus-visible MG heatmap oracle conflict
+
+**Tags**: plotting, heatmap, sensitivity, notebook
+
+**Context**: The visible notebook contains both the final MG heatmap and the
+CC-filtered MG sensitivity heatmap, while the designated final MG object is
+the source for marker and DE analyses.
+
+**Decision**: Phase 02 loads the final source, final MG-selected, and
+CC-filtered MG sensitivity objects once each and preserves both MG heatmap
+branches. The notebook's ordered visible figures, dimensions, captions, and
+artifact names are the acceptance oracle. Phase 03 marker results remain
+descriptive and phase 04 independently rebuilds curated marker overlap.
+
+**Rationale**: Treating the source object as the only heatmap oracle would
+silently drop a visible sensitivity result; treating marker output as a DE
+input would change the curated scientific method.
+
+**Consequences**: Equivalence review checks both MG heatmap branches and the
+rendered notebook sequence. Safe regular-file mirrors may change encoding
+bytes but must preserve content, dimensions, and names.
