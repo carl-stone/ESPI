@@ -74,4 +74,4 @@
 | 2026-07-15 | 2026-07-15-002 | espi | main | 16m | 5 | 06-plot-marker-heatmap.R | | complete | | [log](2026-07-15-002-espi.md) |
 | 2026-07-16 | 2026-07-16-001 | espi | main | 3m | 5 | architecture-assessment.html,browser | | complete | | [log](2026-07-16-001-espi.md) |
 | 2026-07-16 | 2026-07-16-002 | espi | main | 140m | 233 | config.R,publication-analysis.R,publication-plots.R (+8 more) | | complete | | [log](2026-07-16-002-espi.md) |
-| 2026-07-16 | 2026-07-16-003 | espi | main | 27m | 235 | 04-de-enrichment.R,CONTEXT.md,CLUSTER_PROPORTION_TESTING.md (+8 more) | | complete | | [log](2026-07-16-003-espi.md) |
+| 2026-07-16 | 2026-07-16-003 | espi | main | 27m | 235 | Completed, reviewed, verified, and committed the fixed four-phase publication pipeline cutover. | Four phase scripts and four R modules; isolated downstream parity run; exact notebook screenshot match; commits e36402e, e3b0c16, 2bab4a7, a1b8758, b51178a | complete | pipeline, publication, reproducibility, verification, migration | [log](2026-07-16-003-espi.md) |
