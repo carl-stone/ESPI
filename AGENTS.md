@@ -17,8 +17,19 @@ Load the package with `devtools::load_all()`. Run `devtools::document()` after m
 
 NEVER edit README.md directly; it is generated from README.Rmd. After you edit README.Rmd, run `devtools::build_readme()` to update README.md.
 
-Update `README.Rmd`, `AGENTS.md`, and other package documentation as needed to reflect changes in the analysis pipeline.
-Routine workflow rule: `just run [overwrite]` and `just run-dry-run [overwrite]` start from the frozen clustered MG-selected RDS objects; they never run scripts `01` through `07` or `04-cluster.R`. Use `just regenerate-frozen [source] [overwrite]` only when intentionally rebuilding frozen data, with source `counts-qc`, `legacy`, or a quoted explicit RDS path. Treat other low-level recipes and raw `Rscript` stages as expert recovery only.
+The five analysis commands are `just run [overwrite]` (phases 02–04, then
+the notebook), `just figures [overwrite]`, `just markers [overwrite]`,
+`just de [overwrite]`, and the deliberate maintenance command
+`just regenerate-frozen`. The regeneration command runs phase 01 only and
+requires `seurat_objects/{input,current}` to exist and be writable; it
+refuses to proceed while either directory is read-only.
+The optional `overwrite` value is `false` by default; set it to `true` only
+when replacing publication outputs. Retained maintenance recipes are
+`just load`, `just document`, `just readme`, `just format`, and `just lint`.
+The active workflow uses four scripts (`01-regenerate-frozen.R` through
+`04-de-enrichment.R`) and four focused modules in `R/`; the notebook mirrors
+publication figures as regular files through a symlink-rejecting temporary
+copy and hash/dimension check.
 `just lint` runs scilintr across first-party analysis scopes; fix findings or document a structured `ANALYSIS_OK` waiver.
 
 ------------------------------------------------------------------------

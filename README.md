@@ -19,67 +19,55 @@ repository](https://github.com/carl-stone/ESPI) with:
 pak::pak("carl-stone/ESPI")
 ```
 
-## Frozen analysis workflow
+## Publication workflow
 
-The count processing, QC, source preprocessing and clustering, source
-summaries and marker heatmaps, MG selection, and MG clustering are
-frozen. Routine commands consume the existing clustered MG-selected RDS
-objects; they do not run scripts `01` through `07` or `04-cluster.R`.
-
-Inspect the downstream plan, then run it:
+The analysis has four fixed phase scripts and four focused package
+modules. Routine publication commands consume the checksummed frozen
+objects; they do not regenerate the frozen cohort:
 
 ``` sh
-just run-dry-run
-just run
+just run [overwrite]       # phases 02 → 03 → 04, then render the notebook
+just figures [overwrite]   # publication figures and descriptive tables
+just markers [overwrite]   # FindAllMarkers tables and dotplot
+just de [overwrite]        # pseudobulk DE and enrichment
+just regenerate-frozen     # deliberate phase-01 maintenance only
 ```
 
-These commands start at `scripts/08-summarize-mg-clusters.R`, regenerate
-the downstream MG figures, marker tables, DE and enrichment outputs,
-render `notebook/sc_analysis.qmd`, and run `tools/run-tripwires.R`. The
-optional `overwrite` argument is `false` or `true`; existing protected
-marker and DE outputs stop the run unless replacement is explicitly
-allowed:
+`overwrite` is `false` by default. Set it to `true` only when replacing
+existing publication outputs. Phase 01 requires writable frozen-object
+directories and refuses to run while they are read-only.
 
-``` sh
-just run-dry-run true
-just run true
-```
+The fixed downstream inputs are:
 
-Only regenerate frozen data deliberately. Inspect the complete
-regeneration plan before executing it:
+| Role | Path and chosen cluster column | Cells |
+|----|----|---:|
+| Final source | `current/cluster_pflog_no_filter_cc_elbow20.rds`; `cluster_pflog_no_filter_cc_dims30_res0.3` | 4,146 |
+| Final MG-selected | `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` | 3,456 |
+| CC-filtered MG sensitivity | `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_filter_cc_dims20_res0.5` | 3,456 |
 
-``` sh
-just regenerate-frozen-dry-run counts-qc false
-just regenerate-frozen counts-qc false
-```
+Phase 02 loads all three inputs once and writes source, MG, and
+sensitivity figures. Phase 03 marker outputs are descriptive and do not
+feed phase 04. Phase 04 independently loads the final MG object and
+rebuilds curated marker overlap from package marker data plus `Cdkn1b`.
 
-For explicit regeneration, `source` may be `counts-qc`, `legacy`, or a
-quoted Seurat RDS path. The regeneration recipe runs count processing
-when applicable, source preprocessing and clustering, source summaries
-and marker heatmaps, MG selection and clustering, then the downstream
-analysis.
+## Repository map
 
-Current selected identifiers and counts:
+| Concern                           | Active files                       |
+|-----------------------------------|------------------------------------|
+| Frozen regeneration               | `scripts/01-regenerate-frozen.R`   |
+| Publication figures               | `scripts/02-publication-figures.R` |
+| Marker analysis                   | `scripts/03-marker-analysis.R`     |
+| DE and enrichment                 | `scripts/04-de-enrichment.R`       |
+| Configuration and contracts       | `R/config.R`                       |
+| Seurat methods and grid summaries | `R/seurat-methods.R`               |
+| Publication statistics            | `R/publication-analysis.R`         |
+| Publication plot writers          | `R/publication-plots.R`            |
+| Notebook                          | `notebook/sc_analysis.qmd`         |
 
-| Role | Selected branch and cluster column | Result |
-|----|----|----|
-| Source | `pflog_no_filter_cc`; `cluster_pflog_no_filter_cc_dims30_res0.3` | 4,146 cells; 9 clusters; exclude source clusters 2, 7, and 8; retain 3,456 |
-| MG-selected | `pflog_mg_selected_no_filter_cc`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` | MG PCA/candidate depth 50; 8 chosen clusters |
-
-Use the low-level entry points below only for intentional checkpoint
-recovery.
-
-| Checkpoint | Existing recipe or script |
-|----|----|
-| Combined raw object | `Rscript scripts/01-process-counts.R` |
-| QC annotation and filtered object | `Rscript scripts/02-qc-filtering.R` |
-| Preprocessing branches | `just preprocess counts-qc` (`scripts/03-preprocess-all.R`) or `just preprocess-one` |
-| Source clustering and summary | `just cluster` (`scripts/04-cluster-all.R`), then `just summarize-clusters` |
-| MG subset selection | `Rscript scripts/07-select-mg-subset.R` with source column `cluster_pflog_no_filter_cc_dims30_res0.3` and `--dims 50` |
-| MG clustering and summary | `just cluster-one` / `just summarize-mg-selected` |
-| Figures and marker tables | `just marker-heatmap`, `just cluster-marker-heatmaps`, `just mg-figures`, `just mg-markers-no-merge` |
-| MG DE and enrichment | `just mg-de` (`scripts/12-run-mg-de.R`); defaults to apeglm shrinkage and writes raw plus simplified GO BP ORA/GSEA tables, seeded Bayesian ORA comparisons, and notebook §4 dotplots |
-| Notebook and final checks | `just notebook`, then `just tripwires` |
-
-Use `just --list` to inspect expert and maintenance recipes. Load
-package code after setup or dependency changes with `just load`.
+Retained maintenance recipes are `just load`, `just document`,
+`just readme`, `just format`, and `just lint`. Render the notebook with
+`quarto render notebook/sc_analysis.qmd` after changing figure sources.
+Notebook figure inputs remain regular files. Mirroring copies to a
+temporary regular sibling, checks the hash and dimensions, then
+atomically replaces the destination; phases never write through a
+symlink.

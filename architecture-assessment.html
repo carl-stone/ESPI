@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESPI architecture assessment</title>
+<style>
+:root{--ink:#17202a;--muted:#5f6b76;--paper:#f7f4ee;--card:#fff;--line:#d9d4ca;--blue:#315a77;--teal:#2f756f;--gold:#a66a19;--red:#9b4337;--soft:#eaf0f3}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1180px;margin:auto;padding:48px 28px 72px}h1,h2,h3{line-height:1.15;margin:0 0 .65em}h1{font-size:2.4rem;letter-spacing:-.03em}h2{font-size:1.45rem;margin-top:2.2rem;border-bottom:1px solid var(--line);padding-bottom:.45rem}h3{font-size:1rem}.lede{max-width:850px;color:var(--muted);font-size:1.08rem}.stamp{display:inline-block;margin-top:8px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.78rem}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0}.metric,.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}.metric strong{display:block;font-size:1.65rem;color:var(--blue)}.metric span{color:var(--muted);font-size:.86rem}.callout{border-left:4px solid var(--gold);background:#fff8e8;padding:14px 17px;margin:18px 0}.flow{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}.flow svg{min-width:1050px;width:100%;height:auto}.node{fill:#fff;stroke:#80909b;stroke-width:1.4}.node.active{fill:#e8f3f1;stroke:var(--teal);stroke-width:2}.node.recovery{fill:#fbf0df;stroke:var(--gold)}.node.output{fill:#eef2f6;stroke:var(--blue)}.edge{stroke:#7a8790;stroke-width:1.5;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:5 4}.label{font-size:12px;fill:var(--ink);font-weight:650}.sub{font-size:10px;fill:var(--muted)}table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);font-size:.9rem}th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}th{background:var(--soft);font-size:.78rem;text-transform:uppercase;letter-spacing:.04em}code{font: .9em ui-monospace,SFMono-Regular,Menlo,monospace;background:#edf0f1;padding:1px 4px;border-radius:3px}ul{padding-left:20px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.tag{display:inline-block;border-radius:4px;padding:2px 6px;margin:1px;background:#e8f3f1;color:#205f59;font-size:.78rem}.warn{color:var(--red);font-weight:650}.small{font-size:.85rem;color:var(--muted)}@media(max-width:780px){.grid,.two{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}main{padding:28px 16px}h1{font-size:1.9rem}}
+</style>
+</head>
+<body><main>
+<header>
+<h1>ESPI analysis architecture</h1>
+<p class="lede">Current repository shape, traced from executable scripts and package helpers. The analysis is a small R package wrapped around a procedural Seurat pipeline, with large objects and most generated results stored outside Git.</p>
+<span class="stamp">Assessment: 16 July 2026 · descriptive, not a redesign</span>
+</header>
+
+<div class="grid">
+<div class="metric"><strong>13</strong><span>executable pipeline/orchestration R scripts</span></div>
+<div class="metric"><strong>15</strong><span>R package modules</span></div>
+<div class="metric"><strong>9,786</strong><span>lines in <code>scripts/</code></span></div>
+<div class="metric"><strong>3,137</strong><span>lines in <code>R/</code></span></div>
+</div>
+
+<section>
+<h2>1. End-to-end shape</h2>
+<div class="flow" role="img" aria-label="ESPI pipeline graph">
+<svg viewBox="0 0 1100 430" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7a8790"/></marker></defs>
+<path class="edge dash" d="M125 72H185"/><path class="edge dash" d="M305 72H365"/><path class="edge" d="M485 72H550"/><path class="edge" d="M670 72H730"/><path class="edge" d="M850 72H910"/>
+<path class="edge" d="M610 107V157"/><path class="edge" d="M790 107V157"/><path class="edge" d="M970 107V157"/>
+<path class="edge" d="M670 192H730"/><path class="edge" d="M850 192H910"/>
+<path class="edge" d="M610 227V282"/><path class="edge" d="M790 227V282"/><path class="edge" d="M970 227V282"/>
+<path class="edge" d="M670 317H730"/><path class="edge" d="M850 317H910"/>
+<path class="edge" d="M970 352V390H550"/>
+<rect class="node recovery" x="5" y="37" width="120" height="70" rx="8"/><text class="label" x="65" y="61" text-anchor="middle">01 counts</text><text class="sub" x="65" y="79" text-anchor="middle">6 × 10X + metadata</text><text class="sub" x="65" y="94" text-anchor="middle">raw Seurat RDS</text>
+<rect class="node recovery" x="185" y="37" width="120" height="70" rx="8"/><text class="label" x="245" y="61" text-anchor="middle">02 QC</text><text class="sub" x="245" y="79" text-anchor="middle">emptyDrops · MAD</text><text class="sub" x="245" y="94" text-anchor="middle">scDblFinder</text>
+<rect class="node recovery" x="365" y="37" width="120" height="70" rx="8"/><text class="label" x="425" y="61" text-anchor="middle">03 preprocess</text><text class="sub" x="425" y="79" text-anchor="middle">2 norms × 2 CC</text><text class="sub" x="425" y="94" text-anchor="middle">4 branches</text>
+<rect class="node" x="550" y="37" width="120" height="70" rx="8"/><text class="label" x="610" y="61" text-anchor="middle">04 cluster</text><text class="sub" x="610" y="79" text-anchor="middle">20/30/50 PCs</text><text class="sub" x="610" y="94" text-anchor="middle">0.3/0.5/0.8</text>
+<rect class="node" x="730" y="37" width="120" height="70" rx="8"/><text class="label" x="790" y="61" text-anchor="middle">05 summarize</text><text class="sub" x="790" y="79" text-anchor="middle">36 candidates</text><text class="sub" x="790" y="94" text-anchor="middle">clustree + stability</text>
+<rect class="node" x="910" y="37" width="120" height="70" rx="8"/><text class="label" x="970" y="61" text-anchor="middle">06 heatmap</text><text class="sub" x="970" y="79" text-anchor="middle">full-dataset</text><text class="sub" x="970" y="94" text-anchor="middle">marker evidence</text>
+<rect class="node" x="550" y="157" width="120" height="70" rx="8"/><text class="label" x="610" y="181" text-anchor="middle">07 MG subset</text><text class="sub" x="610" y="199" text-anchor="middle">chosen full branch</text><text class="sub" x="610" y="214" text-anchor="middle">2 CC branches</text>
+<rect class="node" x="730" y="157" width="120" height="70" rx="8"/><text class="label" x="790" y="181" text-anchor="middle">04 cluster again</text><text class="sub" x="790" y="199" text-anchor="middle">18 MG candidates</text><text class="sub" x="790" y="214" text-anchor="middle">same PC/res grid</text>
+<rect class="node" x="910" y="157" width="120" height="70" rx="8"/><text class="label" x="970" y="181" text-anchor="middle">08 summarize</text><text class="sub" x="970" y="199" text-anchor="middle">MG clustrees</text><text class="sub" x="970" y="214" text-anchor="middle">resolution sweeps</text>
+<rect class="node active" x="550" y="282" width="120" height="70" rx="8"/><text class="label" x="610" y="306" text-anchor="middle">09 figures</text><text class="sub" x="610" y="324" text-anchor="middle">UMAP · abundance</text><text class="sub" x="610" y="339" text-anchor="middle">features</text>
+<rect class="node active" x="730" y="282" width="120" height="70" rx="8"/><text class="label" x="790" y="306" text-anchor="middle">10 heatmaps</text><text class="sub" x="790" y="324" text-anchor="middle">modules · p27</text><text class="sub" x="790" y="339" text-anchor="middle">permutation scores</text>
+<rect class="node active" x="910" y="282" width="120" height="70" rx="8"/><text class="label" x="970" y="306" text-anchor="middle">11–12 analysis</text><text class="sub" x="970" y="324" text-anchor="middle">markers · DESeq2</text><text class="sub" x="970" y="339" text-anchor="middle">GO enrichment</text>
+<rect class="node output" x="550" y="380" width="480" height="42" rx="8"/><text class="label" x="790" y="398" text-anchor="middle">Quarto notebook → embedded sc_analysis.html</text><text class="sub" x="790" y="414" text-anchor="middle">external figures enter through notebook/figures symlinks</text>
+<text class="sub" x="5" y="126">Dashed = explicit frozen-stage regeneration; normal publication runs begin downstream from frozen objects.</text>
+</svg>
+</div>
+<div class="callout"><strong>Two operational pipelines coexist.</strong> <code>just regenerate-frozen</code> runs counts → QC → branch grids → MG selection. Routine <code>just run</code> starts from frozen clustered MG-selected RDS files and runs summaries, figures, markers, DE, enrichment, notebook rendering, and tripwires. The default command therefore does not rebuild scripts 01–07.</div>
+</section>
+
+<section>
+<h2>2. Branching and current convergence</h2>
+<div class="two">
+<div class="card"><h3>Exploration grid</h3><p><span class="tag">log1p</span> <span class="tag">PFlog</span> × <span class="tag">CC genes included</span> <span class="tag">CC genes excluded from HVGs</span> × <span class="tag">20 PCs</span> <span class="tag">30 PCs</span> <span class="tag">50 PCs</span> × <span class="tag">res 0.3</span> <span class="tag">res 0.5</span> <span class="tag">res 0.8</span></p><p><strong>36 full-dataset candidate clusterings.</strong> MG selection then produces two PFlog CC branches and repeats the 3 × 3 clustering grid: <strong>18 MG candidates.</strong></p></div>
+<div class="card"><h3>Current chosen path</h3><ul><li>Full source: <strong>PFlog, CC genes included, 30 PCs, resolution 0.3</strong>.</li><li>4,146 cells in 9 source clusters; clusters 2, 7, and 8 excluded.</li><li>MG-selected: 3,456 cells; chosen clustering <strong>PFlog, CC genes included, 20 PCs, resolution 0.5</strong>.</li><li>The parallel CC-excluded MG object remains a sensitivity branch.</li></ul><p class="small">“No filter CC” means cell-cycle genes remain eligible as HVGs; it does not remove cells.</p></div>
+</div>
+</section>
+
+<section>
+<h2>3. Repository layers</h2>
+<table><thead><tr><th>Layer</th><th>Responsibility</th><th>Current shape</th></tr></thead><tbody>
+<tr><td><code>scripts/</code></td><td>Executable analysis</td><td>12 numbered stages plus a 1,822-line orchestrator. <code>03-preprocess-all.R</code> and <code>04-cluster-all.R</code> are fan-out wrappers; the remaining numbered scripts contain analysis or plotting work.</td></tr>
+<tr><td><code>R/</code></td><td>Package helpers</td><td>Paths/labels, PFlog and log1p PCA, plotting, clustering-grid metrics, abundance tests, module/p27 scores, notebook links, and tripwire hooks. <code>cluster-grid-summary.R</code> is the largest module (~950 lines).</td></tr>
+<tr><td><code>data-raw/</code> → <code>data/</code></td><td>Small curated package data</td><td>Cell-type markers, UMAP feature genes, and mouse cell-cycle genes. Generated <code>.rda</code> objects are tracked; large Seurat objects are not.</td></tr>
+<tr><td>External data root</td><td>Large inputs and results</td><td><code>R/paths.R</code> resolves a Box-backed root, then separates input/current objects, preprocessing/analysis tables, figures, DEGs, enrichment, and logs.</td></tr>
+<tr><td><code>notebook/</code></td><td>Publication narrative</td><td><code>sc_analysis.qmd</code> is authored; <code>sc_analysis.html</code> is generated with embedded resources. PNG symlinks bridge external figures into <code>notebook/figures/</code>.</td></tr>
+<tr><td><code>tools/</code> + tripwire hooks</td><td>Analysis QA</td><td>A 4,154-line tripwire runner checks metadata reconciliation, provenance, deterministic HVG/PCA fingerprints, report freshness, and contrast direction.</td></tr>
+<tr><td><code>justfile</code></td><td>Human-facing command interface</td><td>Canonical frozen run plus many expert one-stage recipes whose defaults repeat script/orchestrator defaults.</td></tr>
+<tr><td><code>analysis/</code>, <code>.living/</code>, <code>docs/</code></td><td>Plans, decisions, conventions, and history</td><td>Supporting knowledge layer, not executable analysis. Manifests describe the pipeline but can drift from inspected paths.</td></tr>
+</tbody></table>
+</section>
+
+<section>
+<h2>4. Structural pressure points</h2>
+<div class="two">
+<div class="card"><h3>Where complexity concentrates</h3><ul><li><code>run-pipeline.R</code> duplicates stage defaults, path rules, argument assembly, validation, and frozen/current policy.</li><li><code>cluster-grid-summary.R</code> combines loading, parsing, metrics, tables, and plots.</li><li>Large procedural endpoints: <code>12-run-mg-de.R</code> (1,609 lines), <code>11-find-mg-markers.R</code> (993), and <code>09-plot-mg-figures.R</code> (852).</li><li>CLI parsing, branch-tag construction, cluster sorting, and PNG/PDF writing recur in multiple files.</li></ul></div>
+<div class="card"><h3>Where the current scope exceeds the final need</h3><ul><li>Legacy, counts-QC, and arbitrary-RDS input modes remain supported.</li><li>Candidate-grid machinery is exposed through scripts, <code>just</code> recipes, package exports, and the orchestrator.</li><li>Hyphenated filenames and Seurat-safe underscore tags require translation logic.</li><li>Many parameter-encoded figures and objects coexist, so stale alternatives are easy to retain.</li><li>The pipeline continues past the requested two chosen Seurat objects into MG selection and manuscript analyses.</li></ul></div>
+</div>
+<p class="small"><span class="warn">Documentation drift observed:</span> <code>algorithms/ALGORITHM_MANIFEST.md</code> names <code>scripts/qc-filtering.R</code>, while the executable file is <code>scripts/02-qc-filtering.R</code>. The assessment therefore treats source paths and orchestration as authoritative.</p>
+</section>
+
+<section>
+<h2>5. Source-of-truth hierarchy</h2>
+<ol><li><strong>Execution:</strong> numbered scripts, <code>run-pipeline.R</code>, and <code>justfile</code>.</li><li><strong>Shared implementation:</strong> <code>R/</code> package modules and tracked package data.</li><li><strong>Scientific narrative:</strong> <code>notebook/sc_analysis.qmd</code> and <code>CONTEXT.md</code>.</li><li><strong>Operational history:</strong> manifests, <code>.living/decisions.md</code>, and <code>.living/learnings.md</code>.</li><li><strong>Derived artifacts:</strong> external Box outputs, notebook symlinks, rendered HTML, generated README, NAMESPACE, and Rd files.</li></ol>
+<p class="small">Assessment basis: all executable scripts, all <code>R/</code> modules, orchestration recipes, package metadata, notebook source, manifests, Mycelium index, generated-artifact conventions, and source line counts. Generated plot contents and large external RDS objects were not re-run or re-audited.</p>
+</section>
+</main></body></html>

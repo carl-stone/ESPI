@@ -1,15 +1,20 @@
 # Algorithm Manifest
 
-Reusable ESPI methods currently live in the R package source. Keep implementation in `R/`; use this manifest as a map, not as a relocation target.
+Reusable ESPI methods live in the four focused R modules. The phase scripts
+keep standard Seurat and plotting calls visible; this manifest maps the
+nonstandard shared operations.
 
 | Entry | Location | Type | Status | Notes |
 |-------|----------|------|--------|-------|
-| QC filtering | `scripts/qc-filtering.R` | R analysis script | active | Retains cells with `nFeature_RNA >= 50`, `nCount_RNA >= 100`, and `percent.mt <= 20`; percent.ribo is diagnostic only. Writes QC artifacts and `INPUT_OBJECT_DIR/sobj_qc_filtered.rds`. |
-| PCA branch helpers | `R/dim-reduction.R` | R package code | active | Runs log1p and PFlog PCA using retained HVGs. |
-| Preprocessing diagnostic plots | `R/preprocess-plots.R` | R package code | active | Saves QC violin, HVG scatter, DimHeatmap, and elbow plots. |
-| Clustering diagnostic plots | `R/cluster-plots.R` | R package code | active | Saves UMAP overlays and clustree plots. |
-| Cluster grid summaries | `R/cluster-grid-summary.R` | R package code | active | Writes supplemental clustering grid summaries against the current PFlog filtered 50-PC resolution-0.3 reference, plus pairwise local-neighbor stability tables, clustree-style split stability tables, and multi-panel clustering diagnostics. |
+| Fixed configuration and invariants | `R/config.R` | R package code | active/current | Owns paths, labels, seed, palettes, frozen-object contracts, output guards, and package-data documentation. |
+| PCA branch methods | `R/seurat-methods.R` | R package code | active/current | Runs log1p and PFlog PCA with retained HVGs. |
+| Cluster-grid summaries | `R/seurat-methods.R` | R package code | active/current | Writes the nonstandard grid summary and pairwise-stability calculations needed by phase 01. |
+| Publication statistics | `R/publication-analysis.R` | R package code | active/current | Computes cluster abundance, sample cluster proportions, exact randomization tests, module scores, and p27 enrichment. |
+| Publication plot writers | `R/publication-plots.R` | R package code | active/current | Provides the shared theme, PNG/PDF writer, curated marker heatmap, and module/p27 heatmap writers with safe notebook mirroring. |
+| Frozen regeneration | `scripts/01-regenerate-frozen.R` | R analysis script | active/current | Applies the fixed counts, QC, preprocessing, clustering, and MG-selection methods without command-line source or stage options. |
+| Publication phases | `scripts/02-publication-figures.R`, `scripts/03-marker-analysis.R`, `scripts/04-de-enrichment.R` | R analysis scripts | active/current | Keep standard Seurat, ggplot2, DESeq2, and enrichment calls visible in scientific order. |
 
 ## Rule
 
-Do not create tiny helper functions for a few commands unless they are called repeatedly or hide a real conceptual operation.
+Do not create tiny helper functions for a few commands unless they are called
+repeatedly or hide a real conceptual operation.

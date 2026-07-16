@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ESPI publication pipeline architecture</title>
+<style>
+:root{--ink:#182126;--muted:#5d686e;--paper:#f5f3ed;--card:#fff;--line:#d6d2c8;--navy:#294f68;--teal:#2d7169;--gold:#9b681d;--red:#954237;--soft:#eaf0f2;--green:#e8f3ef;--amber:#fbf2df}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1180px;margin:auto;padding:46px 28px 72px}h1,h2,h3{line-height:1.17;margin:0 0 .65em}h1{font-size:2.45rem;letter-spacing:-.035em}h2{font-size:1.45rem;margin-top:2.25rem;border-bottom:1px solid var(--line);padding-bottom:.45rem}h3{font-size:1rem}.lede{max-width:900px;color:var(--muted);font-size:1.08rem}.stamp,.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:.78rem;color:var(--muted);background:#fff}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0}.card,.metric,.flow{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}.metric strong{display:block;color:var(--navy);font-size:1.35rem}.metric span,.small{color:var(--muted);font-size:.86rem}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.callout{margin:18px 0;padding:14px 17px;border-left:4px solid var(--gold);background:#fff8e9}.lock{border-left-color:var(--teal);background:var(--green)}table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);font-size:.88rem}th,td{text-align:left;vertical-align:top;padding:9px 11px;border-bottom:1px solid var(--line)}th{background:var(--soft);font-size:.76rem;text-transform:uppercase;letter-spacing:.04em}code{font:.9em ui-monospace,SFMono-Regular,Menlo,monospace;background:#edf0f1;padding:1px 4px;border-radius:3px}ul,ol{padding-left:20px}.keep{color:var(--teal);font-weight:700}.remove{color:var(--red);font-weight:700}.move{color:var(--gold);font-weight:700}.flow{overflow-x:auto;padding:18px}.flow svg{min-width:1040px;width:100%;height:auto}.node{fill:#fff;stroke:#73848e;stroke-width:1.4}.node.frozen{fill:var(--amber);stroke:var(--gold);stroke-width:2}.node.active{fill:var(--green);stroke:var(--teal);stroke-width:2}.node.output{fill:#edf2f5;stroke:var(--navy)}.edge{stroke:#75838a;stroke-width:1.5;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:6 4}.label{font-size:12px;fill:var(--ink);font-weight:700}.sub{font-size:10px;fill:var(--muted)}.phase{border-top:4px solid var(--navy)}.decision{display:grid;grid-template-columns:160px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}.decision strong{font-size:.85rem}.checklist li{margin:.35em 0}@media(max-width:780px){main{padding:28px 16px}.grid,.two{grid-template-columns:1fr}.decision{grid-template-columns:1fr}h1{font-size:1.9rem}}
+</style>
+</head>
+<body><main>
+<header><h1>Implemented architecture: a publication-shaped ESPI pipeline</h1>
+<p class="lede">ESPI now uses four readable scientific phase scripts and a minimal R package. The analysis, frozen objects, figure identities, tables, and rendered notebook remain the publication contract; framework-only machinery has been removed.</p>
+<span class="stamp">Implemented architecture · 16 July 2026</span></header>
+
+<div class="grid">
+<div class="metric"><strong>Four phase scripts</strong><span>Frozen regeneration, descriptive figures, markers, and DE/enrichment</span></div>
+<div class="metric"><strong>Minimal package layer</strong><span>Only shared scientific methods, constants, data, and visual style</span></div>
+<div class="metric"><strong>One fixed interface</strong><span>Publication choices in one visible configuration block; no à-la-carte CLI</span></div>
+</div>
+
+<section><h2>1. Non-negotiable invariants</h2>
+<div class="two">
+<div class="card"><h3>Scientific invariants</h3><ul class="checklist"><li>Counts processing, QC rules, PFlog/log1p transformations, HVG selection, PCA, UMAP, Leiden grids, MG selection, marker testing, pseudobulk DESeq2 models, shrinkage, and enrichment methods do not change.</li><li>Final source object remains PFlog with cell-cycle genes eligible as HVGs, 30 PCs, resolution 0.3.</li><li>Final MG-selected object remains PFlog with cell-cycle genes eligible as HVGs, 20 PCs, resolution 0.5.</li><li>Tables must match exactly. Figures must remain visually equivalent; device metadata and antialiasing may differ.</li></ul></div>
+<div class="card"><h3>Frozen and reporting invariants</h3><ul class="checklist"><li>Do not regenerate any existing object or figure through Leiden clustering during restructuring.</li><li>Use existing frozen UMAP, clustree, QC, HVG, PCA, and clustering artifacts as-is.</li><li><code>sc_analysis.html</code> must render the same visible prose, captions, figures, ordering, and values.</li><li><code>sc_analysis.qmd</code> may change only in hidden setup, data loading, and paths.</li><li>Leave all existing artifacts in place; restructuring is code cleanup, not output cleanup.</li></ul></div>
+</div>
+<div class="callout lock"><strong>Freeze boundary:</strong> The implemented candidate is grounded in checksummed RDS files listed by <code>FROZEN_OBJECTS.tsv</code>. Phase 01 is maintenance-only and is not called by routine publication commands. Existing frozen figures remain the comparison baseline.</div>
+</section>
+
+<section><h2>2. Implemented execution shape</h2>
+<div class="flow"><svg viewBox="0 0 1180 520" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#75838a"/></marker></defs>
+<!-- Frozen regeneration path: present for reproducibility, absent from routine execution. -->
+<path class="edge dash" d="M175 70H220"/><path class="edge dash" d="M400 70H445"/><path class="edge dash" d="M625 70H670"/>
+<path class="edge dash" d="M310 112V335H140V368"/>
+<!-- Frozen inputs to downstream scientific phases. -->
+<path class="edge" d="M535 112V175H300V215"/><path class="edge" d="M760 112V155H360V215"/><path class="edge" d="M760 112V175H590V215"/><path class="edge" d="M760 112V195H820V215"/>
+<!-- Each phase writes named artifacts consumed by the notebook. -->
+<path class="edge" d="M390 285V340H900V260H930"/><path class="edge" d="M680 285V325H915V275H930"/><path class="edge" d="M910 257H930"/>
+<path class="edge" d="M1020 300V350"/><path class="edge" d="M1020 422V455"/>
+<!-- Frozen QC/PCA/UMAP/clustree figures bypass replacement code. -->
+<path class="edge" d="M265 410H930"/>
+<rect class="node frozen" x="15" y="28" width="160" height="84" rx="9"/><text class="label" x="95" y="53" text-anchor="middle">Raw counts + metadata</text><text class="sub" x="95" y="73" text-anchor="middle">six 10X inputs</text><text class="sub" x="95" y="89" text-anchor="middle">sample annotations</text><text class="sub" x="95" y="104" text-anchor="middle">maintenance input only</text>
+<rect class="node frozen" x="220" y="28" width="180" height="84" rx="9"/><text class="label" x="310" y="53" text-anchor="middle">01-regenerate-frozen.R</text><text class="sub" x="310" y="73" text-anchor="middle">counts → QC → branches</text><text class="sub" x="310" y="89" text-anchor="middle">PCA → Leiden → MG</text><text class="sub" x="310" y="104" text-anchor="middle">never called by just run</text>
+<rect class="node frozen" x="445" y="28" width="180" height="84" rx="9"/><text class="label" x="535" y="53" text-anchor="middle">Final source RDS</text><text class="sub" x="535" y="73" text-anchor="middle">PFlog · CC HVGs included</text><text class="sub" x="535" y="89" text-anchor="middle">30 PCs · resolution 0.3</text><text class="sub" x="535" y="104" text-anchor="middle">checksum protected</text>
+<rect class="node frozen" x="670" y="28" width="180" height="84" rx="9"/><text class="label" x="760" y="53" text-anchor="middle">Final MG-selected RDS</text><text class="sub" x="760" y="73" text-anchor="middle">PFlog · CC HVGs included</text><text class="sub" x="760" y="89" text-anchor="middle">20 PCs · resolution 0.5</text><text class="sub" x="760" y="104" text-anchor="middle">checksum protected</text><text class="sub" x="760" y="126" text-anchor="middle">phase 02 also loads CC-filtered MG sensitivity</text>
+<rect class="node active" x="210" y="215" width="180" height="84" rx="9"/><text class="label" x="300" y="240" text-anchor="middle">02-publication-figures.R</text><text class="sub" x="300" y="260" text-anchor="middle">source + MG descriptive plots</text><text class="sub" x="300" y="276" text-anchor="middle">heatmaps · abundance</text><text class="sub" x="300" y="291" text-anchor="middle">no frozen plots regenerated</text>
+<rect class="node active" x="500" y="215" width="180" height="84" rx="9"/><text class="label" x="590" y="240" text-anchor="middle">03-marker-analysis.R</text><text class="sub" x="590" y="260" text-anchor="middle">MG FindAllMarkers</text><text class="sub" x="590" y="276" text-anchor="middle">marker tables + dotplot</text><text class="sub" x="590" y="291" text-anchor="middle">descriptive output only</text>
+<rect class="node active" x="730" y="215" width="180" height="84" rx="9"/><text class="label" x="820" y="240" text-anchor="middle">04-de-enrichment.R</text><text class="sub" x="820" y="260" text-anchor="middle">MG pseudobulk DESeq2</text><text class="sub" x="820" y="276" text-anchor="middle">paired sensitivity · GO</text><text class="sub" x="820" y="291" text-anchor="middle">curated marker overlap</text>
+<rect class="node output" x="930" y="215" width="180" height="85" rx="9"/><text class="label" x="1020" y="240" text-anchor="middle">Publication artifacts</text><text class="sub" x="1020" y="260" text-anchor="middle">figures · tables · DEGs</text><text class="sub" x="1020" y="276" text-anchor="middle">enrichment results</text><text class="sub" x="1020" y="292" text-anchor="middle">same stable filenames</text>
+<rect class="node output" x="15" y="368" width="250" height="84" rx="9"/><text class="label" x="140" y="393" text-anchor="middle">Existing frozen-stage figures</text><text class="sub" x="140" y="413" text-anchor="middle">QC · HVG · PCA · UMAP · clustree</text><text class="sub" x="140" y="429" text-anchor="middle">used as-is; no replacement writes</text><text class="sub" x="140" y="444" text-anchor="middle">direct notebook inputs</text>
+<rect class="node output" x="930" y="350" width="180" height="72" rx="9"/><text class="label" x="1020" y="375" text-anchor="middle">sc_analysis.qmd</text><text class="sub" x="1020" y="395" text-anchor="middle">frozen + downstream figures</text><text class="sub" x="1020" y="411" text-anchor="middle">visible content locked</text>
+<rect class="node output" x="930" y="455" width="180" height="50" rx="9"/><text class="label" x="1020" y="477" text-anchor="middle">sc_analysis.html</text><text class="sub" x="1020" y="495" text-anchor="middle">same rendered content</text>
+<text class="sub" x="15" y="500">Dashed edges = deliberate regeneration path. Solid edges = routine data and artifact dependencies.</text>
+</svg></div>
+<p><strong>Implemented interface:</strong> <code>just run [overwrite]</code> executes phases 02–04 and renders the notebook. The separate <code>just figures</code>, <code>just markers</code>, and <code>just de</code> commands run one publication phase; <code>just regenerate-frozen</code> is deliberate maintenance, requires writable frozen-object directories, and refuses read-only directories.</p>
+</section>
+
+<section><h2>3. Four scripts, each matching a scientific phase</h2>
+<div class="grid">
+<div class="card phase"><h3>01 · Regenerate frozen cohort</h3><p>The maintenance phase is a top-to-bottom workflow for counts, QC, four preprocessing branches, source and MG grids, summaries, and writes.</p><ul><li>One parameters block owns input directories, QC thresholds, two normalizations, CC inclusion/exclusion, PCs 20/30/50, resolutions 0.3/0.5/0.8, and chosen columns.</li><li>Ordinary nested loops keep the workflow RStudio-friendly.</li><li>Writes preserve the established object names, metadata columns, tables, and frozen-stage figures.</li></ul></div>
+<div class="card phase"><h3>02 · Publication figures</h3><p>The figure phase loads the final source, final MG-selected object, and CC-filtered MG sensitivity object once each.</p><ul><li>Set each chosen identity column once.</li><li>Create marker heatmaps, feature/condition/cluster UMAPs, module/p27 heatmaps, and abundance summaries in ordered sections.</li><li>Use the checked temporary-regular-file mirror sequence for notebook inputs.</li></ul></div>
+<div class="card phase"><h3>03 · Marker analysis</h3><p>Retain FindAllMarkers as its own descriptive phase because it has a distinct interpretation and output contract.</p><ul><li>Fixed MG object, assay, layers, thresholds, and chosen cluster column.</li><li>Encode the selected no-merge analysis directly.</li><li>Keep marker tables, identity summary, top-five ranking, and dotplot unchanged. These outputs do not feed phase 04.</li></ul></div>
+<div class="card phase"><h3>04 · DE and enrichment</h3><p>Keep the statistical endpoint separate and readable.</p><ul><li>Ordered sections: pseudobulk construction, design, DESeq2, shrinkage, paired sensitivity, curated marker overlap, ORA, GSEA, Bayesian enrichment, plots.</li><li>Keep the Mouse × Condition statistical unit and exact models.</li><li>Rebuild marker overlap from package marker data plus <code>Cdkn1b</code>, independently of phase 03.</li></ul></div>
+<div class="card phase"><h3>Notebook · report only</h3><p>The notebook remains a consumer, not an orchestrator.</p><ul><li>No scientific computation migrates into QMD chunks.</li><li>Visible prose and captions stay locked.</li><li>Only setup and path wiring may change.</li><li>Rendering remains the final presentation step.</li></ul></div>
+<div class="card phase"><h3>Justfile · five obvious commands</h3><ul><li><code>just run</code></li><li><code>just figures</code></li><li><code>just markers</code></li><li><code>just de</code></li><li><code>just regenerate-frozen</code></li></ul><p>Keep <code>load</code>, <code>document</code>, <code>readme</code>, <code>format</code>, and <code>lint</code> as maintenance commands. The only execution option is the run-level overwrite boolean.</p></div>
+</div>
+</section>
+
+<section><h2>4. Implemented package shape</h2>
+<table><thead><tr><th>Module</th><th>Contains</th><th>Public role</th></tr></thead><tbody>
+<tr><td><code>R/config.R</code></td><td>Paths, seed, condition labels, chosen object paths/columns, palettes, theme, package-data documentation, frozen contracts, and output guards.</td><td>One fixed publication configuration and meaning-protecting invariants.</td></tr>
+<tr><td><code>R/seurat-methods.R</code></td><td>Nonstandard PFlog/log1p PCA and cluster-grid summary/stability calculations.</td><td>Shared scientific methods needed by phase 01.</td></tr>
+<tr><td><code>R/publication-analysis.R</code></td><td>Cluster abundance, sample proportions, exact randomization, module scores, and p27 enrichment.</td><td>Reusable publication statistics.</td></tr>
+<tr><td><code>R/publication-plots.R</code></td><td>Publication theme, checked figure writer, curated marker heatmap, and module/p27 heatmap writers.</td><td>Meaningful repeated plot/output operations; standard one-use plots remain in phase 02.</td></tr>
+</tbody></table>
+<div class="callout"><strong>Depth rule:</strong> a helper survives only when it hides a nonstandard scientific operation or removes meaningful repetition across phase scripts. A wrapper around one standard call is not retained.</div>
+</section>
+
+<section><h2>5. Implemented file map</h2>
+<table><thead><tr><th>Active file</th><th>Role</th><th>State</th></tr></thead><tbody>
+<tr><td><code>scripts/01-regenerate-frozen.R</code></td><td>Counts, QC, four branches, source and MG grids, summaries, and frozen writes.</td><td><span class="keep">ACTIVE</span></td></tr>
+<tr><td><code>scripts/02-publication-figures.R</code></td><td>Source, final MG, and CC-filtered MG sensitivity figures and descriptive statistics.</td><td><span class="keep">ACTIVE</span></td></tr>
+<tr><td><code>scripts/03-marker-analysis.R</code></td><td>Fixed no-merge MG marker tables and dotplot.</td><td><span class="keep">ACTIVE</span></td></tr>
+<tr><td><code>scripts/04-de-enrichment.R</code></td><td>MG pseudobulk DE, paired sensitivity, curated marker overlap, and enrichment.</td><td><span class="keep">ACTIVE</span></td></tr>
+<tr><td><code>R/config.R</code>, <code>R/seurat-methods.R</code>, <code>R/publication-analysis.R</code>, <code>R/publication-plots.R</code></td><td>Focused shared package layer.</td><td><span class="keep">ACTIVE</span></td></tr>
+<tr><td><code>notebook/sc_analysis.qmd</code></td><td>Locked visible report consuming regular-file figure inputs.</td><td><span class="keep">ACTIVE</span></td></tr>
+</tbody></table>
+</section>
+
+<section><h2>6. Validation: keep only checks that protect meaning</h2>
+<div class="two">
+<div class="card"><h3 class="keep">Keep</h3><ul><li>SHA-256, cell-count, and chosen-column matches for all three downstream frozen inputs.</li><li>Mouse, Condition, and Mouse × Condition sample identity before pseudobulk or exact randomization analyses.</li><li>Raw integer counts available for DESeq2 aggregation.</li><li>Control and E-Stim labels both present and contrast direction explicit.</li><li>Paired-sensitivity feasibility stated explicitly when paired mice are absent.</li><li>Publication outputs protected from accidental overwrite unless the fixed command requests it.</li><li>Notebook mirror destinations reject symlinks and temporary copies pass hash and dimension checks.</li></ul></div>
+<div class="card"><h3 class="remove">Remove</h3><ul><li>Generic checks that merely duplicate the next Seurat, plotting, or file operation's clear error.</li><li>Generic scalar/string/flag parsers and unknown-argument handling.</li><li>Checkpoint logs, drop-ledger infrastructure, and broad framework instrumentation.</li><li>Repeated output path normalization, branch-tag parsing, filename translators, and namespace <code>get()</code> calls.</li><li>Validation of choices that are fixed constants in the publication pipeline.</li></ul></div>
+</div>
+<p class="small">Rule: add an explicit check only when invalid input could complete successfully with a misleading scientific result, reverse an interpretation, or fail later with a genuinely opaque warning/error.</p>
+</section>
+<section><h2>7. Readability rules for the implementation</h2>
+<ol><li><strong>Top-to-bottom scripts.</strong> Purpose, inputs/outputs, packages, one parameters block, analysis sections, then writes.</li><li><strong>Scientific names, not framework names.</strong> Use <code>source_cluster</code>, <code>mg_cluster</code>, <code>mouse_condition</code>, and <code>pseudobulk_counts</code>.</li><li><strong>Standard calls stay visible.</strong> Write Seurat, plotting, file, DESeq2, and enrichment calls directly.</li><li><strong>One object load per phase.</strong> Set chosen identities once; do not rediscover branches from filenames.</li><li><strong>Safe notebook mirrors.</strong> Reject symlinks, copy to a temporary regular sibling, verify hash and dimensions, then atomically replace the regular destination.</li></ol>
+</section>
+
+<section><h2>8. Implemented proof</h2>
+<table><thead><tr><th>Step</th><th>Implementation</th><th>Evidence</th></tr></thead><tbody>
+<tr><td>1</td><td>Validate the final source, final MG-selected, and CC-filtered MG sensitivity contracts before publication work.</td><td>Checksums, cell counts, and chosen columns match; frozen directories remain protected.</td></tr>
+<tr><td>2</td><td>Run phase 02 against scratch outputs.</td><td>Tables match exactly; source, MG, and sensitivity figures pass visual review; frozen-stage figures remain untouched.</td></tr>
+<tr><td>3</td><td>Run phase 03 against scratch outputs.</td><td>Marker tables and dotplot match; marker results remain descriptive and are not consumed by phase 04.</td></tr>
+<tr><td>4</td><td>Run phase 04 against scratch outputs.</td><td>DE, paired sensitivity, curated overlap, mapping, enrichment, and plot outputs match exactly.</td></tr>
+<tr><td>5</td><td>Review phase 01 statically without executing regeneration.</td><td>Every scientific call, parameter, seed, branch, output name, and safe write guard is represented.</td></tr>
+<tr><td>6</td><td>Render the notebook from regular-file mirrors.</td><td>Visible text, captions, image order, tables, dimensions, and rendered appearance match the baseline.</td></tr>
+<tr><td>7</td><td>Run the fixed commands from a scratch data root.</td><td>Overwrite refusal and replacement behavior work; live frozen and publication artifacts remain unchanged.</td></tr>
+</tbody></table>
+</section>
+<section><h2>9. Definition of done</h2>
+<ul class="checklist"><li>Exactly four executable phase scripts plus the notebook.</li><li>The R package contains only four focused modules that protect nonstandard scientific logic or meaningful reuse.</li><li>Routine execution has no normalization, PC, resolution, arbitrary-input, merge-map, or output-directory options.</li><li>Every scientific operation and parameter has an explicit source-to-replacement ledger.</li><li>All three frozen downstream inputs remain byte-identical and read-only.</li><li>No frozen-stage figure is regenerated by routine publication commands.</li><li>Downstream tables match exactly and figures are visually equivalent.</li><li>The rendered notebook has the same visible content.</li><li>There are no compatibility aliases, duplicate execution paths, or broad framework checks.</li><li>A computational biologist can read phases 01–04 in order and understand the complete analysis without first learning a custom pipeline framework.</li></ul>
+<div class="callout"><strong>Core decision:</strong> optimize for the reader of this one analysis, not for hypothetical callers. Keep scientific complexity visible; remove software-framework complexity that does not protect a scientific invariant.</div>
+</section>
+</main></body></html>

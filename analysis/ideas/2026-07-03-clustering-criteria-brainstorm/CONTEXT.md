@@ -39,25 +39,30 @@ notebook/figures/cluster_grid_clustree_12_panel.png
 notebook/figures/umap_resolution_sweep_pflog_filter_cc_dims30.png
 ```
 
-## Existing pipeline
+## Current implementation map
 
-Manifests list these active analyses and methods:
+The active analysis is organized as four top-to-bottom phase scripts and four
+focused package modules:
 
-- Preprocessing: `scripts/preprocess-sobj.R`, `scripts/preprocess-all.R`
-  - Produces normalization and cell-cycle-HVG-filtering branches plus QC/HVG/PCA diagnostics.
-- Candidate clustering: `scripts/cluster-sobj.R`, `scripts/cluster-all.R`, `scripts/summarize-cluster-grid.R`
-  - Produces UMAP/clustree candidate clustering outputs, a 36-row clustering grid summary, a 12-panel clustree grid, and a representative UMAP resolution sweep.
-- Single-cell notebook: `notebook/sc_analysis.qmd`
-  - Currently documents the clustering grid and supplemental figures.
-- Tripwires: `tools/run-tripwires.R`, `analysis_labels.yml`
-  - Checks cluster wrapper execution, branch artifact separation, report freshness, missing-input failure, metadata contract, label firewall, and future contrast direction.
+- `scripts/01-regenerate-frozen.R`: counts, QC, four preprocessing branches,
+  source/MG clustering grids, summaries, and frozen-stage artifacts.
+- `scripts/02-publication-figures.R`: publication figures, heatmaps, UMAPs,
+  abundance summaries, and supplemental artifacts.
+- `scripts/03-marker-analysis.R`: fixed no-merge MG marker tables and dotplot.
+- `scripts/04-de-enrichment.R`: pseudobulk DE, marker overlap, and enrichment.
+- `R/config.R`: paths, labels, seed, palettes, frozen contracts, and output
+  invariants.
+- `R/seurat-methods.R`: PFlog/log1p PCA and cluster-grid
+  summary/stability calculations.
+- `R/publication-analysis.R`: abundance, sample proportions, exact
+  randomization, module-score, and p27-enrichment computations.
+- `R/publication-plots.R`: publication theme, safe figure writer, and
+  curated heatmap writers.
 
-Reusable R helpers:
-
-- `R/dim-reduction.R`: PCA branch helpers.
-- `R/preprocess-plots.R`: QC/HVG/PCA diagnostics.
-- `R/cluster-plots.R`: UMAP overlays and clustree plots.
-- `R/cluster-grid-summary.R`: Writes grid summaries with ARI/Jaccard to the current reference and saves multi-panel diagnostics.
+The single-cell notebook, `notebook/sc_analysis.qmd`, consumes the generated
+figures and documents the clustering grid and supplemental figures. Legacy
+wrappers and auxiliary validation machinery are not part of the active
+implementation.
 
 ## Parameter grid
 

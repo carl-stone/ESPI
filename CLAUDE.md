@@ -18,9 +18,9 @@ This repository is Mycelium-enabled. `AGENTS.md` remains the source of truth for
 
 ESPI is a minimal R package plus executable analysis scripts. Do not reorganize existing package code into generic Mycelium folders.
 
-- `R/`: package helpers and plotting functions.
-- `scripts/`: executable preprocessing and clustering pipeline.
-- `notebook/`: Quarto analysis notebook and symlinked figure inputs.
+- `R/`: four focused package modules (`config.R`, `seurat-methods.R`, `publication-analysis.R`, and `publication-plots.R`).
+- `scripts/`: exactly four executable phase scripts.
+- `notebook/`: Quarto analysis notebook and regular-file figure inputs.
 - `data/`: R package data plus Mycelium metadata/raw/processed placeholders.
 - `analysis/`: reserved for future standalone Mycelium analysis reports, not a replacement for `scripts/`.
 - `algorithms/`: reserved for reusable method writeups; current code remains in `R/`.
@@ -30,19 +30,19 @@ ESPI is a minimal R package plus executable analysis scripts. Do not reorganize 
 
 Use R-specific workflow, not Python/marimo defaults from generic Mycelium docs.
 
-- Load package code with `devtools::load_all()`.
-- Run executable pipeline steps with `Rscript scripts/<script>.R`.
-- Run `devtools::document()` after modifying files in `R/`.
-- Edit `README.Rmd`, then run `devtools::build_readme()`; never edit `README.md` directly.
-- Format R code with `air format <file>`.
+- Load package code with `just load` (`devtools::load_all()`).
+- Run the routine analysis commands with `just run [overwrite]`, `just figures [overwrite]`, `just markers [overwrite]`, `just de [overwrite]`, or deliberate `just regenerate-frozen`.
+- Use `just regenerate-frozen` only for deliberate phase-01 regeneration; it requires writable frozen-object directories and refuses read-only directories.
+- Run `just document` after modifying files in `R/`.
+- Edit `README.Rmd`, then run `just readme` (`devtools::build_readme()`); never edit `README.md` directly.
+- Format R code with `just format`.
 - Render the notebook with `quarto render notebook/sc_analysis.qmd` after figure source changes because `embed-resources: true` embeds image bytes.
-- Run tripwire checks with `Rscript tools/run-tripwires.R` after changing analysis paths, report prose, or scientific-boundary code.
-- Prefer tidyverse-style R where useful, but keep helpers narrow and avoid one-off helper functions for a few commands.
-- Routine workflow rule: `just run [overwrite]` and `just run-dry-run [overwrite]` start from the frozen clustered MG-selected RDS objects. Use `just regenerate-frozen [source] [overwrite]` only to intentionally rebuild scripts `01` through `07` and MG clustering. Treat other raw scripts and low-level recipes as expert recovery only.
+- Prefer tidyverse-style R where useful, but keep helpers narrow and avoid one-off helper functions.
 
 ## Installed Mycelium Convention Packs
 
-Check `.living/conventions/ACTIVE_CONVENTIONS.yaml` for the registry.
+Check `.living/conventions.md` for the registry and apply only conventions
+that fit this R package.
 
 - `robust-analysis`: validation, spot checks, sensitivity analysis, null controls.
 - `report-generator`: structured reports and report QC.
@@ -50,7 +50,8 @@ Check `.living/conventions/ACTIVE_CONVENTIONS.yaml` for the registry.
 - `bioinformatics`: single-cell and genomics analysis conventions.
 - `skill-bridge`: routes analyses to inert external skill repositories under `skillpacks/`.
 
-Apply these only where they fit the ESPI R package. Project-specific rules in `AGENTS.md` and `.living/conventions.md` override generic convention text.
+Project-specific rules in `AGENTS.md` and `.living/conventions.md` override
+generic Mycelium guidance.
 
 ## After Significant Work
 
