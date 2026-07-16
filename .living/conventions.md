@@ -44,5 +44,6 @@ Before yielding or committing after Mycelium-tracked work, verify semantic sessi
 - `.living/INDEX.md` is regenerated after `.living/` decision, learning, convention, finding, or log-registry changes.
 - `.claude/last-session.md` covers the full session and reports the current commit/uncommitted state.
 - False-positive hook artifacts, such as `.log-scribe-*` authentication-failure logs or file-list-only session logs from read-only Q&A, are removed rather than backfilled into prior closed sessions.
+- Generated activity inventories may include disposable-worktree paths and `xd:/` tool-device names; record their provenance, but never treat them as live-repository changes without confirmation from the main working tree.
 
 Source: `.living/generated-conventions/session-end-provenance-integrity/` from L-10, L-20, L-21, L-22, and L-23.

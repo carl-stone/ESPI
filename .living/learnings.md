@@ -787,3 +787,17 @@ dimension checks.
 **Resolution**: Review maintenance entry points independently, declare every direct optional integration, create output directories before work, mirror every report-visible artifact, and preserve the previous regular file until the replacement is verified.
 
 **mitigation_type**: maintenance-path-review
+
+### [2026-07-16] Generated session inventories can include non-repository paths
+
+**Tags**: hooks, session-log, git, tool-devices
+
+**Category**: Mycelium session bookkeeping
+
+**What happened**: The session-end hook repeatedly reported files from a disposable worktree and `xd:/` tool-device calls as untriaged live-repository changes after the intended commits were complete.
+
+**Why it matters**: Treating a generated cross-worktree activity inventory as Git state can create false blockers and misleading cleanup work.
+
+**Resolution**: Triage the activity normally, record why external worktree paths and tool-device names are not repository files, and use the main working tree's `git status --short` as the final cleanliness check.
+
+**mitigation_type**: repository-state-verification

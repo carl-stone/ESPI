@@ -4,9 +4,9 @@ Last audit: 2026-07-16
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
-| conventions.md | 6 sections | 2026-07-09 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit, Cross-References |
+| conventions.md | 6 sections | 2026-07-16 | ESPI R Package Shape, R and Documentation Workflow, Data and Figures, Statistical Unit, Cross-References |
 | decisions.md | 62 entries (large — read selectively) | 2026-07-16 | Enable Mycelium without restructuring ESPI, Install bioinformatics conventions by default, Treat Mycelium restructure audit as advisory only, Enable skill-bridge after cloning available skillpacks, Use Rscript orchestration and Seurat-safe cluster branch tags |
-| learnings.md | 49 entries (large — read selectively) | 2026-07-16 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
+| learnings.md | 50 entries (large — read selectively) | 2026-07-16 | Mycelium hook paths are local plugin-cache paths, Quarto embedded HTML must be rerendered after figure regeneration, Documented Autonomous-Science skillpack URL is unavailable, Seurat rewrites hyphens in reduction names, Pass clustree only cluster columns for large Seurat metadata |
 | log/ | 73 sessions | 2026-07-16 | espi (73) |
 | findings/ | 4 findings across 2 topics | 2026-07-14 | condition-response, population-structure |
 
@@ -31,13 +31,13 @@ Last summarized: 2026-07-16 (heuristic)
 - [2026-07-16] L-47: Separate source contracts from visible sensitivity oracles
 - [2026-07-16] L-48: Publication cutovers need layered equivalence checks
 - [2026-07-16] L-49: Review maintenance paths separately from routine runs
+- [2026-07-16] L-50: Generated session inventories can include non-repository paths
 - [2026-07-16] D-59: Freeze all existing Seurat objects and designate two final objects
 - [2026-07-16] D-60: Define boundaries for the publication-pipeline restructuring proposal
 - [2026-07-16] D-61: Adopt the clean four-phase publication cutover
 - [2026-07-16] D-62: Resolve the source-versus-visible MG heatmap oracle conflict
 - [2026-07-15] L-45: Pipeline interface changes require both contract tripwires
 - [2026-07-15] L-46: ComplexHeatmap cannot independently retain the split-mean dendrogram
-- [2026-07-15] D-57: Freeze the pipeline through MG clustering
 
 ## By tag
 
@@ -47,7 +47,7 @@ Last summarized: 2026-07-16 (heuristic)
 - `mycelium`: L-1, L-3, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, D-1, D-2, D-3, D-4, D-12, D-13, D-14, D-15, D-16, D-18, D-30
 - `data-lineage`: L-12, L-29, L-30, L-31, L-32, L-34, L-36, D-15, D-37, D-38, D-39, D-40, D-41, D-44, D-45, D-46, D-49
 - `notebook`: L-2, L-7, L-16, L-25, L-47, L-48, L-49, D-20, D-21, D-22, D-23, D-26, D-27, D-28, D-29, D-33, D-62
-- `hooks`: L-1, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, D-12, D-13, D-14, D-15, D-16, D-30
+- `hooks`: L-1, L-10, L-11, L-12, L-13, L-20, L-21, L-22, L-23, L-50, D-12, D-13, D-14, D-15, D-16, D-30
 - `provenance`: L-20, L-21, L-22, L-23, L-30, L-31, L-32, L-33, L-41, D-30, D-38, D-39, D-40, D-41
 - `differential-expression`: L-9, L-18, L-24, L-42, D-10, D-17, D-20, D-32, D-34, D-35, D-52, D-54, D-55
 - `scripts`: L-29, L-30, L-34, D-5, D-9, D-36, D-37, D-38, D-39, D-41, D-42, D-48, D-60
@@ -124,6 +124,7 @@ Last summarized: 2026-07-16 (heuristic)
 - `fdr`: L-42
 - `fisher-exact`: D-24
 - `frozen`: D-59
+- `git`: L-50
 - `github`: L-3
 - `interactivity`: D-9
 - `last-session`: L-22
@@ -145,12 +146,14 @@ Last summarized: 2026-07-16 (heuristic)
 - `reductions`: L-4
 - `sample-identity`: L-40
 - `scDblFinder`: D-49
+- `session-log`: L-50
 - `skill-bridge`: D-4
 - `skills`: D-12
 - `stability`: D-50
 - `supplemental-figures`: D-6
 - `symlink`: L-7
 - `testing`: L-39
+- `tool-devices`: L-50
 - `tsv`: L-8
 - `unicode`: L-6
 - `warnings`: L-5
