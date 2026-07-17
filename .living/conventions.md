@@ -11,6 +11,7 @@ Project-specific rules here override generic Mycelium convention packs.
 ## R and Documentation Workflow
 
 - Use `<-` assignment and the native base pipe `|>`.
+- Avoid superseded purrr binding helpers (`map_dfr()`, `imap_dfr()`, `map_dfc()`, and `imap_dfc()`); use a map function followed by `list_rbind()` or `list_cbind()`.
 - Prefer explicit namespaces over conflict-resolution side effects.
 - Use `just --list` to discover project commands. Prefer `just` recipes for routine package, pipeline, notebook, formatting, and tripwire steps; use raw `Rscript` only when a recipe does not fit.
 - Describe `devtools::load_all()` / `just load` as loading the package, not as a smoke test; loading is a normal development workflow step.
