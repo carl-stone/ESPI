@@ -1,17 +1,13 @@
 #!/usr/bin/env Rscript
 
 # Regenerate all frozen preprocessing, clustering, and MG-selection artifacts.
-# Source-to-replacement ledger:
-#   01-process-counts.R + 02-qc-filtering.R -> counts and QC sections.
-#   03-preprocess.R + 03-preprocess-all.R -> four independent source branches.
-#   04-cluster.R + 04-cluster-all.R -> fixed source and MG grids.
-#   05-summarize-clusters.R -> source grid tables and supplemental plots.
-#   07-select-mg-subset.R -> MG selection and two independent PFlog branches.
-#   08-summarize-mg-clusters.R -> MG grid summary and resolution sweeps.
-#   run-pipeline.R -> no subprocesses; fixed top-to-bottom loops below.
+# The top-to-bottom sections cover counts, QC, four source preprocessing
+# branches, fixed source and MG clustering grids, MG selection, summaries,
+# supplemental plots, and frozen writes.
 #
-# This script deliberately has no command-line parser, stage discovery, dry-run,
-# tripwire, drop-ledger, or alternate-root path.
+# This deliberate maintenance script has no command-line parser or stage
+# discovery. It uses the data root resolved by R/config.R and refuses to run
+# unless both frozen-object directories already exist and are writable.
 
 suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)

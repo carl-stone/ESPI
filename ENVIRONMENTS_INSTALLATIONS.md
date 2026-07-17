@@ -6,7 +6,7 @@
 - **Command runner:** `just` from the repository root.
 - **Package load:** `just load` (`devtools::load_all()`).
 - **Notebook renderer:** `quarto render notebook/sc_analysis.qmd`.
-- **External data root:** `/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data`.
+- **External data root:** resolved by `R/config.R`; the default is `/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data`.
 
 ## Setup from scratch
 
@@ -101,13 +101,15 @@ mclust, org.Mm.eg.db, patchwork, readr, scales, S4Vectors, tibble, and tidyr.
 
 ## Data and output paths
 
-The analysis expects Box Drive data at:
+`R/config.R` resolves the external data root in this order:
 
-```text
-/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data
-```
+1. `MEGAN_SC_DATA_DIR` in an untracked `config.local.R` file;
+2. `<BOX_PATH>/megan_sc_data` from `config.local.R`; or
+3. the default `~/Library/CloudStorage/Box-Box/megan_sc_data`.
 
-Do not add fallback data paths. Missing paths must fail explicitly.
+Copy `config.local.example.R` to `config.local.R` and set one of those values
+when the default Box Drive location is unavailable. The resolved directory must
+already exist; package loading fails explicitly when it does not.
 
 Important subdirectories include `seurat_objects/current/`,
 `figures/preprocess/`, `figures/cluster/`, `figures/mg_selected/`,
