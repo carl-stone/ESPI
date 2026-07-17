@@ -7,31 +7,35 @@
 | **Priority** | low |
 | **Status** | complete |
 | **Category** | refactor |
-| **Related analyses** | `R/cluster-abundance.R`; `scripts/plot-mg-selected-figures.R` |
+| **Related analyses** | `R/publication-analysis.R`; `scripts/02-publication-figures.R` |
 | **Related data** | — |
 
 ## Description
 
-Move `plot_clr_fisher_enrichment()` into a new `R/cluster-abundance-plots.R` file while keeping computation code in `R/cluster-abundance.R`.
+This completed task originally separated cluster-abundance computation from plotting. The later publication-pipeline consolidation superseded that file split: computation now lives in `R/publication-analysis.R`, while the one-use abundance plot remains visible in `scripts/02-publication-figures.R`.
 
 ## Motivation
 
 Separating plot helpers by analysis step makes it easier to find figure-producing code associated with each workflow stage.
 
-## Proposed Approach
+## Implemented Approach
 
-Create `R/cluster-abundance-plots.R`, move the plot helper and plot-only support code there, leave `compute_cluster_abundance()` in the compute file, and rerun roxygen documentation.
+The original split was completed, then simplified during consolidation. The
+current design keeps `compute_cluster_abundance()` in
+`R/publication-analysis.R` and the single-use ggplot construction in
+`scripts/02-publication-figures.R`; no dedicated cluster-abundance plot module
+remains.
 
 ## Acceptance Criteria
 
-- [x] `plot_clr_fisher_enrichment()` lives in `R/cluster-abundance-plots.R`.
-- [x] `compute_cluster_abundance()` remains in `R/cluster-abundance.R`.
-- [x] `NAMESPACE` and Rd files are regenerated with `devtools::document()`.
-- [x] Changed R files are formatted and linted.
+- [x] Cluster-abundance computation is separate from plot construction.
+- [x] `compute_cluster_abundance()` lives in `R/publication-analysis.R`.
+- [x] The one-use abundance plot stays visible in phase 02.
+- [x] Changed R files were documented, formatted, and linted.
 
 ## Completion
 
-Completed in Batch 1 presentation cleanup by separating cluster-abundance plotting helpers from compute/test code.
+Completed in Batch 1 presentation cleanup. The later four-phase consolidation preserved the computation/plot separation while folding the code into the current files listed above.
 
 ## Notes
 

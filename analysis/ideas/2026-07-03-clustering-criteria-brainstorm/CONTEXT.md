@@ -32,7 +32,7 @@ Current relevant outputs:
 /Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data/figures/cluster/umap_resolution_sweep_pflog_filter_cc_dims30.png
 ```
 
-Notebook symlinks:
+Notebook figure mirrors (regular files; symlinks are rejected):
 
 ```text
 notebook/figures/cluster_grid_clustree_12_panel.png

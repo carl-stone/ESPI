@@ -39,6 +39,8 @@ The current pooled Fisher/CLR abundance plot is descriptive because it treats ce
 
 Source idea: `analysis/ideas/2026-07-05-cluster-proportion-testing/01-biostatistician.md`, Idea 1.
 
-Completed 2026-07-05 in `R/cluster-abundance.R`, `scripts/plot-mg-selected-figures.R`,
-and `notebook/sc_analysis.qmd`. Outputs are written under
+Completed 2026-07-05. After the publication-pipeline consolidation, the
+sample-level computation lives in `R/publication-analysis.R`, orchestration and
+plots live in `scripts/02-publication-figures.R`, and interpretation lives in
+`notebook/sc_analysis.qmd`. Outputs are written under
 `TABLE_DIR/mg_selected/` and `FIGURE_DIR/mg_selected/`.

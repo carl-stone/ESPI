@@ -7,7 +7,7 @@
 | **Priority** | medium |
 | **Status** | complete |
 | **Category** | infrastructure |
-| **Related analyses** | `R/themes.R`; MG-selected figure scripts |
+| **Related analyses** | `R/config.R`; `scripts/02-publication-figures.R`; `scripts/03-marker-analysis.R`; `scripts/04-de-enrichment.R` |
 | **Related data** | — |
 
 ## Description
@@ -18,13 +18,13 @@ Create a project-wide palette for three-color low/medium/high or depleted/not-si
 
 ESPI already exports `palette_dotplot_pair`. Standardizing the three-color palette prevents duplicated hard-coded color values and keeps manuscript figures consistent.
 
-## Proposed Approach
+## Implemented Approach
 
-Add an exported palette in `R/themes.R`, e.g. blue/gray/pink values for low/mid/high. Use the gray entry anywhere plots currently hard-code a not-significant gray. For low-to-high scales, use the gray-to-pink subset where appropriate, such as feature UMAP-style plots.
+Define the named blue/gray/pink palette in `R/config.R` and expose it through `publication_config()` for the publication phases. Use the gray entry wherever plots encode a not-significant midpoint and use the appropriate palette subset for low-to-high scales.
 
 ## Acceptance Criteria
 
-- [x] `R/themes.R` exports a named three-color analysis palette.
+- [x] `R/config.R` defines the named three-color analysis palette.
 - [x] Existing hard-coded not-significant gray colors are replaced with the palette gray.
 - [x] Existing hard-coded `#2166ac` / `#e31a8c` direction colors use the shared palette where appropriate.
 - [x] Changed R files are formatted, documented, and linted.
