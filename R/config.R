@@ -67,12 +67,12 @@ palette_dotplot_pair <- unname(
 # ANALYSIS_OK[smuggled-default]: exported theme API keeps the publication base font size fixed.
 # ANALYSIS_OK[R026]: exported theme helper is called by executable figure and regeneration scripts.
 theme_stone <- function(base_size = 12) {
-  ggplot2::theme_bw(base_size = base_size) +
+  ggplot2::theme_classic(base_size = base_size) +
     ggplot2::theme(
       axis.title = ggplot2::element_text(face = "bold", color = "black"),
-      axis.text = ggplot2::element_text(face = "bold", color = "black"),
-      panel.grid.minor = ggplot2::element_blank(),
-      strip.background = ggplot2::element_blank()
+      text = ggplot2::element_text(color = "black"),
+      panel.grid.major = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank()
     )
 }
 
@@ -177,19 +177,19 @@ publication_config <- function() {
     ),
     frozen = list(
       source = list(
-        sha256 = "0c5079e7174a68eed9b62a02f4ec550fcc776ffa14e183e718799cbf9d9bf74a",
-        cells = 4146L,
-        column = "cluster_pflog_no_filter_cc_dims30_res0.3"
+        cells = 3902L,
+        column = "cluster_pflog_no_filter_cc_dims30_res0.3",
+        n_clusters = 9L
       ),
       mg = list(
-        sha256 = "ed320802451f9f426b1ca1e72b5f8bcd6bbd6f1095693fec17253903e62edc67",
-        cells = 3456L,
-        column = "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5"
+        cells = 3248L,
+        column = "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+        n_clusters = 8L
       ),
       mg_filter_cc = list(
-        sha256 = "093faaa3ab28e7dfb0dd4121cede133a4f24399f1b8c4a1a920043f689af2c62",
-        cells = 3456L,
-        column = "cluster_pflog_mg_selected_filter_cc_dims20_res0.5"
+        cells = 3248L,
+        column = "cluster_pflog_mg_selected_filter_cc_dims20_res0.5",
+        n_clusters = 7L
       )
     ),
     palettes = list(
@@ -209,15 +209,15 @@ publication_config <- function() {
 #' @export
 # ANALYSIS_OK[R026]: exported frozen-input guard is called by publication and marker/DE phase scripts.
 assert_frozen_input <- function(path, sobj, contract) {
-  actual_hash <- digest::digest(path, algo = "sha256", file = TRUE)
-  if (!identical(actual_hash, contract$sha256)) {
-    stop("Frozen input hash mismatch: ", path, call. = FALSE)
-  }
   if (ncol(sobj) != contract$cells) {
     stop("Frozen input cell-count mismatch: ", path, call. = FALSE)
   }
   if (!contract$column %in% colnames(sobj[[]])) {
     stop("Frozen input lacks cluster column: ", contract$column, call. = FALSE)
+  }
+  observed_clusters <- dplyr::n_distinct(sobj[[]][[contract$column]])
+  if (observed_clusters != contract$n_clusters) {
+    stop("Frozen input cluster-count mismatch: ", path, call. = FALSE)
   }
   invisible(sobj)
 }

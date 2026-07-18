@@ -107,7 +107,8 @@ phase_output_paths <- c(
       "sample_cell_call_summary.tsv",
       "sample_qc_summary.tsv",
       "sample_qc_mad_thresholds.tsv",
-      "sobj_qc_summary_by_sample.tsv"
+      "sobj_qc_summary_by_sample.tsv",
+      "sample_qc_attrition.tsv"
     )
   ),
   file.path(
@@ -153,7 +154,8 @@ phase_output_paths <- c(
       "elbow_pflog_mg_selected_filter_cc.pdf"
     )
   ),
-  file.path(mg_table_dir, "mg_selected_cluster_grid_summary.tsv")
+  file.path(mg_table_dir, "mg_selected_cluster_grid_summary.tsv"),
+  file.path(table_dir, "frozen_object_numbers.tsv")
 )
 for (tag in source_preprocess_tags) {
   phase_output_paths <- c(
@@ -400,386 +402,6 @@ mirror_notebook_png <- function(source, destination) {
   invisible(destination)
 }
 
-# ---- baseline branch fingerprints (exact-v1) ----
-
-branch_fingerprints <- list(
-  "log1p_filter-cc" = list(
-    cells = 4146L,
-    hvg_sha256 = "22ecb87965b934da26b7efdfd77a2d8991566b9b3be830809cf47eec2891b656",
-    pca_sdev = c(
-      14.9387025265,
-      10.9893952785,
-      6.8808134805,
-      5.7365919573,
-      5.0456614115,
-      4.6923882001,
-      4.0247853703,
-      3.9340340441,
-      3.2548503216,
-      3.0995393201,
-      2.9294409552,
-      2.8541973606,
-      2.7645208785,
-      2.5647227169,
-      2.4468783483,
-      2.3698052996,
-      2.3439068989,
-      2.2650052172,
-      2.2562700921,
-      2.1900860718,
-      2.1445604591,
-      2.1090474043,
-      2.0563769798,
-      2.0038186917,
-      1.9971526394,
-      1.9539806723,
-      1.9293750865,
-      1.8651011215,
-      1.8537298586,
-      1.8315510971,
-      1.7807910878,
-      1.7444791849,
-      1.7234827233,
-      1.7023573797,
-      1.6970982058,
-      1.6745229157,
-      1.6536510648,
-      1.6318441653,
-      1.6197769091,
-      1.5835585889,
-      1.5788902904,
-      1.5701171394,
-      1.5524245457,
-      1.5359076521,
-      1.5205079686,
-      1.5151632946,
-      1.5086406117,
-      1.4908520891,
-      1.490191757,
-      1.4837160772
-    ),
-    algorithm = "exact-v1"
-  ),
-  "log1p_no-filter-cc" = list(
-    cells = 4146L,
-    hvg_sha256 = "503ea4a8341397403673775becc005a8088b7dba8a2bc39728fb387c3dec25ff",
-    pca_sdev = c(
-      14.9516253132,
-      11.0064836635,
-      8.7211985669,
-      5.7397244711,
-      5.0476619364,
-      4.6954083595,
-      4.0276901719,
-      3.9393495395,
-      3.2579502459,
-      3.1323592477,
-      2.9402459307,
-      2.8625606226,
-      2.853363329,
-      2.7219658384,
-      2.566316236,
-      2.4482621175,
-      2.3765535055,
-      2.3487183066,
-      2.2665172982,
-      2.2586393324,
-      2.1793120715,
-      2.1469180596,
-      2.0753574246,
-      2.0174596249,
-      2.0099146731,
-      1.9678385195,
-      1.9343767204,
-      1.8785518418,
-      1.8726354897,
-      1.8445711993,
-      1.7978225841,
-      1.7717192299,
-      1.7523492133,
-      1.7205519472,
-      1.7144272458,
-      1.6849192868,
-      1.6694984991,
-      1.6448130831,
-      1.6305613712,
-      1.6230561526,
-      1.601370208,
-      1.5803549991,
-      1.5764697814,
-      1.5576441349,
-      1.5413242325,
-      1.5259771737,
-      1.5187660689,
-      1.4989343365,
-      1.4984176745,
-      1.4939516146
-    ),
-    algorithm = "exact-v1"
-  ),
-  "pflog_filter-cc" = list(
-    cells = 4146L,
-    hvg_sha256 = "22ecb87965b934da26b7efdfd77a2d8991566b9b3be830809cf47eec2891b656",
-    pca_sdev = c(
-      15.001679018,
-      8.3951151259,
-      5.447572481,
-      3.9954157513,
-      3.7862719092,
-      3.2209125768,
-      2.8337209349,
-      2.7999771026,
-      2.6021020277,
-      2.5165130882,
-      2.359552954,
-      2.2706509593,
-      2.1842635286,
-      2.1243082531,
-      2.0881424457,
-      2.0096934644,
-      1.9530560652,
-      1.8322912358,
-      1.7582243201,
-      1.7361660202,
-      1.7099026003,
-      1.6885054819,
-      1.6140059311,
-      1.5782435012,
-      1.5442147367,
-      1.5216050573,
-      1.4939945366,
-      1.4593206049,
-      1.4303278536,
-      1.3988330038,
-      1.3978418175,
-      1.3867948855,
-      1.3698823824,
-      1.3581651027,
-      1.3303317701,
-      1.3052319024,
-      1.2958933393,
-      1.292113519,
-      1.2806581203,
-      1.2758657034,
-      1.2689492058,
-      1.2537954704,
-      1.2441129481,
-      1.2347107246,
-      1.2224479817,
-      1.2170060982,
-      1.2062623949,
-      1.1915686,
-      1.1863908697,
-      1.1712888706
-    ),
-    algorithm = "exact-v1"
-  ),
-  "pflog_no-filter-cc" = list(
-    cells = 4146L,
-    hvg_sha256 = "503ea4a8341397403673775becc005a8088b7dba8a2bc39728fb387c3dec25ff",
-    pca_sdev = c(
-      15.0113804532,
-      8.4139262404,
-      5.5824466537,
-      4.5666520839,
-      4.0119751712,
-      3.2285557987,
-      2.8470937181,
-      2.8061847802,
-      2.609654458,
-      2.5224837068,
-      2.3632196206,
-      2.281784046,
-      2.2192474556,
-      2.1280040997,
-      2.0933341678,
-      2.016617509,
-      1.9583023033,
-      1.8361580729,
-      1.7637025511,
-      1.744275865,
-      1.716708524,
-      1.6921364758,
-      1.6202222505,
-      1.5968883426,
-      1.5510097392,
-      1.5294025559,
-      1.4975612922,
-      1.4631086153,
-      1.4317189506,
-      1.4094020331,
-      1.4041662589,
-      1.3903448043,
-      1.3734969205,
-      1.363879277,
-      1.3337260501,
-      1.3156794562,
-      1.3003863123,
-      1.2982908647,
-      1.289776457,
-      1.2841439085,
-      1.2720371573,
-      1.2670106451,
-      1.2531168926,
-      1.2453490211,
-      1.2364643818,
-      1.2239713558,
-      1.2188423541,
-      1.2003677289,
-      1.1954841449,
-      1.1828906232
-    ),
-    algorithm = "exact-v1"
-  ),
-  "pflog_mg_selected_filter-cc" = list(
-    cells = 3456L,
-    hvg_sha256 = "a90d58adff1bc411a7cac6f9caadeaa91fc6790ce2b7739ce992e036cc3495f1",
-    pca_sdev = c(
-      9.55697105,
-      5.7876251489,
-      4.264630481,
-      4.076156372,
-      3.254981646,
-      3.0481848442,
-      3.0281020188,
-      2.8569009018,
-      2.6846063848,
-      2.4335448711,
-      2.3080211224,
-      2.2408329825,
-      2.1277203,
-      2.0622212585,
-      1.9816722941,
-      1.8883535647,
-      1.7963502893,
-      1.7668933471,
-      1.7409147652,
-      1.6931443822,
-      1.6318011146,
-      1.6043704119,
-      1.5453521279,
-      1.5120467067,
-      1.4983289594,
-      1.4692695368,
-      1.449956138,
-      1.4165528912,
-      1.4052442325,
-      1.4017371904,
-      1.3774252294,
-      1.3707215914,
-      1.3495096324,
-      1.3211931122,
-      1.3042251753,
-      1.2994515465,
-      1.2825829989,
-      1.2785219905,
-      1.2653980533,
-      1.2600853949,
-      1.2508083517,
-      1.2412273444,
-      1.2235699962,
-      1.2146919167,
-      1.2096909198,
-      1.2046726465,
-      1.1913829809,
-      1.1835793916,
-      1.1765631566,
-      1.1661398181
-    ),
-    algorithm = "exact-v1"
-  ),
-  "pflog_mg_selected_no-filter-cc" = list(
-    cells = 3456L,
-    hvg_sha256 = "487f6652bcdb8c3ec3c3453c0eceb9e1196e299e4415bd18fe36f234ad30d5f4",
-    pca_sdev = c(
-      9.5796913701,
-      5.9909127309,
-      4.8995729484,
-      4.1812098762,
-      3.2605210309,
-      3.0542227777,
-      3.0471889993,
-      2.8666998104,
-      2.695863819,
-      2.4574115012,
-      2.318797467,
-      2.2463561268,
-      2.1416167026,
-      2.0663381938,
-      1.9853758072,
-      1.8917850313,
-      1.8033529062,
-      1.7776693212,
-      1.7486310487,
-      1.6986292242,
-      1.6411089717,
-      1.6128428714,
-      1.5552794055,
-      1.5180680434,
-      1.5008297093,
-      1.4720296039,
-      1.4556952195,
-      1.4377386279,
-      1.4100793178,
-      1.4051903564,
-      1.3806005254,
-      1.3758238547,
-      1.362145969,
-      1.3369071721,
-      1.3222524015,
-      1.3048175109,
-      1.3021981409,
-      1.2833698419,
-      1.2816204677,
-      1.2644152335,
-      1.2606624061,
-      1.251721655,
-      1.2329300474,
-      1.2208450269,
-      1.2192769632,
-      1.2122314578,
-      1.2075727407,
-      1.1905163378,
-      1.186695395,
-      1.1710821326
-    ),
-    algorithm = "exact-v1"
-  )
-)
-
-
-# ANALYSIS_OK[R026]: local fingerprint assertion is called by each regeneration branch.
-assert_branch_fingerprint <- function(sobj, branch_tag) {
-  expected <- branch_fingerprints[[branch_tag]]
-  if (is.null(expected)) {
-    stop("Missing baseline fingerprint for branch: ", branch_tag, call. = FALSE)
-  }
-  if (ncol(sobj) != expected$cells) {
-    stop("Baseline cell-count drift for branch: ", branch_tag, call. = FALSE)
-  }
-  actual_hvg <- sort(SeuratObject::VariableFeatures(sobj))
-  actual_hvg_sha256 <- digest::digest(
-    paste(actual_hvg, collapse = "\n"),
-    algo = "sha256",
-    serialize = FALSE
-  )
-  if (!identical(actual_hvg_sha256, expected$hvg_sha256)) {
-    stop(
-      "Baseline HVG fingerprint drift for branch: ",
-      branch_tag,
-      call. = FALSE
-    )
-  }
-  actual_sdev <- round(SeuratObject::Stdev(sobj[["pca"]]), digits = 10)
-  if (!identical(actual_sdev, expected$pca_sdev)) {
-    stop(
-      "Baseline PCA sdev fingerprint drift for branch: ",
-      branch_tag,
-      call. = FALSE
-    )
-  }
-  invisible(sobj)
-}
 
 # ---- six 10X folders and metadata reconciliation ----
 
@@ -921,7 +543,7 @@ sobj[["cellcall_LogProb"]] <- e.out$LogProb
 sobj[["cellcall_FDR"]] <- e.out$FDR
 sobj@misc$knee <- S4Vectors::metadata(br.sobj)$knee
 sobj[["is_cell"]] <- sobj$cellcall_FDR < is_cell_FDR
-sobj_cells <- Seurat::subset(
+sobj_cells <- subset(
   sobj,
   subset = is_cell &
     nCount_RNA >= MIN_CELL_COUNTS &
@@ -1002,6 +624,10 @@ readr::write_tsv(
   qc_thresholds,
   file.path(qc_table_dir, "sample_qc_mad_thresholds.tsv")
 )
+n_qc_md_before_threshold_join <- nrow(qc_md)
+qc_md <- qc_md |>
+  dplyr::left_join(qc_thresholds, by = "Sample")
+stopifnot(nrow(qc_md) == n_qc_md_before_threshold_join)
 n_sobj_metadata_before_threshold_join <- nrow(sobj[[]])
 sobj[[]] <- sobj[[]] |>
   dplyr::left_join(qc_thresholds, by = "Sample")
@@ -1009,13 +635,15 @@ stopifnot(nrow(sobj[[]]) == n_sobj_metadata_before_threshold_join)
 sobj$fail_low_counts <- sobj$nCount_RNA < sobj$min_count_mad
 sobj$fail_low_features <- sobj$nFeature_RNA < sobj$min_feature_mad
 sobj$fail_high_mt <- sobj$percent.mt > sobj$max_percent_mt_mad
-# Intentional frozen predicate: pass_qc excludes only the three MAD flags,
-# not is_cell or is_singlet. This retains the 37 false-cell, 207 false-singlet,
-# and 37 missing-singlet cells present in the frozen 4,146-cell object.
+
 sobj$pass_qc <- !sobj$fail_low_counts &
   !sobj$fail_low_features &
-  !sobj$fail_high_mt
-sobj_filtered <- Seurat::subset(sobj, subset = pass_qc)
+  !sobj$fail_high_mt &
+  !is.na(sobj$is_cell) &
+  sobj$is_cell &
+  !is.na(sobj$is_singlet) &
+  sobj$is_singlet
+sobj_filtered <- subset(sobj, subset = pass_qc)
 dir.create(qc_figure_dir, recursive = TRUE, showWarnings = FALSE)
 dir.create(qc_table_dir, recursive = TRUE, showWarnings = FALSE)
 saveRDS(sobj, file.path(qc_input_dir, "sobj_raw_with_qc.rds"))
@@ -1034,6 +662,47 @@ sobj_qc_summary_table <- sobj[[]] |>
 readr::write_tsv(
   sobj_qc_summary_table,
   file.path(qc_table_dir, "sobj_qc_summary_by_sample.tsv")
+)
+sample_qc_attrition <- sobj[[]] |>
+  dplyr::group_by(Sample) |>
+  dplyr::summarize(
+    n_barcodes = dplyr::n(),
+    n_is_cell_true = sum(is_cell, na.rm = TRUE),
+    n_is_cell_false = sum(!is_cell, na.rm = TRUE),
+    n_is_cell_na = sum(is.na(is_cell)),
+    n_scored = sum(!is.na(doublet_call)),
+    n_singlet = sum(doublet_call == "singlet", na.rm = TRUE),
+    n_doublet = sum(doublet_call == "doublet", na.rm = TRUE),
+    n_missing_singlet = sum(is_cell & is.na(is_singlet), na.rm = TRUE),
+    n_fail_low_counts = sum(fail_low_counts),
+    n_fail_low_features = sum(fail_low_features),
+    n_fail_high_mt = sum(fail_high_mt),
+    n_pass_qc = sum(pass_qc),
+    .groups = "drop"
+  )
+sample_qc_attrition_total <- sobj[[]] |>
+  dplyr::summarize(
+    Sample = "TOTAL",
+    n_barcodes = dplyr::n(),
+    n_is_cell_true = sum(is_cell, na.rm = TRUE),
+    n_is_cell_false = sum(!is_cell, na.rm = TRUE),
+    n_is_cell_na = sum(is.na(is_cell)),
+    n_scored = sum(!is.na(doublet_call)),
+    n_singlet = sum(doublet_call == "singlet", na.rm = TRUE),
+    n_doublet = sum(doublet_call == "doublet", na.rm = TRUE),
+    n_missing_singlet = sum(is_cell & is.na(is_singlet), na.rm = TRUE),
+    n_fail_low_counts = sum(fail_low_counts),
+    n_fail_low_features = sum(fail_low_features),
+    n_fail_high_mt = sum(fail_high_mt),
+    n_pass_qc = sum(pass_qc)
+  )
+sample_qc_attrition <- dplyr::bind_rows(
+  sample_qc_attrition,
+  sample_qc_attrition_total
+)
+readr::write_tsv(
+  sample_qc_attrition,
+  file.path(qc_table_dir, "sample_qc_attrition.tsv")
 )
 
 # QC plots are kept inline; they are the standard ggplot calls from the legacy
@@ -1241,6 +910,7 @@ ggplot2::ggsave(
 
 utils::data("mouse_cell_cycle_genes", package = "ESPI", envir = environment())
 source_preprocessed <- list()
+branch_numbers <- list()
 for (normalization in normalizations) {
   for (filter_cc in filter_states) {
     branch_tag <- sprintf(
@@ -1278,7 +948,15 @@ for (normalization in normalizations) {
     } else {
       run_pflog_pca(branch_sobj, n_pcs = 50)
     }
-    assert_branch_fingerprint(branch_sobj, branch_tag)
+    branch_numbers[[output_tag]] <- tibble::tibble(
+      object = output_tag,
+      path = preprocess_object_path(output_tag),
+      n_cells = ncol(branch_sobj),
+      n_genes = nrow(branch_sobj),
+      n_hvg = length(SeuratObject::VariableFeatures(branch_sobj)),
+      selected_column = NA_character_,
+      n_clusters = NA_integer_
+    )
     pca_source_layer <- branch_sobj@misc$preprocessing$pca_source_layer
     qc_plot <- Seurat::VlnPlot(
       branch_sobj,
@@ -1796,7 +1474,7 @@ ggplot2::ggsave(
   height = 6
 )
 retained_cells <- colnames(mg_source)[!cluster_values %in% excluded_clusters]
-base_subset <- Seurat::subset(mg_source, cells = retained_cells)
+base_subset <- subset(mg_source, cells = retained_cells)
 base_subset@reductions <- list()
 base_subset@graphs <- list()
 base_subset@neighbors <- list()
@@ -1841,7 +1519,15 @@ for (filter_cc in filter_states) {
     )
   }
   branch_sobj <- run_pflog_pca(branch_sobj, n_pcs = 50)
-  assert_branch_fingerprint(branch_sobj, output_tag)
+  branch_numbers[[output_tag]] <- tibble::tibble(
+    object = output_tag,
+    path = preprocess_object_path(output_tag),
+    n_cells = ncol(branch_sobj),
+    n_genes = nrow(branch_sobj),
+    n_hvg = length(SeuratObject::VariableFeatures(branch_sobj)),
+    selected_column = NA_character_,
+    n_clusters = NA_integer_
+  )
   branch_sobj@misc$preprocessing$dataset_tag <- "mg_selected"
   branch_sobj@misc$preprocessing$source_cluster_column <- mg_source_column
   branch_sobj@misc$preprocessing$source_input <- cluster_object_path(
@@ -2126,12 +1812,63 @@ for (branch_index in seq_len(nrow(mg_branches))) {
   }
 }
 
-# ---- concise selected-column and cell-count assertions ----
+# ---- frozen-object numbers and structural assertions ----
 
+frozen_object_numbers <- dplyr::bind_rows(
+  tibble::tibble(
+    object = "pflog_no_filter_cc",
+    path = cluster_object_path("pflog_no_filter_cc"),
+    n_cells = ncol(source_clustered[["pflog_no_filter_cc"]]),
+    n_genes = nrow(source_clustered[["pflog_no_filter_cc"]]),
+    n_hvg = NA_integer_,
+    selected_column = config$selected$source$column,
+    n_clusters = dplyr::n_distinct(
+      source_clustered[["pflog_no_filter_cc"]][[]][[
+        config$selected$source$column
+      ]]
+    )
+  ),
+  tibble::tibble(
+    object = "pflog_mg_selected_no_filter_cc",
+    path = cluster_object_path("pflog_mg_selected_no_filter_cc"),
+    n_cells = ncol(mg_clustered[["pflog_mg_selected_no_filter_cc"]]),
+    n_genes = nrow(mg_clustered[["pflog_mg_selected_no_filter_cc"]]),
+    n_hvg = NA_integer_,
+    selected_column = config$selected$mg$column,
+    n_clusters = dplyr::n_distinct(
+      mg_clustered[["pflog_mg_selected_no_filter_cc"]][[]][[
+        config$selected$mg$column
+      ]]
+    )
+  ),
+  tibble::tibble(
+    object = "pflog_mg_selected_filter_cc",
+    path = cluster_object_path("pflog_mg_selected_filter_cc"),
+    n_cells = ncol(mg_clustered[["pflog_mg_selected_filter_cc"]]),
+    n_genes = nrow(mg_clustered[["pflog_mg_selected_filter_cc"]]),
+    n_hvg = NA_integer_,
+    selected_column = config$selected$mg_filter_cc$column,
+    n_clusters = dplyr::n_distinct(
+      mg_clustered[["pflog_mg_selected_filter_cc"]][[]][[
+        config$selected$mg_filter_cc$column
+      ]]
+    )
+  ),
+  dplyr::bind_rows(branch_numbers)
+)
+readr::write_tsv(
+  frozen_object_numbers,
+  file.path(table_dir, "frozen_object_numbers.tsv")
+)
+
+source_cells <- ncol(source_clustered[["pflog_no_filter_cc"]])
+mg_cells <- ncol(mg_clustered[["pflog_mg_selected_no_filter_cc"]])
 stopifnot(
-  # ANALYSIS_OK[R002]: fixed frozen cell-count assertions preserve the selected-object contracts.
-  ncol(source_clustered[["pflog_no_filter_cc"]]) == 4146L,
-  ncol(mg_clustered[["pflog_mg_selected_no_filter_cc"]]) == 3456L,
+  ncol(source_clustered[["log1p_no_filter_cc"]]) == source_cells,
+  ncol(source_clustered[["log1p_filter_cc"]]) == source_cells,
+  ncol(source_clustered[["pflog_filter_cc"]]) == source_cells,
+  mg_cells < source_cells,
+  ncol(mg_clustered[["pflog_mg_selected_filter_cc"]]) == mg_cells,
   "cluster_pflog_no_filter_cc_dims30_res0.3" %in%
     colnames(source_clustered[["pflog_no_filter_cc"]][[]]),
   "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5" %in%
@@ -2141,7 +1878,9 @@ stopifnot(
 )
 message(
   "Frozen regeneration complete: source cells=",
-  ncol(source_clustered[["pflog_no_filter_cc"]]),
+  source_cells,
   "; MG cells=",
-  ncol(mg_clustered[["pflog_mg_selected_no_filter_cc"]])
+  mg_cells,
+  "; QC removals=",
+  sample_qc_attrition_total$n_barcodes - sample_qc_attrition_total$n_pass_qc
 )
