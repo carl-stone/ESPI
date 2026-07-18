@@ -869,3 +869,21 @@ input would change the curated scientific method.
 **Consequences**: Equivalence review checks both MG heatmap branches and the
 rendered notebook sequence. Safe regular-file mirrors may change encoding
 bytes but must preserve content, dimensions, and names.
+
+### [2026-07-17] Require cell and singlet calls in saved QC subset
+
+**Tags**: qc-filtering, emptydrops, doublets, reproducibility
+
+**Context**: The saved `pass_qc` subset applied only the three per-sample MAD
+flags even though threshold estimation used called singlets.
+
+**Decision**: Treat the omitted `is_cell` and `is_singlet` gates as a bug.
+Require non-missing, true values for both gates and record per-sample attrition.
+Track frozen cell and cluster counts instead of exact object hashes.
+
+**Rationale**: The saved subset must match the population used to estimate QC
+thresholds and deterministically exclude uncalled, doublet, and unscored cells.
+
+**Consequences**: This supersedes the 2026-07-13 decisions that intentionally
+excluded these gates. The source now has 3,902 cells; MG selection retains
+3,248 cells. Frozen contracts validate cell and cluster counts.

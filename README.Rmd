@@ -52,9 +52,9 @@ The fixed downstream inputs are:
 
 | Role | Path and chosen cluster column | Cells |
 |---|---|---:|
-| Final source | `current/cluster_pflog_no_filter_cc_elbow20.rds`; `cluster_pflog_no_filter_cc_dims30_res0.3` | 4,146 |
-| Final MG-selected | `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` | 3,456 |
-| CC-filtered MG sensitivity | `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_filter_cc_dims20_res0.5` | 3,456 |
+| Final source | `current/cluster_pflog_no_filter_cc_elbow20.rds`; `cluster_pflog_no_filter_cc_dims30_res0.3` | 3,902 |
+| Final MG-selected | `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` | 3,248 |
+| CC-filtered MG sensitivity | `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_filter_cc_dims20_res0.5` | 3,248 |
 
 Phase 02 loads all three inputs once and writes source, MG, and sensitivity
 figures. Phase 03 marker outputs are descriptive and do not feed phase 04.

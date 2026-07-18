@@ -6,11 +6,11 @@ Quarto notebook. Shared code lives in four focused package modules.
 | Entry | Location | Type | Status | Notes |
 |-------|----------|------|--------|-------|
 | Routine publication interface | `justfile` | Just recipes | active/current | Five analysis commands are `just run [overwrite]`, `just figures [overwrite]`, `just markers [overwrite]`, `just de [overwrite]`, and deliberate `just regenerate-frozen`. Maintenance recipes are `load`, `document`, `readme`, `format`, and `lint`. |
-| Frozen regeneration | `scripts/01-regenerate-frozen.R` | R maintenance script | active/current | Rebuilds counts, QC, four preprocessing branches, source and MG grids, summaries, and frozen-stage artifacts. It has no arguments, requires writable frozen-object directories, and refuses read-only directories. |
+| Frozen regeneration | `scripts/01-regenerate-frozen.R` | R maintenance script | active/current | Rebuilds counts, QC, four preprocessing branches, source and MG grids, summaries, and frozen-stage artifacts. It writes per-sample QC attrition and frozen-object number tables, requires writable frozen-object directories, and refuses read-only directories. |
 | Publication figures | `scripts/02-publication-figures.R` | R analysis script | active/current | Loads the final source, final MG-selected, and CC-filtered MG sensitivity objects once each; writes source/MG descriptive figures, heatmaps, UMAPs, abundance summaries, and required supplemental artifacts. |
 | Marker analysis | `scripts/03-marker-analysis.R` | R analysis script | active/current | Runs fixed no-merge `FindAllMarkers()` analysis on the final MG object and writes the four marker tables plus dotplot. Its outputs do not feed phase 04. |
 | DE and enrichment | `scripts/04-de-enrichment.R` | R analysis script | active/current | Independently loads the final MG object, builds six Mouse × Condition pseudobulk samples, runs primary and paired DE, rebuilds curated marker overlap, and writes GO/Bayesian enrichment artifacts. |
-| Configuration and contracts | `R/config.R` | R package module | active/current | Owns paths, labels, seed, palettes, chosen object contracts, and fixed output/overwrite invariants. |
+| Configuration and contracts | `R/config.R` | R package module | active/current | Owns paths, labels, seed, palettes, chosen object contracts, and fixed output/overwrite invariants. Frozen inputs are guarded by expected cell counts, cluster columns, and cluster counts rather than byte-level hashes. |
 | Seurat methods | `R/seurat-methods.R` | R package module | active/current | Owns PFlog/log1p PCA and nonstandard cluster-grid summary/stability calculations. |
 | Publication analysis | `R/publication-analysis.R` | R package module | active/current | Owns cluster abundance, sample proportions, exact randomization, module scores, and p27 enrichment computations. |
 | Publication plots | `R/publication-plots.R` | R package module | active/current | Owns the publication theme, safe figure writer, curated marker heatmap, and module/p27 heatmap writers. |
@@ -19,6 +19,7 @@ Quarto notebook. Shared code lives in four focused package modules.
 | Clustering criteria ideation | `analysis/ideas/2026-07-03-clustering-criteria-brainstorm/` | Mycelium ideation session | active | Persona-generated criteria ideas for label-blind selection of normalization, PC count, and Leiden resolution. |
 | Cluster proportion testing ideation | `analysis/ideas/2026-07-05-cluster-proportion-testing/` | Mycelium ideation session | active | Methods and design ideas for Mouse × Condition cluster proportion comparisons rather than cell-pooled inference. |
 | MG-selected manuscript write-up plan | `analysis/MG_SELECTED_WRITEUP_PLAN.md` | Markdown planning note | implemented/current | Records current MG-selected results, curated DE effects, primary volcano specification, enrichment themes, interpretation limits, and notebook endpoint. |
+| Exploratory plotting sandbox | `analysis/exploratory/` | Interactive R workspace | exploratory/noncanonical | Uses the final MG object and current DE tables for last-mile gene-expression and detection-model exploration. It has no stable CLI or publication output contract. |
 
 Notebook mirrors reject symlink destinations, copy through a temporary regular
 sibling, verify hashes and dimensions, and atomically replace regular files.

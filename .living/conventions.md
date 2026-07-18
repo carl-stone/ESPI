@@ -25,7 +25,9 @@ Project-specific rules here override generic Mycelium convention packs.
 - Box Drive is the data/output source of truth: `/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data`.
 - Do not add fallback paths.
 - Use notebook-relative figure paths in Quarto.
-- Symlink Box figures into `notebook/figures/`; do not copy them unless explicitly requested.
+- Mirror selected Box figures into `notebook/figures/` as regular files through
+  a temporary sibling; reject symlink destinations and verify hashes and image
+  dimensions before atomic replacement.
 - Re-render `notebook/sc_analysis.qmd` after regenerating figures because HTML embeds image bytes.
 
 ## Statistical Unit

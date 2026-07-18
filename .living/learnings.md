@@ -801,3 +801,23 @@ dimension checks.
 **Resolution**: Triage the activity normally, record why external worktree paths and tool-device names are not repository files, and use the main working tree's `git status --short` as the final cleanliness check.
 
 **mitigation_type**: repository-state-verification
+
+### [2026-07-17] Exercise frozen regeneration before relying on routine phases
+
+**Tags**: pipeline, qc-filtering, notebook, seurat
+
+**Category**: Maintenance-path execution
+
+**What happened**: The deliberate phase-01 run exposed an unexported
+`Seurat::subset()` call, threshold-based plots using `qc_md` before thresholds
+were joined, read-only frozen outputs, and missing regular notebook destinations
+after a resolution-filename convention changed.
+
+**Why it matters**: Downstream phases can stay green while the only path that
+rebuilds their frozen inputs is broken.
+
+**Resolution**: Call the exported `subset()` generic, row-count-check the
+threshold join, unlock only deliberate frozen outputs, and seed renamed
+notebook destinations as regular files before atomic verified replacement.
+
+**mitigation_type**: maintenance-path-smoke-test

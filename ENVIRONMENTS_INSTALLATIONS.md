@@ -44,13 +44,13 @@ The three downstream inputs are loaded and validated by phase 02 as follows:
 
 - final source:
   `current/cluster_pflog_no_filter_cc_elbow20.rds`,
-  `cluster_pflog_no_filter_cc_dims30_res0.3`, 4,146 cells;
+  `cluster_pflog_no_filter_cc_dims30_res0.3`, 3,902 cells;
 - final MG-selected:
   `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`,
-  `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5`, 3,456 cells;
+  `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5`, 3,248 cells;
 - CC-filtered MG sensitivity:
   `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`,
-  `cluster_pflog_mg_selected_filter_cc_dims20_res0.5`, 3,456 cells.
+  `cluster_pflog_mg_selected_filter_cc_dims20_res0.5`, 3,248 cells.
 
 Phase 03 marker tables are descriptive outputs only. Phase 04 independently
 loads the final MG object and rebuilds curated marker overlap from package
