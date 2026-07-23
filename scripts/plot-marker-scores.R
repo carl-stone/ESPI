@@ -1,5 +1,5 @@
 suppressPackageStartupMessages({
-  here::i_am("scripts/final-figs.R")
+  here::i_am("scripts/plot-marker-scores.R")
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
   library(tidyverse)
   library(Seurat)
@@ -76,7 +76,7 @@ purrr::iwalk(full_marker_violin_plot, \(p, i) {
     filename = file.path(
       config$paths$figures,
       "full_marker_score_violins",
-      paste0(names(ct_marker_labels)[i], ".pdf")
+      paste0(names(cell_type_marker_labels)[i], ".pdf")
     ),
     plot = p,
     width = 4,
