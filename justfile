@@ -27,10 +27,12 @@ markers overwrite="false":
 de overwrite="false":
     ESPI_OVERWRITE={{overwrite}} Rscript scripts/04-de-enrichment.R
 
-# Intentionally rebuild frozen objects after restoring directory write access
+# Regenerate from a frozen start point, then run all downstream phases
 [group: "Expert and maintenance"]
-regenerate-frozen:
-    ESPI_OVERWRITE=true Rscript scripts/01-regenerate-frozen.R
+regenerate-frozen start="all":
+    ESPI_REGENERATION_START={{start}} ESPI_OVERWRITE=true Rscript scripts/01-regenerate-frozen.R
+    ESPI_OVERWRITE=true Rscript scripts/01b-cluster-mg-sensitivity.R
+    just run true
 
 # Load package code
 [group: "Expert and maintenance"]

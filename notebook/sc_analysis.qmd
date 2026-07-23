@@ -129,14 +129,11 @@ Interpretation:
 
 ![Clustree grid across normalization, cell-cycle-HVG policy, and PC count. Each panel shows the resolution sweep for one branch, from top to bottom resolution 0.3 (red), 0.5 (green), and 0.8 (blue)](figures/cluster_grid_clustree_12_panel.png){#fig-clustree-grid}
 
-The stability summaries favor the PFlog, no-cell-cycle-HVG branch at 30 PCs
-and resolution 0.3. Across the comparison grid, this choice has local mean and
-minimum ARI of 0.801 and 0.647, mean NMI of 0.851, and mean best Jaccard of
-0.859. These summaries describe agreement across parameter choices; they do
+The stability summaries describe agreement across parameter choices; they do
 not by themselves assign biological identities to clusters.
 
-**Choice 2**: I use PFlog normalization, no-cell-cycle-HVG selection, 30 PCs,
-and resolution 0.3 for the source clustering. This source clustering has nine
+**Choice 2**: I use PFlog normalization, no-cell-cycle-HVG selection, 20 PCs,
+and resolution 0.3 for the source clustering. This source clustering has eight
 clusters and provides the input for the contaminant screen and the
 `mg-selected` subset.
 
@@ -146,16 +143,16 @@ Here's what the selected dataset and processing parameters looks like. This is
 the full dataset, nothing filtered yet. We could use the 0.8 resolution
 clusters and then you can manually combine clusters if you want.
 
-![Chosen full-dataset UMAP for PFlog normalization, cell-cycle HVGs retained, 30 PCs, resolution 0.3.](figures/umap_pflog_no_filter_cc_dims30_by_cluster_pflog_no_filter_cc_dims30_res0.3.png){#fig-umap-resolution-sweep}
+![Chosen full-dataset UMAP for PFlog normalization, cell-cycle HVGs retained, 20 PCs, resolution 0.3.](figures/umap_pflog_no_filter_cc_dims20_by_cluster_pflog_no_filter_cc_dims20_res0.3.png){#fig-umap-resolution-sweep}
 
 Next, I scored the expression of the cell type marker genes from the original manuscript heatmap (using Seurat::AddModuleScore()) and also scored p27 expression per cluster. 
 
-![Per-cluster cell-type module scores and descriptive p27 annotation for the full source PFlog clustering (no cell-cycle filtering, 30 PCs, resolution 0.3). The body shows `cell_type_marker_genes` module scores from the RNA `data` layer, z-scored across clusters and clipped to ±2; the top strip shows the cluster-level p27 enrichment z-score from PFlog expression after within-Mouse × Condition cluster-label permutations.](figures/cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims30_res0.3.png){#fig-mg-full-module-p27-heatmap}
+![Per-cluster cell-type module scores and descriptive p27 annotation for the full source PFlog clustering (no cell-cycle filtering, 20 PCs, resolution 0.3). The body shows `cell_type_marker_genes` module scores from the RNA `data` layer, z-scored across clusters and clipped to ±2; the top strip shows the cluster-level p27 enrichment z-score from PFlog expression after within-Mouse × Condition cluster-label permutations.](figures/cell_type_module_p27_heatmap_pflog_pflog_no_filter_cc_dims20_res0.3.png){#fig-mg-full-module-p27-heatmap}
 
 Cluster 2 (548 cells; microglia+p27) meets both the microglia-marker and high-p27
-exclusion criteria. Clusters 7 (84 cells; p27) and 8 (22 cells; p27) meet the
+exclusion criteria. Clusters 7 (79 cells; p27) and 8 (37 cells; p27) meet the
 high-p27 exclusion criterion. No cluster met the photoreceptor exclusion
-criteria. I filtered out clusters 2, 7, and 8, retaining 3,248 cells, then
+criteria. I filtered out clusters 2, 7, and 8, retaining 3,238 cells, then
 re-ran PCA and clustering on the remaining cells.
 
 ### MG-selected clustering
@@ -164,29 +161,29 @@ I reselected HVGs on `mg-selected`, reran PFlog PCA, and swept 20, 30, and 50
 PCs with Leiden resolutions 0.3, 0.5, and 0.8, with and without cell-cycle HVG
 filtering. The elbow plot is already flat by 20 PCs, so 20 PCs is safely past
 the elbow without carrying as much tail variance as 50 PCs. The selected
-PFlog, no-cell-cycle-HVG, 20-PC, resolution-0.5 clustering has eight clusters.
-All eight clusters span both conditions, and seven span all mice. I use this
+PFlog, no-cell-cycle-HVG, 20-PC, resolution-0.3 clustering uses seed 2847
+and has five clusters. All five clusters span both conditions, and four span
+all mice. I use this
 clustering for downstream
 figures and differential analysis. The cell-cycle-filtered branch at the same
-20-PC, resolution-0.5 setting is a sensitivity comparison.
+20-PC, resolution-0.3 setting is a sensitivity comparison.
 
-![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization, cell-cycle HVGs retained, 20 PCs, resolution 0.5.](figures/mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-cluster-umap}
+![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization, cell-cycle HVGs retained, 20 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-cluster-umap}
 
-![MG-selected UMAP colored by condition for PFlog normalization, cell-cycle HVGs retained, 20 PCs, resolution 0.5.](figures/mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-condition-umap}
+![MG-selected UMAP colored by condition for PFlog normalization, cell-cycle HVGs retained, 20 PCs, resolution 0.3.](figures/mg_selected_condition_umap_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-condition-umap}
 
 ### Cluster marker genes
 
-I used `Seurat::FindAllMarkers()` to identify marker genes for each cluster in the filtered dataset. 
-This is with only positive markers kept, so the top markers are genes that are uniquely expressed in the cluster; genes that are uniquely *not* expressed are not included.
+I used `Seurat::FindAllMarkers()` to identify positive and negative markers for each cluster in the filtered dataset. I retained both directions and ranked results within each cluster by adjusted p-value, raw p-value, and then average log2 fold change. Positive markers have higher average expression in the cluster than in all other cells; negative markers have lower average expression.
 
 Top results:
 
-* Cluster 4 is enriched for marker genes including `Ascl1`, `Chrna4`, and `Hes6`.
-* Cluster 5 is enriched for marker genes including `St8sia3`, `Stmn3`, and `Ina`.
-* Cluster 7 is enriched for cell-cycle-associated genes (`Esco2`, `Neil3`, `Tk1`).
-* Cluster 8 has highly specific markers including `Gja1`, `Scrg1`, and `Cnmd`.
+* Cluster 3 has positive markers including `Ascl1`, `Chrna4`, and `Hes6`.
+* Cluster 4 has positive markers including `Stmn3`, `Neurod4`, and `Ina`.
+* Cluster 5's top-ranked results include the negative markers `Samm50` and `Scamp3`.
+* Cluster 6 has positive cell-cycle-associated markers including `Esco2`, `Tk1`, and `Neil3`.
 
-![Top cluster-enriched FindAllMarkers genes for the MG-selected chosen clustering. Dot size shows the fraction of cells detecting each gene; color uses six diverging row-z-score bins for average scaled expression from the Seurat data layer, with endpoint bins labeled $\leq -2$ and $\geq 2$.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.5_top5.png){#fig-mg-selected-find-all-markers-dotplot}
+![Top-ranked FindAllMarkers results for each cluster in the chosen MG-selected clustering, including positive and negative markers. Dot size shows the fraction of cells detecting each gene; color uses six diverging row-z-score bins for average scaled expression from the Seurat data layer, with endpoint bins labeled $\leq -2$ and $\geq 2$.](figures/mg_selected_cluster_marker_dotplot_data_pflog_mg_selected_no_filter_cc_dims20_res0.3_top5.png){#fig-mg-selected-find-all-markers-dotplot}
 
 Note: don't talk about markers like they're differentially expressed genes. The best statistical way to test differential expression is pseudobulk DESeq2 with ~ mouse + condition. Anything else is anecdotal evidence so don't overinterpret it.
 
@@ -197,47 +194,47 @@ Note: don't talk about markers like they're differentially expressed genes. The 
 The cluster-abundance summary is descriptive because cells, not Mouse ×
 Condition samples, are counted in the Fisher tests.
 
-![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in p27CKO + E-Stim versus p27CKO, ordered left-to-right from highest E-Stim enrichment to lowest; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-cluster-abundance-clr-fisher}
+![MG-selected cluster abundance enrichment for the chosen PFlog clustering. Bars show CLR log2 enrichment of cluster abundance in p27CKO + E-Stim versus p27CKO, ordered left-to-right from highest E-Stim enrichment to lowest; colors distinguish enriched and depleted significant Fisher/Holm results.](figures/mg_selected_cluster_abundance_enrichment_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-cluster-abundance-clr-fisher}
 
 With two paired samples and two singleton samples, condition-level abundance
 claims should be framed cautiously as data-consistent patterns rather than
 strong statistical conclusions. The cluster-proportion plot shows the Mouse ×
 Condition sample structure directly.
 
-![MG-selected cluster proportion by Mouse × Condition sample. Points are mice; paired mice (10, 3) are connected across conditions; singleton mice (30 E-Stim, 33 control) are shown separately.](figures/mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-cluster-proportion-by-mouse}
+![MG-selected cluster proportion by Mouse × Condition sample. Points are mice; paired mice (10, 3) are connected across conditions; singleton mice (30 E-Stim, 33 control) are shown separately.](figures/mg_selected_cluster_proportion_by_mouse_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-cluster-proportion-by-mouse}
 
 #### Curated marker genes
 
 The marker heatmap below shows the same `mg-selected` clustering
-(`cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5`). Columns are cells split
+(`cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3`). Columns are cells split
 by Leiden cluster, with cluster blocks hierarchically ordered by their
 marker-expression profiles. Rows are marker genes grouped by their expected
 cell-type labels. Colors show each gene's row z-score across cells, clipped to
 $\pm 2$.
 
-![Per-cell marker-gene heatmap for the MG-selected PFlog clustering. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.5.png){#fig-mg-selected-cell-type-marker-heatmap}
+![Per-cell marker-gene heatmap for the MG-selected PFlog clustering. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_no_filter_cc_cells_dims20_res0.3.png){#fig-mg-selected-cell-type-marker-heatmap}
 
 The feature UMAP grid uses the marker feature list in `data/umap_feature_list.rda`
 and the same pink high-expression endpoint as the marker heatmap.
 
-![MG-selected 3 × 3 PFlog feature UMAP grid for the no-cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-feature-umap-grid}
+![MG-selected 3 × 3 PFlog feature UMAP grid for the no-cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-feature-umap-grid}
 
-![Per-cell Ascl1 / Hes6 coexpression for the MG-selected no-cell-cycle-filtered PFlog branch, colored by Leiden cluster. Axes show PFlog-normalized expression.](figures/mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.5.png){#fig-mg-selected-ascl1-hes6-coexpression}
+![Per-cell Ascl1 / Hes6 coexpression for the MG-selected no-cell-cycle-filtered PFlog branch, colored by Leiden cluster. Axes show PFlog-normalized expression.](figures/mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-ascl1-hes6-coexpression}
 
 As a complementary check, I also reviewed the matching PFlog,
-cell-cycle-filtered 20-PC, resolution-0.5 branch. The UMAPs show the Leiden
+cell-cycle-filtered 20-PC, resolution-0.3 branch. The UMAPs show the Leiden
 cluster IDs and condition overlay for that branch.
 
-![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization with cell-cycle HVGs filtered before PCA, 20 PCs, resolution 0.5.](figures/mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.5.png){#fig-mg-selected-filter-cc-cluster-umap}
+![MG-selected UMAP labeled by Leiden cluster ID for PFlog normalization with cell-cycle HVGs filtered before PCA, 20 PCs, resolution 0.3.](figures/mg_selected_cluster_umap_pflog_mg_selected_filter_cc_dims20_res0.3.png){#fig-mg-selected-filter-cc-cluster-umap}
 
-![MG-selected UMAP colored by condition for PFlog normalization with cell-cycle HVGs filtered before PCA, 20 PCs, resolution 0.5.](figures/mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.5.png){#fig-mg-selected-filter-cc-condition-umap}
+![MG-selected UMAP colored by condition for PFlog normalization with cell-cycle HVGs filtered before PCA, 20 PCs, resolution 0.3.](figures/mg_selected_condition_umap_pflog_mg_selected_filter_cc_dims20_res0.3.png){#fig-mg-selected-filter-cc-condition-umap}
 
 The cell-cycle-filtered branch uses the same curated marker heatmap and feature
 UMAP panels as the no-cell-cycle-filtered branch.
 
-![Per-cell marker-gene heatmap for the MG-selected PFlog clustering with cell-cycle HVGs filtered before PCA. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.5.png){#fig-mg-selected-filter-cc-cell-type-marker-heatmap}
+![Per-cell marker-gene heatmap for the MG-selected PFlog clustering with cell-cycle HVGs filtered before PCA. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.3.png){#fig-mg-selected-filter-cc-cell-type-marker-heatmap}
 
-![MG-selected 3 × 3 PFlog feature UMAP grid for the cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.5.png){#fig-mg-selected-filter-cc-feature-umap-grid}
+![MG-selected 3 × 3 PFlog feature UMAP grid for the cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.3.png){#fig-mg-selected-filter-cc-feature-umap-grid}
 
 
 ## Differential expression
@@ -248,19 +245,16 @@ used `~ condition` across all six Mouse × Condition samples. The paired
 `~ mouse + condition` design used only mice 10 and 3, so I treat it as a
 sensitivity analysis rather than the primary result.
 
-Primary DESeq2 tested 24,231 genes and found 427 FDR-significant genes for
-E-Stim versus `p27CKO`: 124 increased and 303 decreased with E-Stim. Nine
-curated marker-list genes were significant. `Glul` (Müller glia), `Ccn1` and
-`Il6` (activated Müller glia), `Hes6` (neurogenic progenitor), and `Grm6` (rod
+Primary DESeq2 tested 17,043 genes and found 448 FDR-significant genes for
+E-Stim versus `p27CKO`: 139 increased and 309 decreased with E-Stim. Eight
+curated marker-list genes were significant. `Glul` (Müller glia), `Ccn1`
+(activated Müller glia), `Hes6` (neurogenic progenitor), and `Grm6` (rod
 bipolar) increased with E-Stim. `Mcm2`, `Mcm6`, and `Pcna` (proliferative) and
-`Rcvrn` (photoreceptor) decreased. The paired sensitivity DE analysis found 129
+`Rcvrn` (photoreceptor) decreased. The paired sensitivity DE analysis found 125
 FDR-significant genes. The strongest design-robust curated marker signals are
 concordant in the primary and paired-sensitivity analyses: increased `Glul` and
-`Ccn1` and decreased `Mcm2` and `Mcm6`. `Il6`, `Hes6`, `Pcna`, `Grm6`, and
-`Rcvrn` are primary-model hits but do not remain FDR-significant in the paired
-sensitivity. `Serpina3n` is significant only in the paired sensitivity, so I
-treat it as paired-subset support for activated Müller glia rather than a
-primary all-sample marker hit.
+`Ccn1` and decreased `Mcm2` and `Mcm6`. `Hes6`, `Pcna`, `Grm6`, and `Rcvrn` are
+primary-model hits but do not remain FDR-significant in the paired sensitivity.
 
 The primary-model volcano plot summarizes the `full_de` table from the all-sample `~ condition` DESeq2 model. The x-axis is the shrunken `log2FoldChange` (positive values indicate higher expression with E-Stim), and the y-axis is `-log10(pmax(padj, .Machine$double.xmin))`. Genes are significant when `padj < 0.05`, without a fold-change cutoff. Colors encode the three direction/significance levels: **Not significant**, **Increased** (significant with positive shrunken log2 fold change), and **Decreased** (significant with negative shrunken log2 fold change). Labels show the top 20 increased and top 20 decreased genes, selected independently within each direction and ranked by raw p-value ascending, with absolute shrunken log2 fold change and gene name as deterministic tie-breakers. The plot uses only the primary `full_de` results; the paired DE sensitivity remains summarized above.
 

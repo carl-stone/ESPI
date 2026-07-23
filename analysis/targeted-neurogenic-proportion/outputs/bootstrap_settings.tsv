@@ -1,0 +1,18 @@
+parameter	value
+default_input_path	/Users/carlstone/Library/CloudStorage/Box-Box/megan_sc_data/degs/mg_selected/module_score_milo_da/k_60__prop_0.04/module_scores.tsv
+input_path_used	/var/folders/3k/ldfp2j0n0f14b16ghvbmqcp00000gn/T//RtmpD09S2r/module-score-milo-primary-8786259b1873/module_scores.tsv
+input_override_used	TRUE
+input_sha256	25d25db503820ebe5ebdb734526c63517e08ba95c928c436acff38f21c9985ef
+output_dir	analysis/targeted-neurogenic-proportion/outputs
+analysis_unit	Mouse x Condition sample
+model	beta-binomial condition-only likelihood-ratio test
+link	logit
+control_quantile_weighting	equal weight per control sample
+progenitor_percentiles	0.8,0.9,0.95
+proliferation_percentiles	0.25,0.5
+bootstrap_replicates_per_gate	1000
+bootstrap_seeds	6247,3518,9076,4661,7384,1859
+failed_fit_retry_optimizer	BFGS
+bootstrap_p_correction	BH across six prespecified gates
+glmmTMB_version	1.1.14
+R_version	R version 4.6.0 (2026-04-24)

@@ -16,9 +16,7 @@ if (exists("MEGAN_SC_DATA_DIR", envir = local_config, inherits = FALSE)) {
     "megan_sc_data"
   )
 } else {
-  DATA_ROOT_DIR <- path.expand(
-    "~/Library/CloudStorage/Box-Box/megan_sc_data"
-  )
+  DATA_ROOT_DIR <- path.expand("~/Library/CloudStorage/Box-Box/megan_sc_data")
 }
 if (!dir.exists(DATA_ROOT_DIR)) {
   stop("Data root does not exist: ", DATA_ROOT_DIR, call. = FALSE)
@@ -49,14 +47,8 @@ CONTRAST_DISPLAY_LABEL <- sprintf(
   CTRL_DISPLAY_LABEL
 )
 
-palette_analysis_three <- c(
-  low = "#2166ac",
-  mid = "grey75",
-  high = "#e31a8c"
-)
-palette_dotplot_pair <- unname(
-  palette_analysis_three[c("low", "high")]
-)
+palette_analysis_three <- c(low = "#2166ac", mid = "grey75", high = "#e31a8c")
+palette_dotplot_pair <- unname(palette_analysis_three[c("low", "high")])
 
 #' Theme for publication figures
 #'
@@ -70,9 +62,7 @@ theme_stone <- function(base_size = 12) {
   ggplot2::theme_classic(base_size = base_size) +
     ggplot2::theme(
       axis.title = ggplot2::element_text(face = "bold", color = "black"),
-      text = ggplot2::element_text(color = "black"),
-      panel.grid.major = ggplot2::element_blank(),
-      panel.grid.minor = ggplot2::element_blank()
+      text = ggplot2::element_text(color = "black")
     )
 }
 
@@ -118,17 +108,20 @@ publication_config <- function() {
     stop("ESPI_OVERWRITE must be 'true' or 'false'.", call. = FALSE)
   }
 
+  selected_source_branch <- "pflog_no_filter_cc"
+  selected_mg_branch <- "pflog_mg_selected_no_filter_cc"
+  selected_mg_filter_cc_branch <- "pflog_mg_selected_filter_cc"
   final_source <- file.path(
     CURRENT_OBJECT_DIR,
-    "cluster_pflog_no_filter_cc_elbow20.rds"
+    paste0("cluster_", selected_source_branch, "_elbow20.rds")
   )
   final_mg <- file.path(
     CURRENT_OBJECT_DIR,
-    "cluster_pflog_mg_selected_no_filter_cc_elbow20.rds"
+    paste0("cluster_", selected_mg_branch, "_elbow20.rds")
   )
   sensitivity_mg <- file.path(
     CURRENT_OBJECT_DIR,
-    "cluster_pflog_mg_selected_filter_cc_elbow20.rds"
+    paste0("cluster_", selected_mg_filter_cc_branch, "_elbow20.rds")
   )
 
   list(
@@ -157,39 +150,43 @@ publication_config <- function() {
     ),
     selected = list(
       source = list(
+        branch = selected_source_branch,
         path = final_source,
-        column = "cluster_pflog_no_filter_cc_dims30_res0.3",
-        dimensions = 30L,
+        column = "cluster_pflog_no_filter_cc_dims20_res0.3",
+        dimensions = 20L,
         resolution = 0.3
       ),
       mg = list(
+        branch = selected_mg_branch,
         path = final_mg,
-        column = "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+        column = "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
         dimensions = 20L,
-        resolution = 0.5
+        resolution = 0.3,
+        seed = 2847L
       ),
       mg_filter_cc = list(
+        branch = selected_mg_filter_cc_branch,
         path = sensitivity_mg,
-        column = "cluster_pflog_mg_selected_filter_cc_dims20_res0.5",
+        column = "cluster_pflog_mg_selected_filter_cc_dims20_res0.3",
         dimensions = 20L,
-        resolution = 0.5
+        resolution = 0.3
       )
     ),
     frozen = list(
       source = list(
         cells = 3902L,
-        column = "cluster_pflog_no_filter_cc_dims30_res0.3",
-        n_clusters = 9L
-      ),
-      mg = list(
-        cells = 3248L,
-        column = "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5",
+        column = "cluster_pflog_no_filter_cc_dims20_res0.3",
         n_clusters = 8L
       ),
+      mg = list(
+        cells = 3238L,
+        column = "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
+        n_clusters = 5L
+      ),
       mg_filter_cc = list(
-        cells = 3248L,
-        column = "cluster_pflog_mg_selected_filter_cc_dims20_res0.5",
-        n_clusters = 7L
+        cells = 3238L,
+        column = "cluster_pflog_mg_selected_filter_cc_dims20_res0.3",
+        n_clusters = 6L
       )
     ),
     palettes = list(

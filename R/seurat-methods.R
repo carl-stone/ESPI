@@ -245,8 +245,7 @@ write_grid_tables_impl <- function(
       max_cluster_n = max(cluster_sizes),
       n_small_clusters = length(small_clusters),
       n_cells_in_small_clusters = sum(small_clusters),
-      fraction_cells_in_small_clusters = sum(small_clusters) /
-        length(labels),
+      fraction_cells_in_small_clusters = sum(small_clusters) / length(labels),
       stringsAsFactors = FALSE
     )
   }
@@ -366,10 +365,7 @@ write_grid_tables_impl <- function(
     nonzero <- joint > 0
     mutual_information <- sum(
       joint[nonzero] *
-        log(
-          joint[nonzero] / independent[nonzero],
-          base = ENTROPY_LOG_BASE
-        )
+        log(joint[nonzero] / independent[nonzero], base = ENTROPY_LOG_BASE)
     )
     entropy_a <- entropy(ordered_a)
     entropy_b <- entropy(ordered_b)
@@ -654,7 +650,7 @@ write_grid_tables_impl <- function(
 
 DEFAULT_CLUSTER_DIMS <- c(20L, 30L, 50L)
 DEFAULT_CLUSTER_RESOLUTIONS <- c(0.3, 0.5, 0.8)
-DEFAULT_CLUSTER_REFERENCE_COLUMN <- "cluster_pflog_filter_cc_dims50_res0.3"
+DEFAULT_CLUSTER_REFERENCE_COLUMN <- "cluster_pflog_no_filter_cc_dims30_res0.3"
 SMALL_CLUSTER_CELL_THRESHOLD <- 50L
 ENTROPY_LOG_BASE <- 2
 CLUSTREE_STABLE_CHILD_FRACTION <- 0.8

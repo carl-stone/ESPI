@@ -1,0 +1,41 @@
+volcano_genes <- c(
+  "Ccne2",
+  "E2f7",
+  "Ccnb1",
+  "Neurl1b",
+  "Rl1b",
+  "Ccne1",
+  "Cdk1",
+  "Timeless",
+  "Foxm1",
+  "Rcvrn",
+  "Brca1",
+  "Plk1",
+  "Mcm7",
+  "Rbl1",
+  "Mcm2",
+  "Mcm4",
+  "Brca2",
+  "Plk4",
+  "Rbp3",
+  "Pcna",
+  "Dnmt1",
+  "Igfbpl1",
+  "Frzb",
+  "Id3",
+  "Myc",
+  "Gadd45g",
+  "Hes6",
+  "Ccn1",
+  "Rgs11",
+  "Rgs2",
+  "Kcnj14",
+  "Grm6",
+  "Il6",
+  "Glul"
+)
+
+save(
+  volcano_genes,
+  file = "data/volcano_genes.rda"
+)

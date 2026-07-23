@@ -109,10 +109,7 @@ save_publication_plot <- function(
       call. = FALSE
     )
   }
-  if (
-    !file.exists(source) ||
-      !isTRUE(file.info(source)$isdir == FALSE)
-  ) {
+  if (!file.exists(source) || !isTRUE(file.info(source)$isdir == FALSE)) {
     stop(
       "Notebook figure source is not a regular file: ",
       source,
@@ -167,12 +164,14 @@ save_publication_plot <- function(
       call. = FALSE
     )
   }
-  source_dimensions <- magick::image_info(
-    magick::image_read(source)
-  )[1L, c("width", "height")]
-  temporary_dimensions <- magick::image_info(
-    magick::image_read(temporary)
-  )[1L, c("width", "height")]
+  source_dimensions <- magick::image_info(magick::image_read(source))[
+    1L,
+    c("width", "height")
+  ]
+  temporary_dimensions <- magick::image_info(magick::image_read(temporary))[
+    1L,
+    c("width", "height")
+  ]
   if (!identical(source_dimensions, temporary_dimensions)) {
     stop(
       "Temporary notebook figure dimensions mismatch: ",
@@ -321,9 +320,9 @@ write_curated_marker_heatmap <- function(
       call. = FALSE
     )
   }
-  marker_table$cell_type_label <- unname(
-    cell_type_marker_labels[marker_table$cell_type]
-  )
+  marker_table$cell_type_label <- unname(cell_type_marker_labels[
+    marker_table$cell_type
+  ])
   missing_markers <- setdiff(marker_table$gene, rownames(sobj))
   if (length(missing_markers) > 0L) {
     stop(
@@ -357,15 +356,16 @@ write_curated_marker_heatmap <- function(
     cluster_means <- vapply(
       cluster_levels,
       function(cluster_value) {
-        rowMeans(
-          scaled_expression[, cluster_values == cluster_value, drop = FALSE]
-        )
+        rowMeans(scaled_expression[,
+          cluster_values == cluster_value,
+          drop = FALSE
+        ])
       },
       numeric(nrow(scaled_expression))
     )
-    cluster_dendrogram <- stats::as.dendrogram(
-      stats::hclust(stats::dist(t(cluster_means)))
-    )
+    cluster_dendrogram <- stats::as.dendrogram(stats::hclust(stats::dist(t(
+      cluster_means
+    ))))
     cluster_levels <- labels(cluster_dendrogram)
   }
   cell_cluster_labels <- factor(
@@ -516,9 +516,10 @@ write_curated_marker_heatmap <- function(
   slice_centers <- vapply(
     seq_len(slice_count),
     function(slice_index) {
-      grid::seekViewport(
-        sprintf("annotation_Cluster_dendrogram_%s", slice_index)
-      )
+      grid::seekViewport(sprintf(
+        "annotation_Cluster_dendrogram_%s",
+        slice_index
+      ))
       center <- grid::deviceLoc(
         x = grid::unit(0.5, "npc"),
         y = grid::unit(0, "npc")
@@ -532,9 +533,7 @@ write_curated_marker_heatmap <- function(
     x = grid::unit(0, "npc"),
     y = grid::unit(0, "npc")
   )
-  grid::seekViewport(
-    sprintf("annotation_Cluster_dendrogram_%s", slice_count)
-  )
+  grid::seekViewport(sprintf("annotation_Cluster_dendrogram_%s", slice_count))
   upper_right <- grid::deviceLoc(
     x = grid::unit(1, "npc"),
     y = grid::unit(1, "npc")
@@ -610,9 +609,9 @@ write_module_p27_heatmap <- function(
     )
   }
   module_matrix <- module_scores
-  module_matrix_rownames <- unname(
-    cell_type_marker_labels[rownames(module_matrix)]
-  )
+  module_matrix_rownames <- unname(cell_type_marker_labels[rownames(
+    module_matrix
+  )])
   if (anyNA(module_matrix_rownames)) {
     stop(
       "module_scores row names do not match curated cell-type marker names.",
@@ -647,10 +646,7 @@ write_module_p27_heatmap <- function(
     c(-zlim, 0, zlim),
     c(palette_dotplot_pair[1], "white", palette_dotplot_pair[2])
   )
-  p27_legend <- ComplexHeatmap::Legend(
-    col_fun = p27_fun,
-    title = "p27 z-score"
-  )
+  p27_legend <- ComplexHeatmap::Legend(col_fun = p27_fun, title = "p27 z-score")
   heatmap <- ComplexHeatmap::Heatmap(
     module_z,
     name = "Module z-score",

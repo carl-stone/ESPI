@@ -47,8 +47,12 @@ Imports:
     tidyr
 Suggests:
     biomaRt,
+    cli,
     devtools,
-    scilintr
+    glmmTMB,
+    miloR,
+    scilintr,
+    SummarizedExperiment
 Remotes:
     cleartools/scclrR,
     erocoar/gghalves

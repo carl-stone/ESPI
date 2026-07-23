@@ -21,29 +21,36 @@ pak::pak("carl-stone/ESPI")
 
 ## Publication workflow
 
-The analysis has four fixed phase scripts and four focused package
-modules. Routine publication commands consume the checksummed frozen
-objects; they do not regenerate the frozen cohort:
+The analysis has four fixed phases across five scripts and four focused
+package modules. Routine publication commands consume the checksummed
+frozen objects; they do not regenerate the frozen cohort:
 
 ``` sh
 just run [overwrite]       # phases 02 → 03 → 04, then render the notebook
 just figures [overwrite]   # publication figures and descriptive tables
 just markers [overwrite]   # FindAllMarkers tables and dotplot
 just de [overwrite]        # pseudobulk DE and enrichment
-just regenerate-frozen     # deliberate phase-01 maintenance only
+just regenerate-frozen [start] # regenerate, then phases 02–04 and notebook
 ```
 
 `overwrite` is `false` by default. Set it to `true` only when replacing
-existing publication outputs. Phase 01 requires writable frozen-object
-directories and refuses to run while they are read-only.
+existing publication outputs. Full frozen regeneration runs phase 01
+through MG preprocessing, then `01b-cluster-mg-sensitivity.R` from the
+saved MG objects. It requires both frozen-object directories to be
+writable. `just regenerate-frozen mg-selection` resumes from the
+selected source RDS and requires only `seurat_objects/current` to be
+writable; it does not rebuild counts, QC, source preprocessing, or
+source grids. After rebuilding the MG grid, both start modes run phases
+02–04 and render the notebook with overwrite enabled. The selected MG
+clustering uses 20 PCs, Leiden resolution 0.3, and seed 2847.
 
 The fixed downstream inputs are:
 
 | Role | Path and chosen cluster column | Cells |
 |----|----|---:|
-| Final source | `current/cluster_pflog_no_filter_cc_elbow20.rds`; `cluster_pflog_no_filter_cc_dims30_res0.3` | 3,902 |
-| Final MG-selected | `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5` | 3,248 |
-| CC-filtered MG sensitivity | `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_filter_cc_dims20_res0.5` | 3,248 |
+| Final source | `current/cluster_pflog_no_filter_cc_elbow20.rds`; `cluster_pflog_no_filter_cc_dims20_res0.3` | 3,902 |
+| Final MG-selected | `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3` | 3,238 |
+| CC-filtered MG sensitivity | `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_filter_cc_dims20_res0.3` | 3,238 |
 
 Phase 02 loads all three inputs once and writes source, MG, and
 sensitivity figures. Phase 03 marker outputs are descriptive and do not
@@ -52,17 +59,18 @@ rebuilds curated marker overlap from package marker data plus `Cdkn1b`.
 
 ## Repository map
 
-| Concern                           | Active files                       |
-|-----------------------------------|------------------------------------|
-| Frozen regeneration               | `scripts/01-regenerate-frozen.R`   |
-| Publication figures               | `scripts/02-publication-figures.R` |
-| Marker analysis                   | `scripts/03-marker-analysis.R`     |
-| DE and enrichment                 | `scripts/04-de-enrichment.R`       |
-| Configuration and contracts       | `R/config.R`                       |
-| Seurat methods and grid summaries | `R/seurat-methods.R`               |
-| Publication statistics            | `R/publication-analysis.R`         |
-| Publication plot writers          | `R/publication-plots.R`            |
-| Notebook                          | `notebook/sc_analysis.qmd`         |
+| Concern | Active files |
+|----|----|
+| Frozen preprocessing and MG selection | `scripts/01-regenerate-frozen.R` |
+| MG clustering sensitivity grid | `scripts/01b-cluster-mg-sensitivity.R` |
+| Publication figures | `scripts/02-publication-figures.R` |
+| Marker analysis | `scripts/03-marker-analysis.R` |
+| DE and enrichment | `scripts/04-de-enrichment.R` |
+| Configuration and contracts | `R/config.R` |
+| Seurat methods and grid summaries | `R/seurat-methods.R` |
+| Publication statistics | `R/publication-analysis.R` |
+| Publication plot writers | `R/publication-plots.R` |
+| Notebook | `notebook/sc_analysis.qmd` |
 
 Retained maintenance recipes are `just load`, `just document`,
 `just readme`, `just format`, and `just lint`. Render the notebook with

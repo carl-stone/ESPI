@@ -1,12 +1,13 @@
 # Analysis Manifest
 
-ESPI's active executable analysis consists of four phase scripts and the
-Quarto notebook. Shared code lives in four focused package modules.
+ESPI's active executable analysis consists of four phases across five scripts
+and the Quarto notebook. Shared code lives in four focused package modules.
 
 | Entry | Location | Type | Status | Notes |
 |-------|----------|------|--------|-------|
-| Routine publication interface | `justfile` | Just recipes | active/current | Five analysis commands are `just run [overwrite]`, `just figures [overwrite]`, `just markers [overwrite]`, `just de [overwrite]`, and deliberate `just regenerate-frozen`. Maintenance recipes are `load`, `document`, `readme`, `format`, and `lint`. |
-| Frozen regeneration | `scripts/01-regenerate-frozen.R` | R maintenance script | active/current | Rebuilds counts, QC, four preprocessing branches, source and MG grids, summaries, and frozen-stage artifacts. It writes per-sample QC attrition and frozen-object number tables, requires writable frozen-object directories, and refuses read-only directories. |
+| Routine publication interface | `justfile` | Just recipes | active/current | Five analysis commands are `just run [overwrite]`, `just figures [overwrite]`, `just markers [overwrite]`, `just de [overwrite]`, and deliberate `just regenerate-frozen [start]`, where `start` is `all` or `mg-selection`; regeneration continues through phases 02–04 and notebook rendering with overwrite enabled. Maintenance recipes are `load`, `document`, `readme`, `format`, and `lint`. |
+| Frozen preprocessing and MG selection | `scripts/01-regenerate-frozen.R` | R maintenance script | active/current | Full mode rebuilds counts, QC, four source preprocessing branches, the source grid, MG selection, and both saved MG preprocessing branches. MG-selection mode loads the selected source RDS and resumes at MG selection. |
+| MG clustering sensitivity | `scripts/01b-cluster-mg-sensitivity.R` | R maintenance script | active/current | Loads both saved MG preprocessing branches, rebuilds the existing Leiden/UMAP grid and summaries, and writes the selected frozen MG objects. The chosen no-CC 20-PC/resolution-0.3 result uses seed 2847. |
 | Publication figures | `scripts/02-publication-figures.R` | R analysis script | active/current | Loads the final source, final MG-selected, and CC-filtered MG sensitivity objects once each; writes source/MG descriptive figures, heatmaps, UMAPs, abundance summaries, and required supplemental artifacts. |
 | Marker analysis | `scripts/03-marker-analysis.R` | R analysis script | active/current | Runs fixed no-merge `FindAllMarkers()` analysis on the final MG object and writes the four marker tables plus dotplot. Its outputs do not feed phase 04. |
 | DE and enrichment | `scripts/04-de-enrichment.R` | R analysis script | active/current | Independently loads the final MG object, builds six Mouse × Condition pseudobulk samples, runs primary and paired DE, rebuilds curated marker overlap, and writes GO/Bayesian enrichment artifacts. |
@@ -19,6 +20,7 @@ Quarto notebook. Shared code lives in four focused package modules.
 | Clustering criteria ideation | `analysis/ideas/2026-07-03-clustering-criteria-brainstorm/` | Mycelium ideation session | active | Persona-generated criteria ideas for label-blind selection of normalization, PC count, and Leiden resolution. |
 | Cluster proportion testing ideation | `analysis/ideas/2026-07-05-cluster-proportion-testing/` | Mycelium ideation session | active | Methods and design ideas for Mouse × Condition cluster proportion comparisons rather than cell-pooled inference. |
 | MG-selected manuscript write-up plan | `analysis/MG_SELECTED_WRITEUP_PLAN.md` | Markdown planning note | implemented/current | Records current MG-selected results, curated DE effects, primary volcano specification, enrichment themes, interpretation limits, and notebook endpoint. |
+| Targeted neurogenic proportion | `analysis/targeted-neurogenic-proportion/` | Standalone sensitivity analysis | complete/exploratory | Tests six prespecified progenitor-high, proliferation-low gates with sample-level beta-binomial models, null bootstraps, optimizer diagnostics, and fixed tabular outputs. |
 | Exploratory plotting sandbox | `analysis/exploratory/` | Interactive R workspace | exploratory/noncanonical | Uses the final MG object and current DE tables for last-mile gene-expression and detection-model exploration. It has no stable CLI or publication output contract. |
 
 Notebook mirrors reject symlink destinations, copy through a temporary regular

@@ -319,14 +319,10 @@ compute_sample_cluster_proportions <- function(
   names(mouse_roles) <- mouse_levels
   mouse_roles[paired_mouse] <- "paired"
   mouse_roles[
-    !paired_mouse &
-      present_mat[, estim_label] &
-      !present_mat[, control_label]
+    !paired_mouse & present_mat[, estim_label] & !present_mat[, control_label]
   ] <- "estim_only"
   mouse_roles[
-    !paired_mouse &
-      present_mat[, control_label] &
-      !present_mat[, estim_label]
+    !paired_mouse & present_mat[, control_label] & !present_mat[, estim_label]
   ] <- "control_only"
   if (anyNA(mouse_roles)) {
     stop("Unable to assign mouse roles from observed samples.", call. = FALSE)
@@ -339,10 +335,7 @@ compute_sample_cluster_proportions <- function(
   )
   storage.mode(counts_array) <- "integer"
 
-  output_rows <- vector(
-    "list",
-    sum(present_mat) * length(cluster_levels)
-  )
+  output_rows <- vector("list", sum(present_mat) * length(cluster_levels))
   row_idx <- 1L
   for (condition_label in expected_conditions) {
     for (mouse_id in mouse_levels) {
@@ -351,9 +344,11 @@ compute_sample_cluster_proportions <- function(
         next
       }
       for (cluster_label in cluster_levels) {
-        cluster_n <- as.integer(
-          counts_array[mouse_id, condition_label, cluster_label]
-        )
+        cluster_n <- as.integer(counts_array[
+          mouse_id,
+          condition_label,
+          cluster_label
+        ])
         output_rows[[row_idx]] <- data.frame(
           mouse = mouse_id,
           condition = condition_label,
@@ -379,12 +374,7 @@ compute_sample_cluster_proportions <- function(
 
 # ANALYSIS_OK[R026]: package helper is loaded by devtools::load_all and called by the same-file permutation test.
 .sign_vectors <- function(k) {
-  if (
-    length(k) != 1L ||
-      is.na(k) ||
-      k < 1L ||
-      k != as.integer(k)
-  ) {
+  if (length(k) != 1L || is.na(k) || k < 1L || k != as.integer(k)) {
     stop("k must be a positive integer.", call. = FALSE)
   }
   sign_grid <- expand.grid(rep(list(c(-1, 1)), as.integer(k)))
@@ -599,9 +589,7 @@ test_cluster_proportion_randomization <- function(
     effect_paired <- mean(diffs)
     paired_signs <- .sign_vectors(length(diffs))
     paired_null <- as.numeric(paired_signs %*% diffs) / length(diffs)
-    p_value_paired <- mean(
-      abs(paired_null) >= abs(effect_paired) - 1e-8
-    )
+    p_value_paired <- mean(abs(paired_null) >= abs(effect_paired) - 1e-8)
 
     control_prop_idx <- cluster_data$mouse %in%
       paired_mice &
@@ -620,20 +608,20 @@ test_cluster_proportion_randomization <- function(
         call. = FALSE
       )
     }
-    mean_proportion_control_paired <- mean(
-      cluster_data$proportion[control_prop_idx]
-    )
-    mean_proportion_estim_paired <- mean(
-      cluster_data$proportion[estim_prop_idx]
-    )
+    mean_proportion_control_paired <- mean(cluster_data$proportion[
+      control_prop_idx
+    ])
+    mean_proportion_estim_paired <- mean(cluster_data$proportion[
+      estim_prop_idx
+    ])
 
     if (singleton_runs) {
       singleton_diff <- get_logit(estim_only_mice[[1L]], estim_label) -
         get_logit(control_only_mice[[1L]], control_label)
       paired_singleton_contrasts <- c(diffs, singleton_diff)
-      paired_singleton_signs <- .sign_vectors(
-        length(paired_singleton_contrasts)
-      )
+      paired_singleton_signs <- .sign_vectors(length(
+        paired_singleton_contrasts
+      ))
       effect_paired_singleton <- mean(paired_singleton_contrasts)
       paired_singleton_null <- as.numeric(
         paired_singleton_signs %*% paired_singleton_contrasts
@@ -689,23 +677,21 @@ test_cluster_proportion_randomization <- function(
     results$p_value_paired_singleton
   )
   # ANALYSIS_OK[result-schema]: explicit column selection only reorders/enforces the output schema; no rows are dropped.
-  results <- results[,
-    c(
-      "cluster",
-      "mean_proportion_control_paired",
-      "mean_proportion_estim_paired",
-      "effect_paired",
-      "p_value_paired",
-      "q_value_paired",
-      "n_perm_paired",
-      "direction_paired",
-      "effect_paired_singleton",
-      "p_value_paired_singleton",
-      "q_value_paired_singleton",
-      "n_perm_paired_singleton",
-      "paired_singleton_status"
-    )
-  ]
+  results <- results[, c(
+    "cluster",
+    "mean_proportion_control_paired",
+    "mean_proportion_estim_paired",
+    "effect_paired",
+    "p_value_paired",
+    "q_value_paired",
+    "n_perm_paired",
+    "direction_paired",
+    "effect_paired_singleton",
+    "p_value_paired_singleton",
+    "q_value_paired_singleton",
+    "n_perm_paired_singleton",
+    "paired_singleton_status"
+  )]
   row.names(results) <- NULL
   results
 }

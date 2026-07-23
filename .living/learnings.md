@@ -794,11 +794,11 @@ dimension checks.
 
 **Category**: Mycelium session bookkeeping
 
-**What happened**: The session-end hook repeatedly reported files from a disposable worktree and `xd:/` tool-device calls as untriaged live-repository changes after the intended commits were complete.
+**What happened**: The session-end hook repeatedly reported files from a disposable worktree, committed `notebook/sc_analysis.qmd` activity, and `browser`/`xd:/` tool-device calls as untriaged live-repository changes after the intended commits were complete.
 
-**Why it matters**: Treating a generated cross-worktree activity inventory as Git state can create false blockers and misleading cleanup work.
+**Why it matters**: Treating a generated cross-worktree and tool-activity inventory as Git state can create false blockers and misleading cleanup work.
 
-**Resolution**: Triage the activity normally, record why external worktree paths and tool-device names are not repository files, and use the main working tree's `git status --short` as the final cleanliness check.
+**Resolution**: Triage the activity normally, record why external worktree paths and tool-device names are not repository files, and use the main working tree's `git status --short` as the final cleanliness check. When the named repository file is also clean, classify the report as stale activity rather than a pending content change.
 
 **mitigation_type**: repository-state-verification
 

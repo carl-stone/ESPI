@@ -31,26 +31,31 @@ just run [overwrite]       # phases 02 → 03 → 04, then Quarto
 just figures [overwrite]   # phase 02
 just markers [overwrite]   # phase 03
 just de [overwrite]        # phase 04
-just regenerate-frozen     # phase 01; deliberate maintenance only
+just regenerate-frozen [start] # regenerate, then phases 02–04 and Quarto
 ```
 
-`just regenerate-frozen` requires
-`seurat_objects/{input,current}` to exist and be writable; it refuses to run
-when either directory is read-only. It has no source selector or other
-scientific arguments. The routine publication phases load the fixed frozen
-objects and protect existing outputs unless `overwrite` is `true`.
+Full `just regenerate-frozen` requires `seurat_objects/{input,current}` to
+exist and be writable. `just regenerate-frozen mg-selection` loads the selected
+source RDS and requires only `seurat_objects/current` to be writable; it skips
+raw construction, QC, source preprocessing, and source clustering. The recipe
+then runs `scripts/01b-cluster-mg-sensitivity.R` from the saved MG preprocessing
+objects. This start point changes execution scope, not scientific parameters.
+Both start modes then run phases 02–04 and render the notebook with overwrite
+enabled. The selected MG clustering uses 20 PCs, Leiden resolution 0.3, and
+seed 2847. Routine publication commands protect existing outputs unless
+`overwrite` is `true`.
 
 The three downstream inputs are loaded and validated by phase 02 as follows:
 
 - final source:
   `current/cluster_pflog_no_filter_cc_elbow20.rds`,
-  `cluster_pflog_no_filter_cc_dims30_res0.3`, 3,902 cells;
+  `cluster_pflog_no_filter_cc_dims20_res0.3`, 3,902 cells;
 - final MG-selected:
   `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`,
-  `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.5`, 3,248 cells;
+  `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3`, 3,238 cells;
 - CC-filtered MG sensitivity:
   `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`,
-  `cluster_pflog_mg_selected_filter_cc_dims20_res0.5`, 3,248 cells.
+  `cluster_pflog_mg_selected_filter_cc_dims20_res0.3`, 3,238 cells.
 
 Phase 03 marker tables are descriptive outputs only. Phase 04 independently
 loads the final MG object and rebuilds curated marker overlap from package
@@ -77,8 +82,9 @@ Rscript scripts/04-de-enrichment.R
 ```
 
 The active executable surface is exactly
-`scripts/01-regenerate-frozen.R`, `scripts/02-publication-figures.R`,
-`scripts/03-marker-analysis.R`, and `scripts/04-de-enrichment.R`.
+`scripts/01-regenerate-frozen.R`, `scripts/01b-cluster-mg-sensitivity.R`,
+`scripts/02-publication-figures.R`, `scripts/03-marker-analysis.R`, and
+`scripts/04-de-enrichment.R`.
 The package surface is exactly `R/config.R`, `R/seurat-methods.R`,
 `R/publication-analysis.R`, and `R/publication-plots.R`.
 
