@@ -1,5 +1,5 @@
 suppressPackageStartupMessages({
-  here::i_am("scripts/final-figs.R")
+  here::i_am("scripts/findmarkers.R")
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
   library(tidyverse)
   library(Seurat)

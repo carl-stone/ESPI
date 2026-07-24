@@ -161,7 +161,7 @@ publication_config <- function() {
         path = final_mg,
         column = "cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3",
         dimensions = 20L,
-        resolution = 0.3,
+        resolution = 0.5,
         seed = 2847L
       ),
       mg_filter_cc = list(
@@ -169,7 +169,7 @@ publication_config <- function() {
         path = sensitivity_mg,
         column = "cluster_pflog_mg_selected_filter_cc_dims20_res0.3",
         dimensions = 20L,
-        resolution = 0.3
+        resolution = 0.5
       )
     ),
     frozen = list(
