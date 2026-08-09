@@ -887,3 +887,36 @@ thresholds and deterministically exclude uncalled, doublet, and unscored cells.
 **Consequences**: This supersedes the 2026-07-13 decisions that intentionally
 excluded these gates. The source now has 3,902 cells; MG selection retains
 3,248 cells. Frozen contracts validate cell and cluster counts.
+
+### [2026-07-24] Report the artifact-backed MG-selected clustering
+
+**Tags**: reporting, clustering, provenance
+
+**Context**: The current selected cluster column, frozen-object counts, result
+tables, and RDS seed map identify the downstream MG-selected clustering as 20
+principal components, resolution 0.3, and seed 2847. A nominal scalar in
+`R/config.R` records resolution 0.5.
+
+**Decision**: Use resolution 0.3 and seed 2847 in the sequential scientific
+write-up because all current downstream artifacts agree on that selected
+clustering. Preserve the discrepancy in the hidden evidence note and leave the
+analysis code unchanged.
+
+**Rationale**: The write-up must describe the analysis that generated the
+current publication results rather than substitute a conflicting scalar field.
+
+**Consequences**: `analysis/SEQUENTIAL_ANALYSIS_WRITEUP.md` reports five
+clusters from the resolution-0.3 object. This decision changes documentation
+only and does not regenerate analysis artifacts.
+
+### [2026-07-25] Crystallize publication-pipeline cutover integrity
+
+**Tags**: conventions, pipeline, reproducibility, publication, maintenance
+
+**Context**: Four recent learnings (L-47, L-48, L-49, and L-51) describe the same failure class across publication cutover design, visible-artifact parity, maintenance-path review, and frozen regeneration. The recurrence detector also found the existing five-learning Mycelium session-provenance cluster and two weaker two-learning clusters.
+
+**Decision**: Propose one `publication-pipeline-cutover-integrity` convention and promote its transferable rule to the global output-workflows knowledge domain. Keep the existing session-provenance convention, add L-50 and L-52 to its source citations, and do not crystallize the two-learning clusters because they do not meet the three-learning threshold.
+
+**Rationale**: The publication-pipeline pattern exceeds the stated threshold and is not covered by an installed convention. The session-provenance pattern already has an active convention, while the remaining clusters are still anecdotes under the current rules.
+
+**Consequences**: The proposal requires separate source and visible-output oracles, layered semantic equivalence, independent maintenance-path execution, and non-destructive verified replacement. It remains proposed until reviewed.

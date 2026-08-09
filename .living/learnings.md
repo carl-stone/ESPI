@@ -821,3 +821,29 @@ threshold join, unlock only deliberate frozen outputs, and seed renamed
 notebook destinations as regular files before atomic verified replacement.
 
 **mitigation_type**: maintenance-path-smoke-test
+
+### [2026-07-24] Verify literal evidence paths and selected artifacts before scientific writing
+
+**Tags**: reporting, provenance, artifacts, tool-devices
+
+**Category**: Sequential analysis reporting
+
+**What happened**: The approved write-up plan named
+`tables/for-manuscript/supp_table_sample_qc.xlsx`, but the current workbook uses
+`tables/for_manuscript/supp_table_sample_qc.xlsx`. The nominal selected MG
+resolution in `R/config.R` also differed from the selected cluster column,
+matching result tables, frozen-object counts, and RDS seed map. The session
+inventory listed `xd:/` tool-device activity as changed files.
+
+**Why it matters**: A literal path error can stop an otherwise reproducible
+evidence review, and a scalar configuration value can be stale relative to the
+artifacts that produced the current publication results. Tool-device names are
+not repository paths.
+
+**Resolution**: Verify every required artifact before drafting, use an
+explicitly approved corrected path, and resolve same-run metadata conflicts
+with the selected cluster column plus matching RDS and result-table evidence.
+Record the conflict without changing analysis code. Classify `xd:/` entries as
+tool activity, not repository changes.
+
+**mitigation_type**: evidence-hierarchy-validation
