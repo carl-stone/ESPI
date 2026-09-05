@@ -75,7 +75,11 @@ cluster_values <- as.character(sobj[[cluster_column, drop = TRUE]])
 expected_cluster_levels <- as.character(sort(as.integer(unique(
   cluster_values
 ))))
-cluster_palette <- scales::hue_pal()(length(expected_cluster_levels))
+# Match the full curated heatmap: Temps colors assigned in numeric cluster order.
+cluster_palette <- grDevices::hcl.colors(
+  length(expected_cluster_levels),
+  palette = "Temps"
+)
 
 missing_markers <- setdiff(marker_table$gene, rownames(sobj))
 if (length(missing_markers) > 0L) {

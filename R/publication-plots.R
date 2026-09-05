@@ -84,6 +84,11 @@ write_curated_marker_heatmap <- function(
 
   cluster_values <- as.character(sobj@meta.data[[cluster_column]])
   cluster_levels <- .sort_cluster_labels(cluster_values)
+  # Assign colors by cluster ID before any marker-dependent reordering.
+  cluster_colors <- stats::setNames(
+    grDevices::hcl.colors(length(cluster_levels), palette = "Temps"),
+    paste("Cluster", cluster_levels)
+  )
   marker_expression <- SeuratObject::GetAssayData(
     sobj,
     assay = assay,
@@ -125,10 +130,6 @@ write_curated_marker_heatmap <- function(
   cell_type_groups <- factor(
     marker_table$cell_type_label,
     levels = unname(cell_type_marker_labels)
-  )
-  cluster_colors <- stats::setNames(
-    grDevices::hcl.colors(length(cluster_levels), palette = "Temps"),
-    levels(cell_cluster_labels)
   )
   row_annotation <- ComplexHeatmap::rowAnnotation(
     `Cell type` = ComplexHeatmap::anno_block(

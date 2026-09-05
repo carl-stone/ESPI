@@ -18,6 +18,7 @@ estim_label <- config$conditions$estim
 control_display_label <- config$conditions$control_display
 estim_display_label <- config$conditions$estim_display
 expression_layer <- "pflog"
+nfi_features <- c("Nfia", "Nfib", "Nfix")
 module_score_layer <- "data"
 n_perm <- 2000L
 source_suffix <- paste0(
@@ -264,6 +265,16 @@ for (branch in branches) {
       legend.background = ggplot2::element_rect(fill = "white", color = NA)
     )
 
+  is_selected_mg <- identical(branch_tag, config$selected$mg$branch)
+  features_to_plot <- if (is_selected_mg) {
+    union(umap_features, nfi_features)
+  } else {
+    umap_features
+  }
+  missing_features <- setdiff(features_to_plot, rownames(sobj[["RNA"]]))
+  if (length(missing_features) > 0L) {
+    stop("Missing feature gene(s): ", paste(missing_features, collapse = ", "))
+  }
   cell_order <- rownames(sobj[[]])
   umap_columns <- SeuratObject::Embeddings(sobj, reduction = reduction) |>
     colnames() |>
@@ -271,7 +282,7 @@ for (branch in branches) {
   umap_column_names <- stats::setNames(c("UMAP_1", "UMAP_2"), umap_columns)
   feature_data <- SeuratObject::FetchData(
     sobj,
-    vars = c(umap_columns, umap_features),
+    vars = c(umap_columns, features_to_plot),
     cells = cell_order,
     layer = expression_layer,
     assay = "RNA",
@@ -282,7 +293,7 @@ for (branch in branches) {
       dplyr::all_of(umap_columns)
     ) |>
     tidyr::pivot_longer(
-      cols = dplyr::all_of(umap_features),
+      cols = dplyr::all_of(features_to_plot),
       names_to = "feature",
       values_to = "expression"
     ) |>
@@ -307,39 +318,56 @@ for (branch in branches) {
     ceiling(max(feature_data$UMAP_2))
   )
 
-  feature_plots <- purrr::map(umap_features, function(gene) {
-    plot_data <- feature_data |>
-      dplyr::filter(feature == gene) |>
-      dplyr::arrange(scaled_expression)
+  feature_plots <- purrr::map(
+    stats::setNames(features_to_plot, features_to_plot),
+    function(gene) {
+      plot_data <- feature_data |>
+        dplyr::filter(feature == gene) |>
+        dplyr::arrange(scaled_expression)
 
-    ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(x = UMAP_1, y = UMAP_2, color = scaled_expression)
-    ) +
-      ggplot2::geom_point(size = 0.5, stroke = 0) +
-      ggplot2::scale_color_gradient(
-        low = "grey85",
-        high = config$palettes$dotplot[[2]],
-        limits = c(0, 1),
-        breaks = c(0, 1),
-        labels = c("0", "1"),
-        name = "Scaled expression"
+      ggplot2::ggplot(
+        plot_data,
+        ggplot2::aes(x = UMAP_1, y = UMAP_2, color = scaled_expression)
       ) +
-      ggplot2::scale_x_continuous(limits = umap_x_limits) +
-      ggplot2::scale_y_continuous(limits = umap_y_limits) +
-      ggplot2::ggtitle(gene) +
-      ggplot2::labs(x = "UMAP 1", y = "UMAP 2") +
-      ggplot2::theme_classic() +
-      ggplot2::theme(
-        aspect.ratio = 1,
-        plot.title = ggplot2::element_text(size = 10, hjust = 0.5),
-        legend.position = "right"
-      )
-  })
-  feature_plot <- patchwork::wrap_plots(feature_plots, ncol = 3L) +
+        ggplot2::geom_point(size = 0.5, stroke = 0) +
+        ggplot2::scale_color_gradient(
+          low = "grey85",
+          high = config$palettes$dotplot[[2]],
+          limits = c(0, 1),
+          breaks = c(0, 1),
+          labels = c("0", "1"),
+          name = "Scaled expression"
+        ) +
+        ggplot2::scale_x_continuous(limits = umap_x_limits) +
+        ggplot2::scale_y_continuous(limits = umap_y_limits) +
+        ggplot2::ggtitle(gene) +
+        ggplot2::labs(x = "UMAP 1", y = "UMAP 2") +
+        ggplot2::theme_classic() +
+        ggplot2::theme(
+          aspect.ratio = 1,
+          plot.title = ggplot2::element_text(size = 10, hjust = 0.5),
+          legend.position = "right"
+        )
+    }
+  )
+  feature_plot <- patchwork::wrap_plots(
+    feature_plots[umap_features],
+    ncol = 3L
+  ) +
     patchwork::plot_layout(guides = "collect") +
     patchwork::plot_annotation(title = "pflog layer marker expression") &
     ggplot2::theme(legend.position = "right")
+
+  if (is_selected_mg) {
+    # Per-gene scaling shows localization, not expression differences among genes.
+    nfi_plot <- patchwork::wrap_plots(feature_plots[nfi_features], ncol = 3L) +
+      patchwork::plot_layout(guides = "collect") &
+      ggplot2::theme(legend.position = "right")
+    nfi_stem <- file.path(
+      mg_figure_dir,
+      paste0("mg_selected_nfi_feature_umap_pflog_", branch_tag, branch_suffix)
+    )
+  }
 
   coexpression_expression <- SeuratObject::GetAssayData(
     sobj,
@@ -553,6 +581,9 @@ for (branch in branches) {
   save_publication_plot(cluster_plot, cluster_stem, width = 5.5, height = 5)
   save_publication_plot(condition_plot, condition_stem, width = 5.5, height = 5)
   save_publication_plot(feature_plot, feature_stem, width = 10.5, height = 9)
+  if (is_selected_mg) {
+    save_publication_plot(nfi_plot, nfi_stem, width = 10.5, height = 3.5)
+  }
   save_publication_plot(
     coexpression_plot,
     coexpression_stem,
