@@ -74,7 +74,7 @@ plot_gene_violin <- function(object, genes, title = NULL, clusters = NULL) {
 
   plot +
     labs(title = title, x = NULL, y = "Log normalized expression") +
-    ESPI::theme_stone() +
+    theme_stone() +
     theme(axis.text.x = element_text(face = "bold"))
 }
 
@@ -154,7 +154,7 @@ plot_gene_pair <- function(
     y_label <- "Second gene log normalized expression"
   }
 
-  plot + labs(title = title, x = x_label, y = y_label) + ESPI::theme_stone()
+  plot + labs(title = title, x = x_label, y = y_label) + theme_stone()
 }
 
 plot_gene_pair_binary <- function(
@@ -261,7 +261,7 @@ plot_gene_pair_binary <- function(
       y = "Proportion of cells",
       color = "Condition"
     ) +
-    ESPI::theme_stone() +
+    theme_stone() +
     theme(axis.text.x = element_text(face = "bold"))
 }
 
@@ -419,7 +419,7 @@ plot_gene_pair_expression <- function(
       color = "Condition",
       fill = "Condition"
     ) +
-    ESPI::theme_stone()
+    theme_stone()
 }
 
 {
