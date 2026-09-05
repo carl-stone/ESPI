@@ -5,6 +5,11 @@ automatically refreshed results report. Paths below are relative to the repo
 root. Recheck the current code and outputs before using these numbers in the
 manuscript.
 
+The cluster-specific results below describe the earlier resolution-0.3 analysis,
+not the current resolution-0.5 / seed-2847 choice. The historical evidence files
+remain unchanged; the combined `frozen_object_numbers.tsv` summary is no longer
+regenerated.
+
 ## Upstream workflow
 
 - **Study design and count ingestion**
@@ -34,7 +39,7 @@ manuscript.
 - **MG-selected reclustering and cell-cycle sensitivity**
   - **Methods:** We reselected 2,000 highly variable genes in the 3,238 retained cells, reran PFlog principal component analysis with 50 principal components, and repeated the Leiden grid across 20, 30, or 50 principal components and resolutions 0.3, 0.5, or 0.8, both with and without cell-cycle genes. For downstream analyses, we used seed 2847 and the clustering that retained cell-cycle genes, used 20 principal components, and set the resolution to 0.3. We used the matching branch without cell-cycle genes as a sensitivity analysis.
   - **Results:** The selected branch had five clusters with 2,201, 486, 238, 208, and 105 cells. All five clusters included both conditions, and four included all mice. The cell-cycle-filtered branch retained 1,925 highly variable genes and produced six clusters at 20 principal components and resolution 0.3.
-  <!-- Evidence: Methods=scripts/01b-cluster-mg-sensitivity.R and scripts/01-regenerate-frozen.R MG preprocessing stage; Results=$MEGAN_SC_DATA_DIR/tables/frozen_object_numbers.tsv, $MEGAN_SC_DATA_DIR/tables/mg_selected/mg_selected_cluster_grid_summary.tsv, $MEGAN_SC_DATA_DIR/tables/mg_selected/mg_selected_sample_cluster_proportions_pflog_mg_selected_no_filter_cc_dims20_res0.3.tsv, and read-only selected frozen RDS seed-map inspection. R/config.R records a conflicting nominal selected MG resolution of 0.5; the selected column, frozen object numbers, matching result-table rows, and RDS seed map identify resolution 0.3. -->
+  <!-- Historical evidence: Methods=scripts/01b-cluster-mg-sensitivity.R and scripts/01-regenerate-frozen.R MG preprocessing stage; Results=$MEGAN_SC_DATA_DIR/tables/frozen_object_numbers.tsv, $MEGAN_SC_DATA_DIR/tables/mg_selected/mg_selected_cluster_grid_summary.tsv, $MEGAN_SC_DATA_DIR/tables/mg_selected/mg_selected_sample_cluster_proportions_pflog_mg_selected_no_filter_cc_dims20_res0.3.tsv, and saved RDS seed maps. These results used the resolution-0.3 column, despite the then-conflicting nominal resolution in configuration. -->
 
 ## Descriptive annotation and cluster composition
 

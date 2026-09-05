@@ -73,32 +73,11 @@ output_dir <- Sys.getenv(
   "ESPI_MODULE_SCORE_MILO_OUTPUT_DIR",
   unset = default_output_dir
 )
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-output_paths <- file.path(
-  output_dir,
-  c(
-    "sample_table.tsv",
-    "module_scores.tsv",
-    "marker_features.tsv",
-    "nhood_da_results.tsv",
-    "nhood_score_profiles.tsv",
-    "nhood_cell_membership.tsv",
-    "sample_nhood_abundance.tsv",
-    "score_pca_loadings.tsv",
-    "parameters.tsv",
-    "nhood_da_score_space.png",
-    "nhood_da_score_space.pdf",
-    "nhood_component_profiles.png",
-    "nhood_component_profiles.pdf"
-  )
-)
-assert_output_available(output_paths, config$overwrite)
 
 # ---- input and module scores ----
 
 sobj <- readRDS(input_path)
-assert_frozen_input(input_path, sobj, config$frozen$mg)
 
 if (!condition_col %in% colnames(sobj[[]])) {
   cli::cli_abort(
@@ -147,7 +126,6 @@ if (!all(generated_score_columns %in% colnames(sobj[[]]))) {
   cli::cli_abort("AddModuleScore did not create the expected score columns.")
 }
 
-# ANALYSIS_OK[R026]: local helper standardizes all four module-score columns.
 standardize_score <- function(x) {
   score_sd <- stats::sd(x)
   if (!is.finite(score_sd) || score_sd == 0) {
@@ -255,14 +233,12 @@ milo <- miloR::calcNhoodDistance(
 
 nhood_counts <- miloR::nhoodCounts(milo)
 sample_table_model <- sample_table |> tibble::column_to_rownames("sample_id")
-# ANALYSIS_OK[sample-order]: countCells determines the required design row order.
 sample_table_model <- sample_table_model[colnames(nhood_counts), , drop = FALSE]
 
 if (anyNA(rownames(sample_table_model))) {
   cli::cli_abort("Neighborhood count columns do not match the sample design.")
 }
 
-# ANALYSIS_OK[contrast-definition]: the six Mouse × Condition samples define the primary contrast.
 da_results <- miloR::testNhoods(
   milo,
   design = ~condition,
@@ -316,7 +292,6 @@ nhood_summary <- tibble::tibble(
   samples_with_cells = as.integer(Matrix::rowSums(nhood_counts > 0))
 )
 
-# ANALYSIS_OK[nhood-summary-join]: all inputs have one row per unique neighborhood.
 da_table <- da_results |>
   as.data.frame() |>
   tibble::rownames_to_column("nhood") |>
@@ -418,7 +393,7 @@ plot_component_profiles <- ggplot2::ggplot(
   theme_stone()
 
 ggplot2::ggsave(
-  file.path(output_dir, "nhood_da_score_space.png"),
+  output_path(output_dir, "nhood_da_score_space.png"),
   plot_nhood_da,
   width = 7,
   height = 5,
@@ -426,14 +401,14 @@ ggplot2::ggsave(
   dpi = 300
 )
 ggplot2::ggsave(
-  file.path(output_dir, "nhood_da_score_space.pdf"),
+  output_path(output_dir, "nhood_da_score_space.pdf"),
   plot_nhood_da,
   width = 7,
   height = 5,
   units = "in"
 )
 ggplot2::ggsave(
-  file.path(output_dir, "nhood_component_profiles.png"),
+  output_path(output_dir, "nhood_component_profiles.png"),
   plot_component_profiles,
   width = 8,
   height = 6,
@@ -441,7 +416,7 @@ ggplot2::ggsave(
   dpi = 300
 )
 ggplot2::ggsave(
-  file.path(output_dir, "nhood_component_profiles.pdf"),
+  output_path(output_dir, "nhood_component_profiles.pdf"),
   plot_component_profiles,
   width = 8,
   height = 6,
@@ -485,24 +460,27 @@ parameter_table <- tibble::tibble(
   )
 )
 
-readr::write_tsv(sample_table, file.path(output_dir, "sample_table.tsv"))
-readr::write_tsv(module_scores, file.path(output_dir, "module_scores.tsv"))
-readr::write_tsv(marker_features, file.path(output_dir, "marker_features.tsv"))
-readr::write_tsv(da_table, file.path(output_dir, "nhood_da_results.tsv"))
+readr::write_tsv(sample_table, output_path(output_dir, "sample_table.tsv"))
+readr::write_tsv(module_scores, output_path(output_dir, "module_scores.tsv"))
+readr::write_tsv(
+  marker_features,
+  output_path(output_dir, "marker_features.tsv")
+)
+readr::write_tsv(da_table, output_path(output_dir, "nhood_da_results.tsv"))
 readr::write_tsv(
   nhood_profiles,
-  file.path(output_dir, "nhood_score_profiles.tsv")
+  output_path(output_dir, "nhood_score_profiles.tsv")
 )
 readr::write_tsv(
   membership_table,
-  file.path(output_dir, "nhood_cell_membership.tsv")
+  output_path(output_dir, "nhood_cell_membership.tsv")
 )
 readr::write_tsv(
   sample_nhood_abundance,
-  file.path(output_dir, "sample_nhood_abundance.tsv")
+  output_path(output_dir, "sample_nhood_abundance.tsv")
 )
 readr::write_tsv(
   score_pca_loadings,
-  file.path(output_dir, "score_pca_loadings.tsv")
+  output_path(output_dir, "score_pca_loadings.tsv")
 )
-readr::write_tsv(parameter_table, file.path(output_dir, "parameters.tsv"))
+readr::write_tsv(parameter_table, output_path(output_dir, "parameters.tsv"))

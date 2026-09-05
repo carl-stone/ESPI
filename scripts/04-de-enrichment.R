@@ -9,7 +9,6 @@ suppressPackageStartupMessages({
   library(tidyverse)
   library(Seurat)
   library(DESeq2)
-  library(ggview)
 })
 
 # ---- parameters ----
@@ -31,58 +30,7 @@ padj_cutoff <- 0.05
 deg_dir <- file.path(config$paths$degs, "mg_selected")
 enrichment_dir <- file.path(config$paths$enrichment, "mg_selected")
 figure_dir <- file.path(config$paths$figures, "mg_selected")
-dir.create(deg_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(enrichment_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
 
-output_paths <- c(
-  file.path(
-    deg_dir,
-    c(
-      "pseudobulk_sample_summary.tsv",
-      "design_summary.tsv",
-      "deseq2_full_results.tsv",
-      "deseq2_significant_degs.tsv",
-      "deseq2_marker_overlap.tsv",
-      "deseq2_paired_sensitivity_full_results.tsv",
-      "deseq2_paired_sensitivity_significant_degs.tsv",
-      "deseq2_paired_sensitivity_marker_overlap.tsv",
-      "numbers.json"
-    )
-  ),
-  file.path(
-    enrichment_dir,
-    c(
-      "go_bp_ora_up.tsv",
-      "go_bp_ora_down.tsv",
-      "go_bp_gsea.tsv",
-      "go_bp_gsea_symbol_entrez_mapping.tsv",
-      "go_bp_ora_up_simplified.tsv",
-      "go_bp_ora_down_simplified.tsv",
-      "go_bp_gsea_simplified.tsv",
-      "go_bp_ora_up_bayes_simplified.tsv",
-      "go_bp_ora_down_bayes_simplified.tsv"
-    )
-  ),
-  file.path(
-    figure_dir,
-    paste0(
-      rep(
-        c(
-          "mg_selected_de_volcano",
-          "mg_selected_go_ora_up_dotplot",
-          "mg_selected_go_ora_down_dotplot",
-          "mg_selected_go_gsea_dotplot",
-          "mg_selected_go_ora_up_bayes_dotplot",
-          "mg_selected_go_ora_down_bayes_dotplot"
-        ),
-        each = 2L
-      ),
-      c(".png", ".pdf")
-    )
-  )
-)
-assert_output_available(output_paths, config$overwrite)
 
 # ---- pseudobulk counts ----
 
@@ -110,7 +58,6 @@ sample_table <- meta |>
     pseudobulk_group = paste0("sample", dplyr::row_number())
   )
 
-# ANALYSIS_OK[sample-map-join]: sample_id is unique per Mouse x Condition.
 cell_groups <- meta |>
   dplyr::select("cell", "sample_id") |>
   dplyr::left_join(
@@ -126,7 +73,6 @@ if (
     "Each cell must map to one Mouse x Condition pseudobulk sample."
   )
 }
-# ANALYSIS_OK[pseudobulk-group-alignment]: match preserves the original cell order.
 sobj$pseudobulk_group <- cell_groups$pseudobulk_group[match(
   colnames(sobj),
   cell_groups$cell
@@ -158,7 +104,7 @@ sample_table$paired_mouse <- sample_table$Mouse %in% paired_mice
 
 readr::write_tsv(
   sample_table,
-  file.path(deg_dir, "pseudobulk_sample_table.tsv")
+  output_path(deg_dir, "pseudobulk_sample_table.tsv")
 )
 
 # ---- differential expression ----
@@ -244,9 +190,9 @@ de_marker_overlap <- marker_table |>
   dplyr::left_join(full_de, by = "gene") |>
   dplyr::mutate(significant = !is.na(padj) & padj < padj_cutoff)
 
-write_tsv(full_de, file.path(deg_dir, "deseq2_full_results.tsv"))
-write_tsv(sig_de, file.path(deg_dir, "deseq2_significant_degs.tsv"))
-write_tsv(de_marker_overlap, file.path(deg_dir, "deseq2_marker_overlap.tsv"))
+write_tsv(full_de, output_path(deg_dir, "deseq2_full_results.tsv"))
+write_tsv(sig_de, output_path(deg_dir, "deseq2_significant_degs.tsv"))
+write_tsv(de_marker_overlap, output_path(deg_dir, "deseq2_marker_overlap.tsv"))
 
 # ---- paired-sensitivity differential expression ----
 
@@ -266,7 +212,6 @@ if (length(paired_mice) >= min_paired_mice) {
     rownames(paired_deseq_sample_table),
     drop = FALSE
   ]
-  # ANALYSIS_OK[pseudobulk-prefilter]: preserves the established paired-analysis count filter.
   paired_counts <- paired_counts[
     Matrix::rowSums(paired_counts) >= min_gene_count,
     ,
@@ -278,7 +223,6 @@ if (length(paired_mice) >= min_paired_mice) {
   )
 
   if (qr(paired_design)$rank == ncol(paired_design)) {
-    # ANALYSIS_OK[contrast-definition]: paired sensitivity uses the prespecified Mouse-adjusted design.
     paired_dds <- DESeqDataSetFromMatrix(
       countData = paired_counts,
       colData = paired_deseq_sample_table,
@@ -327,15 +271,15 @@ if (length(paired_mice) >= min_paired_mice) {
 
     write_tsv(
       paired_full_de,
-      file.path(deg_dir, "deseq2_paired_sensitivity_full_results.tsv")
+      output_path(deg_dir, "deseq2_paired_sensitivity_full_results.tsv")
     )
     write_tsv(
       paired_sig_de,
-      file.path(deg_dir, "deseq2_paired_sensitivity_significant_degs.tsv")
+      output_path(deg_dir, "deseq2_paired_sensitivity_significant_degs.tsv")
     )
     write_tsv(
       paired_de_marker_overlap,
-      file.path(deg_dir, "deseq2_paired_sensitivity_marker_overlap.tsv")
+      output_path(deg_dir, "deseq2_paired_sensitivity_marker_overlap.tsv")
     )
 
     paired_status <- "run"
@@ -353,15 +297,15 @@ if (!identical(paired_status, "run")) {
   paired_skip <- tibble::tibble(status = "skipped", reason = paired_reason)
   write_tsv(
     paired_skip,
-    file.path(deg_dir, "deseq2_paired_sensitivity_full_results.tsv")
+    output_path(deg_dir, "deseq2_paired_sensitivity_full_results.tsv")
   )
   write_tsv(
     paired_skip,
-    file.path(deg_dir, "deseq2_paired_sensitivity_significant_degs.tsv")
+    output_path(deg_dir, "deseq2_paired_sensitivity_significant_degs.tsv")
   )
   write_tsv(
     paired_skip,
-    file.path(deg_dir, "deseq2_paired_sensitivity_marker_overlap.tsv")
+    output_path(deg_dir, "deseq2_paired_sensitivity_marker_overlap.tsv")
   )
 }
 
@@ -421,8 +365,7 @@ save_publication_plot(
   volcano,
   file.path(figure_dir, "mg_selected_de_volcano"),
   width = 5,
-  height = 4.5,
-  notebook_basename = "mg_selected_de_volcano.png"
+  height = 4.5
 )
 
 # ---- design summary ----
@@ -449,7 +392,7 @@ design_summary <- tibble::tibble(
   lfc_shrink_type = "apeglm",
   gsea_seed = seed
 )
-readr::write_tsv(design_summary, file.path(deg_dir, "design_summary.tsv"))
+readr::write_tsv(design_summary, output_path(deg_dir, "design_summary.tsv"))
 
 # ---- GO enrichment ----
 
@@ -479,7 +422,7 @@ ora_up <- clusterProfiler::enrichGO(
 )
 readr::write_tsv(
   as.data.frame(ora_up) |> dplyr::mutate(direction = "up_estim_vs_control"),
-  file.path(enrichment_dir, "go_bp_ora_up.tsv")
+  output_path(enrichment_dir, "go_bp_ora_up.tsv")
 )
 
 down_entrez <- background_map |>
@@ -499,7 +442,7 @@ ora_down <- clusterProfiler::enrichGO(
 )
 readr::write_tsv(
   as.data.frame(ora_down) |> dplyr::mutate(direction = "down_estim_vs_control"),
-  file.path(enrichment_dir, "go_bp_ora_down.tsv")
+  output_path(enrichment_dir, "go_bp_ora_down.tsv")
 )
 
 ranked_genes <- full_de |>
@@ -510,7 +453,7 @@ ranked_genes <- full_de |>
   dplyr::mutate(selected_for_gsea = !duplicated(ENTREZID))
 readr::write_tsv(
   dplyr::select(ranked_genes, gene, ENTREZID, stat, selected_for_gsea),
-  file.path(enrichment_dir, "go_bp_gsea_symbol_entrez_mapping.tsv")
+  output_path(enrichment_dir, "go_bp_gsea_symbol_entrez_mapping.tsv")
 )
 
 gene_list <- ranked_genes |>
@@ -532,7 +475,7 @@ gsea <- clusterProfiler::gseGO(
 )
 readr::write_tsv(
   as.data.frame(gsea),
-  file.path(enrichment_dir, "go_bp_gsea.tsv")
+  output_path(enrichment_dir, "go_bp_gsea.tsv")
 )
 
 s_up <- ora_up
@@ -541,7 +484,7 @@ s_up@result <- s_up@result |>
 s_up <- clusterProfiler::simplify(s_up)
 readr::write_tsv(
   as.data.frame(s_up),
-  file.path(enrichment_dir, "go_bp_ora_up_simplified.tsv")
+  output_path(enrichment_dir, "go_bp_ora_up_simplified.tsv")
 )
 
 s_down <- ora_down
@@ -550,7 +493,7 @@ s_down@result <- s_down@result |>
 s_down <- clusterProfiler::simplify(s_down)
 readr::write_tsv(
   as.data.frame(s_down),
-  file.path(enrichment_dir, "go_bp_ora_down_simplified.tsv")
+  output_path(enrichment_dir, "go_bp_ora_down_simplified.tsv")
 )
 
 s_gsea <- gsea
@@ -559,7 +502,7 @@ s_gsea@result <- s_gsea@result |>
 s_gsea <- clusterProfiler::simplify(s_gsea)
 readr::write_tsv(
   as.data.frame(s_gsea),
-  file.path(enrichment_dir, "go_bp_gsea_simplified.tsv")
+  output_path(enrichment_dir, "go_bp_gsea_simplified.tsv")
 )
 
 b_up <- ora_up
@@ -568,7 +511,7 @@ b_up@result <- b_up@result |>
 b_up <- enrichit::bayes_enrich(b_up, seed = seed) |> clusterProfiler::simplify()
 readr::write_tsv(
   as.data.frame(b_up),
-  file.path(enrichment_dir, "go_bp_ora_up_bayes_simplified.tsv")
+  output_path(enrichment_dir, "go_bp_ora_up_bayes_simplified.tsv")
 )
 
 b_down <- ora_down
@@ -578,7 +521,7 @@ b_down <- enrichit::bayes_enrich(b_down, seed = seed) |>
   clusterProfiler::simplify()
 readr::write_tsv(
   as.data.frame(b_down),
-  file.path(enrichment_dir, "go_bp_ora_down_bayes_simplified.tsv")
+  output_path(enrichment_dir, "go_bp_ora_down_bayes_simplified.tsv")
 )
 
 # ---- enrichment plots ----
@@ -589,8 +532,7 @@ save_publication_plot(
   plot,
   file.path(figure_dir, "mg_selected_go_ora_up_dotplot"),
   width = 8,
-  height = 7,
-  notebook_basename = "mg_selected_go_ora_up_dotplot.png"
+  height = 7
 )
 
 plot <- enrichplot::dotplot(s_down, showCategory = 15) +
@@ -599,8 +541,7 @@ save_publication_plot(
   plot,
   file.path(figure_dir, "mg_selected_go_ora_down_dotplot"),
   width = 8,
-  height = 7,
-  notebook_basename = "mg_selected_go_ora_down_dotplot.png"
+  height = 7
 )
 
 plot <- enrichplot::dotplot(s_gsea, showCategory = 15, split = ".sign") +
@@ -610,8 +551,7 @@ save_publication_plot(
   plot,
   file.path(figure_dir, "mg_selected_go_gsea_dotplot"),
   width = 8,
-  height = 7,
-  notebook_basename = "mg_selected_go_gsea_dotplot.png"
+  height = 7
 )
 
 plot <- enrichplot::dotplot(b_up, showCategory = 15) +
@@ -620,8 +560,7 @@ save_publication_plot(
   plot,
   file.path(figure_dir, "mg_selected_go_ora_up_bayes_dotplot"),
   width = 8,
-  height = 7,
-  notebook_basename = "mg_selected_go_ora_up_bayes_dotplot.png"
+  height = 7
 )
 
 plot <- enrichplot::dotplot(b_down, showCategory = 15) +
@@ -630,8 +569,7 @@ save_publication_plot(
   plot,
   file.path(figure_dir, "mg_selected_go_ora_down_bayes_dotplot"),
   width = 8,
-  height = 7,
-  notebook_basename = "mg_selected_go_ora_down_bayes_dotplot.png"
+  height = 7
 )
 
 # ---- reportable values ----
@@ -655,7 +593,7 @@ jsonlite::write_json(
     paired_sensitivity_status = paired_status,
     paired_sensitivity_n_degs = paired_de_n_degs
   ),
-  file.path(deg_dir, "numbers.json"),
+  output_path(deg_dir, "numbers.json"),
   auto_unbox = TRUE,
   pretty = TRUE,
   na = "null"

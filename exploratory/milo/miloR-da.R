@@ -30,23 +30,11 @@ nhood_proportion <- 0.1
 # ---- paths ----
 
 output_dir <- file.path(config$paths$degs, "mg_selected", "miloR_da")
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-output_paths <- file.path(
-  output_dir,
-  c(
-    "sample_table.tsv",
-    "nhood_da_results.tsv",
-    "nhood_cell_membership.tsv",
-    "parameters.tsv"
-  )
-)
-assert_output_available(output_paths, config$overwrite)
 
 # ---- input and sample design ----
 
 sobj <- readRDS(input_path)
-assert_frozen_input(input_path, sobj, config$frozen$mg)
 
 meta <- sobj[[]] |>
   tibble::rownames_to_column("cell") |>
@@ -115,14 +103,12 @@ milo <- miloR::calcNhoodDistance(milo, d = n_pcs, reduced.dim = "PCA")
 
 nhood_counts <- miloR::nhoodCounts(milo)
 sample_table <- sample_table |> tibble::column_to_rownames("sample_id")
-# ANALYSIS_OK[sample-order]: countCells determines the required design row order.
 sample_table <- sample_table[colnames(nhood_counts), , drop = FALSE]
 
 if (anyNA(rownames(sample_table))) {
   cli::cli_abort("Neighborhood count columns do not match the sample design.")
 }
 
-# ANALYSIS_OK[contrast-definition]: condition is the prespecified primary six-sample contrast.
 da_results <- miloR::testNhoods(
   milo,
   design = ~condition,
@@ -155,7 +141,6 @@ nhood_summary <- tibble::tibble(
   samples_with_cells = as.integer(Matrix::rowSums(nhood_counts > 0))
 )
 
-# ANALYSIS_OK[nhood-summary-join]: both tables have one row per unique neighborhood.
 da_table <- da_results |>
   as.data.frame() |>
   tibble::rownames_to_column("nhood") |>
@@ -193,11 +178,11 @@ parameter_table <- tibble::tibble(
 
 readr::write_tsv(
   tibble::rownames_to_column(sample_table, "sample_id"),
-  file.path(output_dir, "sample_table.tsv")
+  output_path(output_dir, "sample_table.tsv")
 )
-readr::write_tsv(da_table, file.path(output_dir, "nhood_da_results.tsv"))
+readr::write_tsv(da_table, output_path(output_dir, "nhood_da_results.tsv"))
 readr::write_tsv(
   membership_table,
-  file.path(output_dir, "nhood_cell_membership.tsv")
+  output_path(output_dir, "nhood_cell_membership.tsv")
 )
-readr::write_tsv(parameter_table, file.path(output_dir, "parameters.tsv"))
+readr::write_tsv(parameter_table, output_path(output_dir, "parameters.tsv"))

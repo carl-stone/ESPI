@@ -1,276 +1,33 @@
-#' Save a publication plot and mirror it only when the notebook references it.
-#'
-#' PNG and PDF outputs are always written. A PNG is mirrored only when its
-#' `figures/<basename>` path appears in an inline Markdown image link in
-#' `notebook/sc_analysis.qmd`. Other outputs remain at their original output path.
-#' The notebook mirror is replaced through a temporary regular file. Existing
-#' symlinks are rejected so a publication run cannot write through the notebook
-#' tree into an external output directory.
-#'
+#' Save a publication plot as PNG and PDF and copy the PNG to the notebook
 #' @param plot A ggplot object.
 #' @param output_stem Full output path without a file extension.
-#' @param width Figure width in inches.
-#' @param height Figure height in inches.
-#' @param notebook_basename PNG basename to mirror when referenced by the notebook.
+#' @param width,height Figure size in inches.
 #' @param dpi PNG resolution.
-#'
-#' @return Named paths for the PNG and PDF, plus `notebook` when mirrored,
-#'   invisibly.
+#' @return Named PNG, PDF, and notebook paths, invisibly.
 #' @export
-# ANALYSIS_OK[R026]: exported plot writer is called directly by publication and DE phase scripts.
-# ANALYSIS_OK[smuggled-default]: exported plot writer preserves the publication PNG resolution default.
-save_publication_plot <- function(
-  plot,
-  output_stem,
-  width,
-  height,
-  notebook_basename,
-  dpi = 300
-) {
-  if (
-    length(output_stem) != 1L ||
-      !is.character(output_stem) ||
-      !nzchar(output_stem)
-  ) {
-    stop("output_stem must be one non-empty path.", call. = FALSE)
-  }
-  if (
-    length(notebook_basename) != 1L ||
-      !is.character(notebook_basename) ||
-      !nzchar(notebook_basename) ||
-      identical(notebook_basename, basename(notebook_basename)) == FALSE
-  ) {
-    stop("notebook_basename must be one non-empty basename.", call. = FALSE)
-  }
-  if (
-    length(width) != 1L ||
-      !is.numeric(width) ||
-      !is.finite(width) ||
-      width <= 0 ||
-      length(height) != 1L ||
-      !is.numeric(height) ||
-      !is.finite(height) ||
-      height <= 0
-  ) {
-    stop("width and height must be positive finite numbers.", call. = FALSE)
-  }
-  if (length(dpi) != 1L || !is.numeric(dpi) || !is.finite(dpi) || dpi <= 0) {
-    stop("dpi must be a positive finite number.", call. = FALSE)
-  }
-
-  png_path <- paste0(output_stem, ".png")
-  pdf_path <- paste0(output_stem, ".pdf")
-  dir.create(dirname(png_path), recursive = TRUE, showWarnings = FALSE)
-  ggplot2::ggsave(
-    filename = png_path,
-    plot = plot,
-    width = width,
-    height = height,
-    units = "in",
-    dpi = dpi
-  )
-  ggplot2::ggsave(
-    filename = pdf_path,
-    plot = plot,
-    width = width,
-    height = height,
-    units = "in"
-  )
-
-  notebook_dir <- here::here("notebook", "figures")
-  dir.create(notebook_dir, recursive = TRUE, showWarnings = FALSE)
-  notebook_path <- file.path(notebook_dir, notebook_basename)
-  notebook_path <- .copy_notebook_figure(png_path, notebook_path)
-
-  invisible(c(png = png_path, pdf = pdf_path, notebook = notebook_path))
+save_publication_plot <- function(plot, output_stem, width, height, dpi = 300) {
+  paths <- output_path(paste0(output_stem, c(".png", ".pdf")))
+  ggplot2::ggsave(paths[[1]], plot, width = width, height = height, dpi = dpi)
+  ggplot2::ggsave(paths[[2]], plot, width = width, height = height)
+  notebook <- copy_notebook_figure(paths[[1]])
+  invisible(c(png = paths[[1]], pdf = paths[[2]], notebook = notebook))
 }
 
-# ANALYSIS_OK[R026]: private mirror helper is called by the plot writer and executable phase scripts.
-# Replace a notebook figure only through a verified regular temporary file. POSIX
-# rename-over is attempted first; the fallback moves the old destination aside
-# and restores it if installation fails.
-.copy_notebook_figure <- function(source, destination) {
-  notebook_lines <- readLines(
-    here::here("notebook", "sc_analysis.qmd"),
-    warn = FALSE
-  )
-  image_path <- paste0("](figures/", basename(destination), ")")
-  if (!any(grepl(image_path, notebook_lines, fixed = TRUE))) {
-    return(invisible(NULL))
-  }
-
-  destination_link <- Sys.readlink(destination)
-  if (
-    length(destination_link) == 1L &&
-      !is.na(destination_link) &&
-      nzchar(destination_link)
-  ) {
-    stop(
-      "Refusing to replace symlinked notebook figure: ",
-      destination,
-      call. = FALSE
-    )
-  }
-  if (
-    !file.exists(destination) ||
-      isTRUE(file.info(destination)$isdir) ||
-      !isTRUE(file.info(destination)$isdir == FALSE)
-  ) {
-    stop(
-      "Notebook figure destination must be an existing regular file: ",
-      destination,
-      call. = FALSE
-    )
-  }
-  if (!file.exists(source) || !isTRUE(file.info(source)$isdir == FALSE)) {
-    stop(
-      "Notebook figure source is not a regular file: ",
-      source,
-      call. = FALSE
-    )
-  }
-
-  temporary <- tempfile(
-    pattern = paste0(".", basename(destination), "."),
-    tmpdir = dirname(destination)
-  )
-  backup <- tempfile(
-    pattern = paste0(".", basename(destination), ".prior."),
-    tmpdir = dirname(destination)
-  )
-  displaced <- tempfile(
-    pattern = paste0(".", basename(destination), ".old."),
-    tmpdir = dirname(destination)
-  )
-  on.exit(
-    {
-      if (file.exists(temporary)) {
-        unlink(temporary)
-      }
-      if (file.exists(backup)) {
-        unlink(backup)
-      }
-      if (file.exists(displaced)) unlink(displaced)
-    },
-    add = TRUE
-  )
-  if (
-    !file.copy(source, temporary, overwrite = FALSE, copy.date = TRUE) ||
-      !file.exists(temporary) ||
-      !isTRUE(file.info(temporary)$isdir == FALSE)
-  ) {
-    stop(
-      "Failed to create temporary notebook figure: ",
-      destination,
-      call. = FALSE
-    )
-  }
-  if (nzchar(Sys.readlink(temporary))) {
-    stop("Temporary notebook figure is a symlink: ", temporary, call. = FALSE)
-  }
-  source_hash <- digest::digest(source, algo = "sha256", file = TRUE)
-  temporary_hash <- digest::digest(temporary, algo = "sha256", file = TRUE)
-  if (!identical(source_hash, temporary_hash)) {
-    stop(
-      "Temporary notebook figure hash mismatch: ",
-      destination,
-      call. = FALSE
-    )
-  }
-  source_dimensions <- magick::image_info(magick::image_read(source))[
-    1L,
-    c("width", "height")
-  ]
-  temporary_dimensions <- magick::image_info(magick::image_read(temporary))[
-    1L,
-    c("width", "height")
-  ]
-  if (!identical(source_dimensions, temporary_dimensions)) {
-    stop(
-      "Temporary notebook figure dimensions mismatch: ",
-      destination,
-      call. = FALSE
-    )
-  }
-  if (!file.copy(destination, backup, overwrite = FALSE, copy.date = TRUE)) {
-    stop(
-      "Failed to preserve existing notebook figure: ",
-      destination,
-      call. = FALSE
-    )
-  }
-  installed <- file.rename(temporary, destination)
-  if (!installed) {
-    if (!file.rename(destination, displaced)) {
-      stop(
-        "Failed to replace notebook figure without risking its existing file: ",
-        destination,
-        call. = FALSE
-      )
-    }
-    installed <- file.rename(temporary, destination)
-    if (!installed) {
-      restored <- file.rename(displaced, destination)
-      if (!restored) {
-        restored <- file.copy(
-          backup,
-          destination,
-          overwrite = TRUE,
-          copy.date = TRUE
-        )
-      }
-      if (!restored) {
-        stop(
-          "Failed to replace notebook figure and restore its existing file: ",
-          destination,
-          call. = FALSE
-        )
-      }
-      stop(
-        "Failed to replace notebook figure; existing file was preserved: ",
-        destination,
-        call. = FALSE
-      )
-    }
-  }
-  destination_hash <- digest::digest(destination, algo = "sha256", file = TRUE)
-  if (!identical(source_hash, destination_hash)) {
-    restored <- file.copy(
-      backup,
-      destination,
-      overwrite = TRUE,
-      copy.date = TRUE
-    )
-    if (!restored) {
-      failed_destination <- tempfile(
-        pattern = paste0(".", basename(destination), ".failed."),
-        tmpdir = dirname(destination)
-      )
-      if (file.rename(destination, failed_destination)) {
-        restored <- file.rename(backup, destination)
-        if (!restored) {
-          restored <- file.copy(
-            backup,
-            destination,
-            overwrite = FALSE,
-            copy.date = TRUE
-          )
-        }
-        unlink(failed_destination)
-      }
-    }
-    if (!restored) {
-      stop(
-        "Notebook figure hash mismatch and existing file could not be restored: ",
-        destination,
-        call. = FALSE
-      )
-    }
-    stop(
-      "Notebook figure hash mismatch; existing file was restored: ",
-      destination,
-      call. = FALSE
-    )
+#' Copy a figure to the notebook
+#'
+#' The caller chooses what to copy; this does not parse the notebook or hash images.
+#' New destinations are allowed. Existing files require overwrite opt-in.
+#' @param source Figure to copy.
+#' @param destination Destination path, normally the same basename in notebook/figures.
+#' @return The destination, invisibly.
+#' @export
+copy_notebook_figure <- function(
+  source,
+  destination = here::here("notebook", "figures", basename(source))
+) {
+  destination <- output_path(destination)
+  if (!file.copy(source, destination, overwrite = TRUE)) {
+    stop("Could not copy figure to ", destination)
   }
   invisible(destination)
 }
@@ -288,7 +45,6 @@ save_publication_plot <- function(
 #'
 #' @return Named PNG and PDF paths, invisibly.
 #' @export
-# ANALYSIS_OK[R026]: exported heatmap writer is called by the publication-figures phase script.
 write_curated_marker_heatmap <- function(
   sobj,
   cluster_column,
@@ -302,9 +58,6 @@ write_curated_marker_heatmap <- function(
     stop("Missing cluster metadata column: ", cluster_column, call. = FALSE)
   }
   assay <- SeuratObject::DefaultAssay(sobj)
-  if (!assay %in% SeuratObject::Assays(sobj)) {
-    stop("Missing default assay: ", assay, call. = FALSE)
-  }
   if (!layer %in% SeuratObject::Layers(sobj[[assay]])) {
     stop(
       "Missing expression layer '",
@@ -314,25 +67,9 @@ write_curated_marker_heatmap <- function(
       call. = FALSE
     )
   }
-  if (
-    !identical(names(cell_type_marker_genes), names(cell_type_marker_labels))
-  ) {
-    stop(
-      "cell_type_marker_genes and cell_type_marker_labels must have identical names.",
-      call. = FALSE
-    )
-  }
 
   marker_table <- stack(cell_type_marker_genes)
   colnames(marker_table) <- c("gene", "cell_type")
-  duplicated_markers <- marker_table$gene[duplicated(marker_table$gene)]
-  if (length(duplicated_markers) > 0L) {
-    stop(
-      "Marker gene(s) assigned to more than one cell type: ",
-      paste(unique(duplicated_markers), collapse = ", "),
-      call. = FALSE
-    )
-  }
   marker_table$cell_type_label <- unname(cell_type_marker_labels[
     marker_table$cell_type
   ])
@@ -480,13 +217,9 @@ write_curated_marker_heatmap <- function(
   }
   heatmap <- do.call(ComplexHeatmap::Heatmap, heatmap_arguments)
 
-  dir.create(
-    dirname(paste0(output_stem, ".png")),
-    recursive = TRUE,
-    showWarnings = FALSE
-  )
-  png_path <- paste0(output_stem, ".png")
-  pdf_path <- paste0(output_stem, ".pdf")
+  paths <- output_path(paste0(output_stem, c(".png", ".pdf")))
+  png_path <- paths[[1]]
+  pdf_path <- paths[[2]]
   grDevices::png(
     png_path,
     width = width,
@@ -518,7 +251,6 @@ write_curated_marker_heatmap <- function(
   invisible(c(png = png_path, pdf = pdf_path))
 }
 
-# ANALYSIS_OK[R026]: private heatmap drawing helper is called by the exported writer in this module.
 .draw_curated_marker_heatmap <- function(heatmap, cluster_dendrogram) {
   drawn_heatmap <- ComplexHeatmap::draw(
     heatmap,
@@ -591,7 +323,6 @@ write_curated_marker_heatmap <- function(
 #'
 #' @return Named PNG and PDF paths, invisibly.
 #' @export
-# ANALYSIS_OK[R026]: exported module/p27 heatmap writer is called by the publication-figures phase script.
 write_module_p27_heatmap <- function(
   module_scores,
   p27_enrichment,
@@ -599,28 +330,6 @@ write_module_p27_heatmap <- function(
   width,
   height
 ) {
-  if (
-    !is.matrix(module_scores) ||
-      !is.numeric(module_scores) ||
-      is.null(rownames(module_scores)) ||
-      is.null(colnames(module_scores)) ||
-      nrow(module_scores) == 0L ||
-      ncol(module_scores) == 0L
-  ) {
-    stop(
-      "module_scores must be a non-empty named numeric matrix.",
-      call. = FALSE
-    )
-  }
-  required_cols <- c("cluster", "z_score")
-  missing_cols <- setdiff(required_cols, colnames(p27_enrichment))
-  if (length(missing_cols) > 0L) {
-    stop(
-      "Missing p27 enrichment column(s): ",
-      paste(missing_cols, collapse = ", "),
-      call. = FALSE
-    )
-  }
   module_matrix <- module_scores
   module_matrix_rownames <- unname(cell_type_marker_labels[rownames(
     module_matrix
@@ -681,13 +390,9 @@ write_module_p27_heatmap <- function(
     use_raster = FALSE
   )
 
-  dir.create(
-    dirname(paste0(output_stem, ".png")),
-    recursive = TRUE,
-    showWarnings = FALSE
-  )
-  png_path <- paste0(output_stem, ".png")
-  pdf_path <- paste0(output_stem, ".pdf")
+  paths <- output_path(paste0(output_stem, c(".png", ".pdf")))
+  png_path <- paths[[1]]
+  pdf_path <- paths[[2]]
   grDevices::png(
     png_path,
     width = width,

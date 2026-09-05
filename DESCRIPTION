@@ -22,7 +22,6 @@ Imports:
     DESeq2,
     clustree,
     DropletUtils,
-    digest,
     dplyr,
     ggplot2,
     gghalves,
@@ -30,7 +29,6 @@ Imports:
     enrichplot,
     ggrepel,
     here,
-    magick,
     mclust,
     patchwork,
     scclrR,
@@ -44,15 +42,28 @@ Imports:
     SeuratObject,
     SingleCellExperiment,
     tibble,
-    tidyr
+    tidyr,
+    withr
 Suggests:
     biomaRt,
+    brms,
+    broom,
     cli,
     devtools,
+    digest,
+    forcats,
+    ggplotify,
+    ggview,
     glmmTMB,
+    jsonlite,
+    lme4,
     miloR,
+    posterior,
+    purrr,
     scilintr,
-    SummarizedExperiment
+    stringr,
+    SummarizedExperiment,
+    tidyverse
 Remotes:
     cleartools/scclrR,
     erocoar/gghalves

@@ -10,6 +10,8 @@ Install R and the packages declared in `DESCRIPTION`, Quarto, and `just`
 `scilintr` provides optional lint diagnostics.
 
 Additional manuscript scripts use packages such as `ggview` and `ggplotify`.
+The Bayesian reprogramming-model section also needs `cmdstanr` and a working
+CmdStan installation; those are not needed for the numbered pipeline.
 Exploratory Milo scripts use `miloR` and `SingleCellExperiment`; the
 neurogenic-proportion analysis uses `glmmTMB`, and the plotting sandbox uses
 `lme4`. Consult each script's package-loading section when running that work.
@@ -24,9 +26,9 @@ These scripts are not automatically executed by `just run`.
 3. `~/Library/CloudStorage/Box-Box/megan_sc_data`.
 
 Copy `config.local.example.R` to `config.local.R` and set one of those values
-when the default location is unavailable. The resolved directory must already
-exist; package loading fails if it does not. Do not commit `config.local.R` or
-large external data.
+when the default location is unavailable. Package loading does not require the
+data directory; an analysis needs its actual input files. Do not commit
+`config.local.R` or large external data.
 
 Important subdirectories include `seurat_objects/{input,current}/`,
 `figures/{preprocess,cluster,mg_selected}/`, `tables/mg_selected/`,
@@ -58,6 +60,20 @@ Both modes run `01b-cluster-mg-sensitivity.R` and all downstream phases, then
 render the notebook with overwrite enabled. These start modes select execution
 scope, not a different scientific analysis.
 
+## Changing clustering choices
+
+Edit the `selected` list in `publication_config()` in `R/config.R`. Selected MG
+uses 20 PCs, resolution 0.5, and seed 2847. Source clustering retains resolution
+0.3; the cell-cycle-filtered MG sensitivity uses resolution 0.5 and seed 1312.
+Column names derive from these settings. No fixed cell or cluster count blocks
+a different clustering choice.
+
+For a seed change, rerun `01b-cluster-mg-sensitivity.R` before downstream
+analyses. That stage only loads the two MG preprocessing objects; it no longer
+loads unrelated source branches to produce `frozen_object_numbers.tsv`.
+The existing summary table, figures, and manuscript notes remain earlier-run
+artifacts until deliberately replaced; they are not automatically relabeled.
+
 ## Maintenance
 
 ```sh
@@ -68,7 +84,9 @@ just lint                 # optional scilintr diagnostics
 quarto render notebook/sc_analysis.qmd
 ```
 
-The notebook embeds figure bytes. Its pipeline inputs remain regular files;
-mirroring verifies hashes and dimensions before replacing referenced figures.
+The notebook embeds figure bytes. Scripts copy chosen figures with ordinary
+file copying, without notebook parsing, hashing, or backup/rollback machinery.
+`output_path()` creates output directories and checks overwrite permission at
+each write. A failed run may leave earlier completed outputs in place.
 The custom-marker script also retains manuscript figures under
 `notebook/figures/custom-markers/` independently of the numbered pipeline.

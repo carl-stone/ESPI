@@ -14,8 +14,4 @@ umap_feature_list <- c(
   "Glul"
 )
 
-save(
-  umap_feature_list,
-  file = "data/umap_feature_list.rda",
-  version = 2
-)
+save(umap_feature_list, file = "data/umap_feature_list.rda", version = 2)

@@ -14,12 +14,11 @@ suppressPackageStartupMessages({
 config <- publication_config()
 input_path <- file.path(config$paths$input_objects, "sobj_qc_filtered.rds")
 output_dir <- file.path(config$paths$tables, "qc")
-output_path <- file.path(output_dir, "post_filtering_qc_stats.tsv")
+qc_path <- file.path(output_dir, "post_filtering_qc_stats.tsv")
 
 if (!file.exists(input_path)) {
   stop("Filtered Seurat object does not exist: ", input_path, call. = FALSE)
 }
-assert_output_available(output_path, config$overwrite)
 
 # ---- summarize filtered cells ----
 
@@ -75,4 +74,4 @@ if (nrow(qc_table) != dplyr::n_distinct(metadata$Sample)) {
 
 # ---- write table ----
 
-readr::write_tsv(qc_table, output_path)
+readr::write_tsv(qc_table, output_path(qc_path))

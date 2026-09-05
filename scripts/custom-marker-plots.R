@@ -28,7 +28,6 @@ heatmap_colors <- c(
   "white",
   config$palettes$dotplot[2]
 )
-cluster_palette <- c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3")
 marker_dot_plot_stem <- file.path(dirname(output_stem), "marker_dotplot")
 dot_plot_width <- 7
 dot_plot_height <- 9
@@ -54,13 +53,6 @@ heatmap_marker_list <- list(
   "Cone bipolar" = c("Otx2", "Cabp5", "Scgn", "Lhx4", "Grik1", "Neurod1")
 )
 
-if (
-  !is.list(heatmap_marker_list) ||
-    is.null(names(heatmap_marker_list)) ||
-    any(names(heatmap_marker_list) == "")
-) {
-  stop("heatmap_marker_list must be a fully named list.", call. = FALSE)
-}
 
 marker_table <- stack(heatmap_marker_list)
 colnames(marker_table) <- c("gene", "cell_type")
@@ -79,16 +71,11 @@ marker_table$cell_type_label <- as.character(marker_table$cell_type)
 sobj <- readRDS(branch_settings$path)
 cluster_column <- branch_settings$column
 assay <- SeuratObject::DefaultAssay(sobj)
-expected_cluster_levels <- as.character(1:5)
 cluster_values <- as.character(sobj[[cluster_column, drop = TRUE]])
-observed_cluster_levels <- sort(unique(cluster_values))
-if (!identical(observed_cluster_levels, expected_cluster_levels)) {
-  stop(
-    "Expected clusters 1 through 5; found: ",
-    paste(observed_cluster_levels, collapse = ", "),
-    call. = FALSE
-  )
-}
+expected_cluster_levels <- as.character(sort(as.integer(unique(
+  cluster_values
+))))
+cluster_palette <- scales::hue_pal()(length(expected_cluster_levels))
 
 missing_markers <- setdiff(marker_table$gene, rownames(sobj))
 if (length(missing_markers) > 0L) {
@@ -174,25 +161,12 @@ heatmap <- ComplexHeatmap::Heatmap(
   use_raster = TRUE
 )
 
-view_heatmap <- function(heatmap, width, height, dpi = 300) {
-  heatmap_grob <- grid::grid.grabExpr(
-    ComplexHeatmap::draw(heatmap),
-    width = width,
-    height = height
-  )
-
-  ggplotify::as.ggplot(heatmap_grob) +
-    ggview::canvas(width, height, units = "in", dpi = dpi)
-}
 
 # ---- figure ----
 
-dir.create(dirname(output_stem), recursive = TRUE, showWarnings = FALSE)
 png_path <- paste0(output_stem, ".png")
 pdf_path <- paste0(output_stem, ".pdf")
 
-
-view_heatmap(heatmap, 6.5, 3.7)
 
 heatmap_width <- 6.5
 heatmap_height <- 3.7
@@ -203,16 +177,18 @@ heatmap_plot <- grid::grid.grabExpr(
   width = heatmap_width,
   height = heatmap_height
 )
+ggplotify::as.ggplot(heatmap_plot) +
+  ggview::canvas(heatmap_width, heatmap_height)
 
 ggplot2::ggsave(
-  png_path,
+  output_path(png_path),
   heatmap_plot,
   width = heatmap_width,
   height = heatmap_height,
   dpi = heatmap_dpi
 )
 ggplot2::ggsave(
-  pdf_path,
+  output_path(pdf_path),
   heatmap_plot,
   width = heatmap_width,
   height = heatmap_height
@@ -303,14 +279,14 @@ marker_dot_plot_png_path <- paste0(marker_dot_plot_stem, ".png")
 marker_dot_plot_pdf_path <- paste0(marker_dot_plot_stem, ".pdf")
 
 ggplot2::ggsave(
-  marker_dot_plot_png_path,
+  output_path(marker_dot_plot_png_path),
   marker_dot_plot,
   width = dot_plot_width,
   height = dot_plot_height,
   dpi = dot_plot_dpi
 )
 ggplot2::ggsave(
-  marker_dot_plot_pdf_path,
+  output_path(marker_dot_plot_pdf_path),
   marker_dot_plot,
   width = dot_plot_width,
   height = dot_plot_height

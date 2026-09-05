@@ -3,7 +3,9 @@
 \docType{data}
 \name{mouse_cell_cycle_genes}
 \alias{mouse_cell_cycle_genes}
-\title{Mouse cell-cycle genes}
+\title{Mouse cell-cycle genes
+Mouse orthologs of Seurat's human cell-cycle genes, generated with
+\code{data-raw/mouse-cell-cycle-genes.R} using \code{biomaRt}.}
 \format{
 A character vector of mouse gene symbols.
 }
@@ -11,6 +13,7 @@ A character vector of mouse gene symbols.
 mouse_cell_cycle_genes
 }
 \description{
+Mouse cell-cycle genes
 Mouse orthologs of Seurat's human cell-cycle genes, generated with
 \code{data-raw/mouse-cell-cycle-genes.R} using \code{biomaRt}.
 }

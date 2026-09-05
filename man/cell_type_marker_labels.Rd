@@ -3,7 +3,8 @@
 \docType{data}
 \name{cell_type_marker_labels}
 \alias{cell_type_marker_labels}
-\title{Cell type marker labels}
+\title{Cell type marker labels
+Display labels for \code{cell_type_marker_genes}.}
 \format{
 A named character vector.
 }
@@ -11,6 +12,7 @@ A named character vector.
 cell_type_marker_labels
 }
 \description{
+Cell type marker labels
 Display labels for \code{cell_type_marker_genes}.
 }
 \keyword{datasets}

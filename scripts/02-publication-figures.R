@@ -35,14 +35,7 @@ annotation_dir <- file.path(config$paths$figures, "annotation")
 mg_figure_dir <- file.path(config$paths$figures, "mg_selected")
 annotation_table_dir <- file.path(config$paths$tables, "annotation")
 mg_table_dir <- file.path(config$paths$tables, "mg_selected")
-notebook_figure_dir <- config$paths$notebook_figures
 
-purrr::walk(
-  c(annotation_dir, mg_figure_dir, annotation_table_dir, mg_table_dir),
-  dir.create,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 source_marker_stem <- file.path(
   annotation_dir,
@@ -62,93 +55,6 @@ source_module_stem <- file.path(
   )
 )
 
-output_paths <- c(
-  paste0(source_marker_stem, c(".png", ".pdf")),
-  paste0(source_module_stem, c(".png", ".pdf")),
-  file.path(
-    annotation_table_dir,
-    paste0(
-      basename(source_module_stem),
-      c("_module_scores.tsv", "_p27_enrichment.tsv")
-    )
-  )
-)
-for (branch_settings in mg_settings) {
-  branch_tag <- branch_settings$branch
-  branch_suffix <- paste0(
-    "_dims",
-    branch_settings$dimensions,
-    "_res",
-    branch_settings$resolution
-  )
-  mg_stems <- file.path(
-    mg_figure_dir,
-    c(
-      paste0("mg_selected_cluster_umap_", branch_tag, branch_suffix),
-      paste0("mg_selected_condition_umap_", branch_tag, branch_suffix),
-      paste0("mg_selected_feature_umap_pflog_", branch_tag, branch_suffix),
-      paste0("mg_selected_ascl1_hes6_coexpression_", branch_tag, branch_suffix),
-      paste0(
-        "mg_selected_cluster_abundance_enrichment_",
-        branch_tag,
-        branch_suffix
-      ),
-      paste0(
-        "mg_selected_cluster_proportion_by_mouse_",
-        branch_tag,
-        branch_suffix
-      )
-    )
-  )
-  annotation_stems <- file.path(
-    annotation_dir,
-    c(
-      paste0(
-        "cell_type_marker_heatmap_pflog_",
-        branch_tag,
-        "_cells",
-        branch_suffix
-      ),
-      paste0("cell_type_module_p27_heatmap_pflog_", branch_tag, branch_suffix)
-    )
-  )
-  output_paths <- c(
-    output_paths,
-    paste0(mg_stems, rep(c(".png", ".pdf"), each = length(mg_stems))),
-    paste0(
-      annotation_stems,
-      rep(c(".png", ".pdf"), each = length(annotation_stems))
-    ),
-    file.path(
-      mg_table_dir,
-      c(
-        paste0(
-          "mg_selected_cluster_abundance_enrichment_",
-          branch_tag,
-          paste0(branch_suffix, ".tsv")
-        ),
-        paste0(
-          "mg_selected_cluster_proportion_randomization_",
-          branch_tag,
-          paste0(branch_suffix, ".tsv")
-        ),
-        paste0(
-          "mg_selected_sample_cluster_proportions_",
-          branch_tag,
-          paste0(branch_suffix, ".tsv")
-        )
-      )
-    ),
-    file.path(
-      annotation_table_dir,
-      c(
-        paste0(basename(annotation_stems[[2]]), "_module_scores.tsv"),
-        paste0(basename(annotation_stems[[2]]), "_p27_enrichment.tsv")
-      )
-    )
-  )
-}
-assert_output_available(output_paths, config$overwrite)
 
 # ---- inputs ----
 
@@ -168,10 +74,7 @@ source_marker_paths <- write_curated_marker_heatmap(
   width = 10,
   height = 9
 )
-ESPI:::.copy_notebook_figure(
-  source_marker_paths[["png"]],
-  file.path(notebook_figure_dir, basename(source_marker_paths[["png"]]))
-)
+copy_notebook_figure(source_marker_paths[["png"]])
 
 source_module_scores <- compute_cluster_module_scores(
   source_sobj,
@@ -207,20 +110,17 @@ source_module_paths <- write_module_p27_heatmap(
   width = 8,
   height = 6
 )
-ESPI:::.copy_notebook_figure(
-  source_module_paths[["png"]],
-  file.path(notebook_figure_dir, basename(source_module_paths[["png"]]))
-)
+copy_notebook_figure(source_module_paths[["png"]])
 readr::write_tsv(
   source_module_scores_out,
-  file.path(
+  output_path(
     annotation_table_dir,
     paste0(basename(source_module_stem), "_module_scores.tsv")
   )
 )
 readr::write_tsv(
   source_p27,
-  file.path(
+  output_path(
     annotation_table_dir,
     paste0(basename(source_module_stem), "_p27_enrichment.tsv")
   )
@@ -409,7 +309,6 @@ for (branch in branches) {
 
   feature_plots <- purrr::map(umap_features, function(gene) {
     plot_data <- feature_data |>
-      # ANALYSIS_OK[plot-filter]: selects one gene panel without dropping cells.
       dplyr::filter(feature == gene) |>
       dplyr::arrange(scaled_expression)
 
@@ -648,80 +547,48 @@ for (branch in branches) {
     width = 8,
     height = 6
   )
-  ESPI:::.copy_notebook_figure(
-    marker_paths[["png"]],
-    file.path(notebook_figure_dir, basename(marker_paths[["png"]]))
-  )
-  ESPI:::.copy_notebook_figure(
-    module_paths[["png"]],
-    file.path(notebook_figure_dir, basename(module_paths[["png"]]))
-  )
+  copy_notebook_figure(marker_paths[["png"]])
+  copy_notebook_figure(module_paths[["png"]])
 
-  save_publication_plot(
-    cluster_plot,
-    cluster_stem,
-    width = 5.5,
-    height = 5,
-    notebook_basename = paste0(basename(cluster_stem), ".png")
-  )
-  save_publication_plot(
-    condition_plot,
-    condition_stem,
-    width = 5.5,
-    height = 5,
-    notebook_basename = paste0(basename(condition_stem), ".png")
-  )
-  save_publication_plot(
-    feature_plot,
-    feature_stem,
-    width = 10.5,
-    height = 9,
-    notebook_basename = paste0(basename(feature_stem), ".png")
-  )
+  save_publication_plot(cluster_plot, cluster_stem, width = 5.5, height = 5)
+  save_publication_plot(condition_plot, condition_stem, width = 5.5, height = 5)
+  save_publication_plot(feature_plot, feature_stem, width = 10.5, height = 9)
   save_publication_plot(
     coexpression_plot,
     coexpression_stem,
     width = 6,
-    height = 5,
-    notebook_basename = paste0(basename(coexpression_stem), ".png")
+    height = 5
   )
   save_publication_plot(
     abundance_plot,
     abundance_stem,
     width = max(6.5, 0.45 * nrow(abundance_table)),
-    height = 4.5,
-    notebook_basename = paste0(basename(abundance_stem), ".png")
+    height = 4.5
   )
-  save_publication_plot(
-    proportion_plot,
-    proportion_stem,
-    width = 8,
-    height = 6,
-    notebook_basename = paste0(basename(proportion_stem), ".png")
-  )
+  save_publication_plot(proportion_plot, proportion_stem, width = 8, height = 6)
 
   readr::write_tsv(
     abundance_table,
-    file.path(mg_table_dir, paste0(basename(abundance_stem), ".tsv"))
+    output_path(mg_table_dir, paste0(basename(abundance_stem), ".tsv"))
   )
   readr::write_tsv(
     randomization_table,
-    file.path(mg_table_dir, paste0(randomization_stem, ".tsv"))
+    output_path(mg_table_dir, paste0(randomization_stem, ".tsv"))
   )
   readr::write_tsv(
     sample_props,
-    file.path(mg_table_dir, paste0(sample_props_stem, ".tsv"))
+    output_path(mg_table_dir, paste0(sample_props_stem, ".tsv"))
   )
   readr::write_tsv(
     module_scores_out,
-    file.path(
+    output_path(
       annotation_table_dir,
       paste0(basename(module_stem), "_module_scores.tsv")
     )
   )
   readr::write_tsv(
     p27_enrichment,
-    file.path(
+    output_path(
       annotation_table_dir,
       paste0(basename(module_stem), "_p27_enrichment.tsv")
     )

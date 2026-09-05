@@ -2,14 +2,16 @@
 % Please edit documentation in R/config.R
 \name{publication_config}
 \alias{publication_config}
-\title{Fixed publication-analysis configuration}
+\title{Analysis paths and selected clustering settings}
 \usage{
 publication_config()
 }
 \value{
-A nested list of publication-analysis configuration values.
+A list of paths, conditions, selected clusterings, grid, and palettes.
 }
 \description{
-Returns the paths, labels, selected clustering contracts, palettes, and
-execution policy for the publication pipeline.
+Edit the \code{selected} list here to change clustering choices. Object paths and
+metadata column names are derived from those settings, not maintained separately.
+The source and cell-cycle-filtered sensitivity retain seed 1312; the selected
+MG clustering uses seed 2847.
 }

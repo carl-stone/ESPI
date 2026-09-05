@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
   library(tidyverse)
 })
 
-# ---- fixed parameters and immediate writable-root refusal ----
+# ---- parameters and paths ----
 
 config <- publication_config()
 regeneration_start <- Sys.getenv("ESPI_REGENERATION_START", unset = "all")
@@ -29,7 +29,6 @@ input_object_dir <- config$paths$input_objects
 current_object_dir <- config$paths$current_objects
 figure_dir <- config$paths$figures
 table_dir <- config$paths$tables
-notebook_figure_dir <- config$paths$notebook_figures
 
 required_writable_dirs <- if (regeneration_start == "all") {
   c(input_object_dir, current_object_dir)
@@ -61,176 +60,13 @@ mg_table_dir <- file.path(table_dir, "mg_selected")
 
 normalizations <- c("log1p", "pflog")
 filter_states <- c(FALSE, TRUE)
-dims_grid <- c(20L, 30L, 50L)
-resolutions <- c(0.3, 0.5, 0.8)
+dims_grid <- config$grid$dimensions
+resolutions <- config$grid$resolutions
 source_branch_tags <- c(
   "log1p_no_filter_cc",
   "log1p_filter_cc",
   "pflog_no_filter_cc",
   "pflog_filter_cc"
-)
-source_preprocess_tags <- c(
-  "log1p_no-filter-cc",
-  "log1p_filter-cc",
-  "pflog_no-filter-cc",
-  "pflog_filter-cc"
-)
-mg_preprocess_tags <- c(
-  "pflog_mg_selected_no-filter-cc",
-  "pflog_mg_selected_filter-cc"
-)
-# Every primary path is fixed before any input read. Notebook mirrors are
-# intentionally excluded: they are existing regular files replaced only after
-# the corresponding primary PNG is complete.
-phase_output_paths <- c(
-  raw_object_path,
-  file.path(qc_input_dir, c("sobj_raw_with_qc.rds", "sobj_qc_filtered.rds")),
-  file.path(
-    qc_table_dir,
-    c(
-      "sample_cell_call_summary.tsv",
-      "sample_qc_summary.tsv",
-      "sample_qc_mad_thresholds.tsv",
-      "sobj_qc_summary_by_sample.tsv",
-      "sample_qc_attrition.tsv"
-    )
-  ),
-  file.path(
-    qc_figure_dir,
-    c(
-      "knee_plot.png",
-      "cell_call_plot.png",
-      "sample_cell_call_fraction.png",
-      "sample_qc_summary.png",
-      "count_sample_qc_plot.png",
-      "feature_sample_qc_plot.png",
-      "mt_sample_qc_plot.png",
-      "count_feature_mt_sample_scatter.png",
-      "feature_vs_mt.png"
-    )
-  ),
-  file.path(
-    cluster_table_dir,
-    c(
-      "cluster_grid_summary.tsv",
-      "cluster_grid_stability_summary.tsv",
-      "cluster_grid_pairwise_stability.tsv"
-    )
-  ),
-  file.path(
-    cluster_figure_dir,
-    c(
-      "cluster_grid_clustree_12_panel.png",
-      "cluster_grid_clustree_12_panel.pdf",
-      "umap_resolution_sweep_pflog_filter_cc_dims50.png",
-      "umap_resolution_sweep_pflog_filter_cc_dims50.pdf"
-    )
-  ),
-  file.path(mg_table_dir, "mg_selected_cluster_selection.tsv"),
-  file.path(
-    mg_figure_dir,
-    c(
-      "mg_selected_cluster_selection_diagnostics.png",
-      "mg_selected_cluster_selection_diagnostics.pdf",
-      "elbow_pflog_mg_selected_no_filter_cc.png",
-      "elbow_pflog_mg_selected_no_filter_cc.pdf",
-      "elbow_pflog_mg_selected_filter_cc.png",
-      "elbow_pflog_mg_selected_filter_cc.pdf"
-    )
-  )
-)
-for (tag in source_preprocess_tags) {
-  phase_output_paths <- c(
-    phase_output_paths,
-    file.path(current_object_dir, paste0("preprocess_", tag, ".rds")),
-    file.path(
-      preprocess_figure_dir,
-      paste0(
-        c("qc_metrics_violin_", "hvg_scatter_", "dim_heatmap_", "elbow_"),
-        tag,
-        ".png"
-      )
-    ),
-    file.path(
-      preprocess_figure_dir,
-      paste0(
-        c("qc_metrics_violin_", "hvg_scatter_", "dim_heatmap_", "elbow_"),
-        tag,
-        ".pdf"
-      )
-    )
-  )
-}
-for (tag in mg_preprocess_tags) {
-  phase_output_paths <- c(
-    phase_output_paths,
-    file.path(current_object_dir, paste0("preprocess_", tag, ".rds"))
-  )
-}
-for (branch in source_branch_tags) {
-  phase_output_paths <- c(
-    phase_output_paths,
-    file.path(current_object_dir, paste0("cluster_", branch, "_elbow20.rds"))
-  )
-  for (dims in dims_grid) {
-    phase_output_paths <- c(
-      phase_output_paths,
-      file.path(
-        cluster_figure_dir,
-        paste0("clustree_", branch, "_dims", dims, c(".png", ".pdf"))
-      )
-    )
-    for (resolution in resolutions) {
-      column <- paste0("cluster_", branch, "_dims", dims, "_res", resolution)
-      umap <- sprintf("umap_%s_dims%d", branch, dims)
-      phase_output_paths <- c(
-        phase_output_paths,
-        file.path(
-          cluster_figure_dir,
-          paste0(umap, "_by_", column, c(".png", ".pdf"))
-        )
-      )
-    }
-  }
-}
-phase_output_paths <- unique(phase_output_paths)
-if (regeneration_start == "mg-selection") {
-  mg_output_paths <- c(
-    file.path(mg_table_dir, "mg_selected_cluster_selection.tsv"),
-    file.path(
-      mg_figure_dir,
-      c(
-        "mg_selected_cluster_selection_diagnostics.png",
-        "mg_selected_cluster_selection_diagnostics.pdf",
-        "elbow_pflog_mg_selected_no_filter_cc.png",
-        "elbow_pflog_mg_selected_no_filter_cc.pdf",
-        "elbow_pflog_mg_selected_filter_cc.png",
-        "elbow_pflog_mg_selected_filter_cc.pdf"
-      )
-    )
-  )
-  for (tag in mg_preprocess_tags) {
-    mg_output_paths <- c(
-      mg_output_paths,
-      file.path(current_object_dir, paste0("preprocess_", tag, ".rds"))
-    )
-  }
-  phase_output_paths <- unique(mg_output_paths)
-}
-assert_output_available(phase_output_paths, config$overwrite)
-purrr::walk(
-  c(
-    qc_figure_dir,
-    qc_table_dir,
-    preprocess_figure_dir,
-    cluster_figure_dir,
-    cluster_table_dir,
-    mg_figure_dir,
-    mg_table_dir
-  ),
-  dir.create,
-  recursive = TRUE,
-  showWarnings = FALSE
 )
 
 notebook_preprocess_pngs <- c(
@@ -317,8 +153,7 @@ if (regeneration_start == "all") {
     min.cells = 1,
     min.features = 1
   )
-  dir.create(dirname(raw_object_path), recursive = TRUE, showWarnings = FALSE)
-  saveRDS(sobj, raw_object_path)
+  saveRDS(sobj, output_path(raw_object_path))
 
   # ---- current QC and cell calling ----
 
@@ -416,7 +251,7 @@ if (regeneration_start == "all") {
     )
   readr::write_tsv(
     sample_summary_table,
-    file.path(qc_table_dir, "sample_cell_call_summary.tsv")
+    output_path(qc_table_dir, "sample_cell_call_summary.tsv")
   )
   qc_md <- sobj[[]] |>
     tibble::rownames_to_column("barcode") |>
@@ -446,7 +281,7 @@ if (regeneration_start == "all") {
     )
   utils::write.table(
     qc_summary_table,
-    file.path(qc_table_dir, "sample_qc_summary.tsv"),
+    output_path(qc_table_dir, "sample_qc_summary.tsv"),
     sep = "\t",
     row.names = FALSE,
     quote = FALSE
@@ -464,14 +299,12 @@ if (regeneration_start == "all") {
     )
   readr::write_tsv(
     qc_thresholds,
-    file.path(qc_table_dir, "sample_qc_mad_thresholds.tsv")
+    output_path(qc_table_dir, "sample_qc_mad_thresholds.tsv")
   )
-  n_qc_md_before_threshold_join <- nrow(qc_md)
-  qc_md <- qc_md |> dplyr::left_join(qc_thresholds, by = "Sample")
-  stopifnot(nrow(qc_md) == n_qc_md_before_threshold_join)
-  n_sobj_metadata_before_threshold_join <- nrow(sobj[[]])
-  sobj[[]] <- sobj[[]] |> dplyr::left_join(qc_thresholds, by = "Sample")
-  stopifnot(nrow(sobj[[]]) == n_sobj_metadata_before_threshold_join)
+  qc_md <- qc_md |>
+    dplyr::left_join(qc_thresholds, by = "Sample", relationship = "many-to-one")
+  sobj[[]] <- sobj[[]] |>
+    dplyr::left_join(qc_thresholds, by = "Sample", relationship = "many-to-one")
   sobj$fail_low_counts <- sobj$nCount_RNA < sobj$min_count_mad
   sobj$fail_low_features <- sobj$nFeature_RNA < sobj$min_feature_mad
   sobj$fail_high_mt <- sobj$percent.mt > sobj$max_percent_mt_mad
@@ -484,8 +317,8 @@ if (regeneration_start == "all") {
     !is.na(sobj$is_singlet) &
     sobj$is_singlet
   sobj_filtered <- subset(sobj, subset = pass_qc)
-  saveRDS(sobj, file.path(qc_input_dir, "sobj_raw_with_qc.rds"))
-  saveRDS(sobj_filtered, file.path(qc_input_dir, "sobj_qc_filtered.rds"))
+  saveRDS(sobj, output_path(qc_input_dir, "sobj_raw_with_qc.rds"))
+  saveRDS(sobj_filtered, output_path(qc_input_dir, "sobj_qc_filtered.rds"))
   sobj_qc_summary_table <- sobj[[]] |>
     dplyr::filter(is_cell) |>
     dplyr::group_by(Sample) |>
@@ -499,7 +332,7 @@ if (regeneration_start == "all") {
     )
   readr::write_tsv(
     sobj_qc_summary_table,
-    file.path(qc_table_dir, "sobj_qc_summary_by_sample.tsv")
+    output_path(qc_table_dir, "sobj_qc_summary_by_sample.tsv")
   )
   sample_qc_attrition <- sobj[[]] |>
     dplyr::group_by(Sample) |>
@@ -540,11 +373,10 @@ if (regeneration_start == "all") {
   )
   readr::write_tsv(
     sample_qc_attrition,
-    file.path(qc_table_dir, "sample_qc_attrition.tsv")
+    output_path(qc_table_dir, "sample_qc_attrition.tsv")
   )
 
-  # QC plots are kept inline; they are the standard ggplot calls from the legacy
-  # stage and intentionally keep their existing filenames and dimensions.
+  # ---- QC plots ----
   knee_plot <- ggplot2::ggplot(br.sobj, ggplot2::aes(rank, total)) +
     ggplot2::geom_point(alpha = 0.5, size = 0.5) +
     ggplot2::scale_x_log10(labels = scales::label_number(big.mark = ",")) +
@@ -561,7 +393,7 @@ if (regeneration_start == "all") {
     ) +
     theme_stone()
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "knee_plot.png"),
+    output_path(qc_figure_dir, "knee_plot.png"),
     knee_plot,
     width = 7,
     height = 5,
@@ -588,7 +420,7 @@ if (regeneration_start == "all") {
     theme_stone() +
     ggplot2::labs(color = "Cell call")
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "cell_call_plot.png"),
+    output_path(qc_figure_dir, "cell_call_plot.png"),
     cell_call_plot,
     width = 7,
     height = 5,
@@ -610,7 +442,7 @@ if (regeneration_start == "all") {
     theme_stone() +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "sample_cell_call_fraction.png"),
+    output_path(qc_figure_dir, "sample_cell_call_fraction.png"),
     sample_cell_frac_plot,
     width = 7,
     height = 5,
@@ -646,7 +478,7 @@ if (regeneration_start == "all") {
       legend.position = "none"
     )
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "sample_qc_summary.png"),
+    output_path(qc_figure_dir, "sample_qc_summary.png"),
     qc_summary_plot,
     width = 7,
     height = 5,
@@ -709,35 +541,35 @@ if (regeneration_start == "all") {
     ggplot2::facet_wrap(~strip_lab) +
     theme_stone()
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "count_sample_qc_plot.png"),
+    output_path(qc_figure_dir, "count_sample_qc_plot.png"),
     count_sample_qc_plot,
     width = 10,
     height = 6,
     dpi = 300
   )
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "feature_sample_qc_plot.png"),
+    output_path(qc_figure_dir, "feature_sample_qc_plot.png"),
     feature_sample_qc_plot,
     width = 10,
     height = 6,
     dpi = 300
   )
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "mt_sample_qc_plot.png"),
+    output_path(qc_figure_dir, "mt_sample_qc_plot.png"),
     mt_sample_qc_plot,
     width = 10,
     height = 6,
     dpi = 300
   )
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "count_feature_mt_sample_scatter.png"),
+    output_path(qc_figure_dir, "count_feature_mt_sample_scatter.png"),
     count_feature_mt_sample_scatter,
     width = 10,
     height = 6,
     dpi = 300
   )
   ggplot2::ggsave(
-    file.path(qc_figure_dir, "feature_vs_mt.png"),
+    output_path(qc_figure_dir, "feature_vs_mt.png"),
     feature_vs_mt,
     width = 10,
     height = 6,
@@ -821,7 +653,7 @@ if (regeneration_start == "all") {
         reduction = "pca"
       )
       ggplot2::ggsave(
-        file.path(
+        output_path(
           preprocess_figure_dir,
           paste0("qc_metrics_violin_", output_tag, ".png")
         ),
@@ -830,7 +662,7 @@ if (regeneration_start == "all") {
         height = 8
       )
       ggplot2::ggsave(
-        file.path(
+        output_path(
           preprocess_figure_dir,
           paste0("qc_metrics_violin_", output_tag, ".pdf")
         ),
@@ -839,7 +671,7 @@ if (regeneration_start == "all") {
         height = 8
       )
       ggplot2::ggsave(
-        file.path(
+        output_path(
           preprocess_figure_dir,
           paste0("hvg_scatter_", output_tag, ".png")
         ),
@@ -848,7 +680,7 @@ if (regeneration_start == "all") {
         height = 5
       )
       ggplot2::ggsave(
-        file.path(
+        output_path(
           preprocess_figure_dir,
           paste0("hvg_scatter_", output_tag, ".pdf")
         ),
@@ -857,7 +689,7 @@ if (regeneration_start == "all") {
         height = 5
       )
       ggplot2::ggsave(
-        file.path(
+        output_path(
           preprocess_figure_dir,
           paste0("dim_heatmap_", output_tag, ".png")
         ),
@@ -866,7 +698,7 @@ if (regeneration_start == "all") {
         height = 12
       )
       ggplot2::ggsave(
-        file.path(
+        output_path(
           preprocess_figure_dir,
           paste0("dim_heatmap_", output_tag, ".pdf")
         ),
@@ -875,13 +707,19 @@ if (regeneration_start == "all") {
         height = 12
       )
       ggplot2::ggsave(
-        file.path(preprocess_figure_dir, paste0("elbow_", output_tag, ".png")),
+        output_path(
+          preprocess_figure_dir,
+          paste0("elbow_", output_tag, ".png")
+        ),
         elbow_plot,
         width = 5,
         height = 3
       )
       ggplot2::ggsave(
-        file.path(preprocess_figure_dir, paste0("elbow_", output_tag, ".pdf")),
+        output_path(
+          preprocess_figure_dir,
+          paste0("elbow_", output_tag, ".pdf")
+        ),
         elbow_plot,
         width = 5,
         height = 3
@@ -897,15 +735,15 @@ if (regeneration_start == "all") {
       )
       for (preprocess_png_path in preprocess_png_paths) {
         if (basename(preprocess_png_path) %in% notebook_preprocess_pngs) {
-          ESPI:::.copy_notebook_figure(
-            preprocess_png_path,
-            file.path(notebook_figure_dir, basename(preprocess_png_path))
-          )
+          copy_notebook_figure(preprocess_png_path)
         }
       }
       saveRDS(
         branch_sobj,
-        file.path(current_object_dir, paste0("preprocess_", output_tag, ".rds"))
+        output_path(
+          current_object_dir,
+          paste0("preprocess_", output_tag, ".rds")
+        )
       )
       source_preprocessed[[branch_tag]] <- branch_sobj
     }
@@ -986,17 +824,16 @@ if (regeneration_start == "all") {
           cluster_figure_dir,
           paste0(reduction_name, "_by_", column, ".png")
         )
-        ggplot2::ggsave(png_path, plot, width = 5, height = 5)
+        ggplot2::ggsave(output_path(png_path), plot, width = 5, height = 5)
         ggplot2::ggsave(
-          sub("\\.png$", ".pdf", png_path),
+          output_path(sub("\\.png$", ".pdf", png_path)),
           plot,
           width = 5,
           height = 5
         )
-        ESPI:::.copy_notebook_figure(
-          png_path,
-          file.path(notebook_figure_dir, basename(png_path))
-        )
+        if (column == config$selected$source$column) {
+          copy_notebook_figure(png_path)
+        }
       }
       prefix <- sprintf("cluster_%s_dims%d_res", branch_info$branch_tag, dims)
       cluster_data <- branch_sobj@meta.data[,
@@ -1009,9 +846,14 @@ if (regeneration_start == "all") {
         cluster_figure_dir,
         sprintf("clustree_%s_dims%d.png", branch_info$branch_tag, dims)
       )
-      ggplot2::ggsave(clustree_png, clustree_plot, width = 6, height = 6)
       ggplot2::ggsave(
-        sub("\\.png$", ".pdf", clustree_png),
+        output_path(clustree_png),
+        clustree_plot,
+        width = 6,
+        height = 6
+      )
+      ggplot2::ggsave(
+        output_path(sub("\\.png$", ".pdf", clustree_png)),
         clustree_plot,
         width = 6,
         height = 6
@@ -1024,12 +866,11 @@ if (regeneration_start == "all") {
       resolutions = resolutions,
       dims_grid = dims_grid,
       elbow_n = 20L,
-      candidate_names = candidate_names,
-      clustree_plotted = TRUE
+      candidate_names = candidate_names
     )
     saveRDS(
       branch_sobj,
-      file.path(
+      output_path(
         current_object_dir,
         paste0("cluster_", branch_info$branch_tag, "_elbow20.rds")
       )
@@ -1075,17 +916,17 @@ if (regeneration_start == "all") {
     ncol = nrow(source_branches)
   )
   ggplot2::ggsave(
-    file.path(cluster_figure_dir, "cluster_grid_clustree_12_panel.png"),
+    output_path(cluster_figure_dir, "cluster_grid_clustree_12_panel.png"),
     cluster_grid_plot,
     width = 16,
     height = 12
   )
-  ESPI:::.copy_notebook_figure(
-    file.path(cluster_figure_dir, "cluster_grid_clustree_12_panel.png"),
-    file.path(notebook_figure_dir, "cluster_grid_clustree_12_panel.png")
-  )
+  copy_notebook_figure(file.path(
+    cluster_figure_dir,
+    "cluster_grid_clustree_12_panel.png"
+  ))
   ggplot2::ggsave(
-    file.path(cluster_figure_dir, "cluster_grid_clustree_12_panel.pdf"),
+    output_path(cluster_figure_dir, "cluster_grid_clustree_12_panel.pdf"),
     cluster_grid_plot,
     width = 16,
     height = 12
@@ -1113,7 +954,7 @@ if (regeneration_start == "all") {
   ) +
     patchwork::plot_annotation(title = "PFlog, CC-HVG filtered, 50 PCs")
   ggplot2::ggsave(
-    file.path(
+    output_path(
       cluster_figure_dir,
       "umap_resolution_sweep_pflog_filter_cc_dims50.png"
     ),
@@ -1122,7 +963,7 @@ if (regeneration_start == "all") {
     height = 5
   )
   ggplot2::ggsave(
-    file.path(
+    output_path(
       cluster_figure_dir,
       "umap_resolution_sweep_pflog_filter_cc_dims50.pdf"
     ),
@@ -1133,11 +974,6 @@ if (regeneration_start == "all") {
 } else {
   utils::data("mouse_cell_cycle_genes", package = "ESPI", envir = environment())
   source_sobj <- readRDS(config$selected$source$path)
-  assert_frozen_input(
-    config$selected$source$path,
-    source_sobj,
-    config$frozen$source
-  )
   source_clustered <- stats::setNames(
     list(source_sobj),
     config$selected$source$branch
@@ -1145,15 +981,17 @@ if (regeneration_start == "all") {
 }
 
 # ---- MG selection: fixed source branch, AddModuleScore, and exclusion tests ----
+marker_exclude_classes <- c("microglia", "photoreceptor")
+marker_min_top_score <- 0.5
+marker_min_score_margin <- 0.25
+cdkn1b_max_q <- 0.05
+cdkn1b_min_detection_fraction <- 0.20
 
 utils::data("cell_type_marker_genes", package = "ESPI", envir = environment())
 utils::data("cell_type_marker_labels", package = "ESPI", envir = environment())
 mg_source_column <- config$selected$source$column
 mg_source <- source_clustered[[config$selected$source$branch]]
-mg_source <- readRDS(config$selected$source$path)
 SeuratObject::DefaultAssay(mg_source) <- "RNA"
-marker_table <- stack(cell_type_marker_genes)
-colnames(marker_table) <- c("gene", "cell_type")
 marker_score_prefix <- "mg_selection_marker_score"
 module_score_cols <- paste0(
   marker_score_prefix,
@@ -1216,9 +1054,9 @@ marker_decisions <- lapply(
       second_marker_score = scores[[second]],
       marker_score_margin = scores[[top]] - scores[[second]],
       marker_exclude = names(cell_type_marker_genes)[[top]] %in%
-        c("microglia", "photoreceptor") &&
-        scores[[top]] >= 0.5 &&
-        scores[[top]] - scores[[second]] >= 0.25,
+        marker_exclude_classes &&
+        scores[[top]] >= marker_min_top_score &&
+        scores[[top]] - scores[[second]] >= marker_min_score_margin,
       stringsAsFactors = FALSE
     )
   }
@@ -1263,9 +1101,9 @@ cdkn1b_stats$cdkn1b_detection_q <- stats::p.adjust(
   cdkn1b_stats$cdkn1b_detection_p,
   method = "BH"
 )
-cdkn1b_stats$cdkn1b_exclude <- cdkn1b_stats$cdkn1b_expression_q < 0.05 &
-  cdkn1b_stats$cdkn1b_detection_q < 0.05 &
-  cdkn1b_stats$cdkn1b_detection_fraction >= 0.20
+cdkn1b_stats$cdkn1b_exclude <- cdkn1b_stats$cdkn1b_expression_q < cdkn1b_max_q &
+  cdkn1b_stats$cdkn1b_detection_q < cdkn1b_max_q &
+  cdkn1b_stats$cdkn1b_detection_fraction >= cdkn1b_min_detection_fraction
 decision_table <- merge(
   merge(cluster_marker_scores, marker_decisions, by = "cluster", sort = FALSE),
   cdkn1b_stats,
@@ -1292,19 +1130,22 @@ decision_table$exclusion_reasons <- vapply(
   },
   character(1)
 )
-decision_table$marker_exclude_classes <- "microglia;photoreceptor"
-decision_table$marker_min_top_score <- 0.5
-decision_table$marker_min_score_margin <- 0.25
-decision_table$cdkn1b_expression_max_q <- 0.05
-decision_table$cdkn1b_detection_max_q <- 0.05
-decision_table$cdkn1b_min_detection_fraction <- 0.20
+decision_table$marker_exclude_classes <- paste(
+  marker_exclude_classes,
+  collapse = ";"
+)
+decision_table$marker_min_top_score <- marker_min_top_score
+decision_table$marker_min_score_margin <- marker_min_score_margin
+decision_table$cdkn1b_expression_max_q <- cdkn1b_max_q
+decision_table$cdkn1b_detection_max_q <- cdkn1b_max_q
+decision_table$cdkn1b_min_detection_fraction <- cdkn1b_min_detection_fraction
 excluded_clusters <- decision_table$cluster[decision_table$exclude]
 if (length(excluded_clusters) == 0L) {
   stop("No clusters meet exclusion criteria.", call. = FALSE)
 }
 utils::write.table(
   decision_table,
-  file.path(mg_table_dir, "mg_selected_cluster_selection.tsv"),
+  output_path(mg_table_dir, "mg_selected_cluster_selection.tsv"),
   sep = "\t",
   quote = FALSE,
   row.names = FALSE
@@ -1322,14 +1163,14 @@ selection_plot <- Seurat::VlnPlot(
   pt.size = 0
 )
 ggplot2::ggsave(
-  file.path(mg_figure_dir, "mg_selected_cluster_selection_diagnostics.png"),
+  output_path(mg_figure_dir, "mg_selected_cluster_selection_diagnostics.png"),
   selection_plot,
   width = 10,
   height = 6,
   dpi = 300
 )
 ggplot2::ggsave(
-  file.path(mg_figure_dir, "mg_selected_cluster_selection_diagnostics.pdf"),
+  output_path(mg_figure_dir, "mg_selected_cluster_selection_diagnostics.pdf"),
   selection_plot,
   width = 10,
   height = 6
@@ -1379,37 +1220,24 @@ for (filter_cc in filter_states) {
     mg_table_dir,
     "mg_selected_cluster_selection.tsv"
   )
-  branch_sobj@misc$preprocessing$source_cluster_selection_figure <- file.path(
-    mg_figure_dir,
-    "mg_selected_cluster_selection_diagnostics.png"
-  )
   branch_sobj@misc$preprocessing$source_cluster_excluded <- excluded_clusters
   branch_sobj@misc$preprocessing$source_cluster_exclusion_reasons <- exclusion_reasons
   branch_sobj@misc$preprocessing$cdkn1b_expression_layer <- expression_layer
   branch_sobj@misc$preprocessing$marker_score_slot <- "data"
-  branch_sobj@misc$preprocessing$marker_exclude_classes <- c(
-    "microglia",
-    "photoreceptor"
-  )
-  branch_sobj@misc$preprocessing$marker_min_top_score <- 0.5
-  branch_sobj@misc$preprocessing$marker_min_score_margin <- 0.25
-  branch_sobj@misc$preprocessing$cdkn1b_expression_max_q <- 0.05
-  branch_sobj@misc$preprocessing$cdkn1b_detection_max_q <- 0.05
-  branch_sobj@misc$preprocessing$cdkn1b_min_detection_fraction <- 0.20
   elbow_plot <- Seurat::ElbowPlot(branch_sobj, ndims = 50, reduction = "pca")
   elbow_stem <- paste0(
     "elbow_pflog_mg_selected_",
     if (filter_cc) "filter_cc" else "no_filter_cc"
   )
   ggplot2::ggsave(
-    file.path(mg_figure_dir, paste0(elbow_stem, ".png")),
+    output_path(mg_figure_dir, paste0(elbow_stem, ".png")),
     elbow_plot,
     width = 5,
     height = 3,
     bg = "white"
   )
   ggplot2::ggsave(
-    file.path(mg_figure_dir, paste0(elbow_stem, ".pdf")),
+    output_path(mg_figure_dir, paste0(elbow_stem, ".pdf")),
     elbow_plot,
     width = 5,
     height = 3,
@@ -1417,7 +1245,7 @@ for (filter_cc in filter_states) {
   )
   saveRDS(
     branch_sobj,
-    file.path(current_object_dir, paste0("preprocess_", output_tag, ".rds"))
+    output_path(current_object_dir, paste0("preprocess_", output_tag, ".rds"))
   )
 }
 

@@ -14,21 +14,10 @@ config <- publication_config()
 cluster_column <- config$selected$mg$column
 
 seurat_path <- config$selected$mg$path
-deg_dir <- file.path(config$paths$degs, "mg_selected")
-de_path <- file.path(deg_dir, "deseq2_full_results.tsv")
-de_significant_path <- file.path(deg_dir, "deseq2_significant_degs.tsv")
-
-input_paths <- c(seurat_path, de_path, de_significant_path)
-missing_paths <- input_paths[!file.exists(input_paths)]
-if (length(missing_paths) > 0L) {
-  stop("Missing input file(s):\n", paste(missing_paths, collapse = "\n"))
-}
 
 # ---- load ----
 
 sobj <- readRDS(seurat_path)
-de_results <- readr::read_tsv(de_path, show_col_types = FALSE)
-de_significant <- readr::read_tsv(de_significant_path, show_col_types = FALSE)
 
 if (!cluster_column %in% colnames(sobj[[]])) {
   stop("Missing cluster column: ", cluster_column)
@@ -452,7 +441,6 @@ plot_gene_pair_expression <- function(
     `OTX2 + CABP5` = c("Otx2", "Cabp5")
   )
 
-  cluster_5_cells <- Seurat::WhichCells(sobj, idents = "5")
   cluster_5_genes <- all_cell_genes[c(
     "OTX2",
     "SCGN",
@@ -468,7 +456,6 @@ plot_gene_pair_expression <- function(
     `OTX2 + Hes6` = c("Otx2", "Hes6")
   )
 
-  cluster_4_cells <- Seurat::WhichCells(sobj, idents = "4")
   cluster_4_genes <- all_cell_genes[c("Ascl1", "Hes6", "Neurog2", "OTX2")]
   cluster_4_pairs <- list(
     `ASCL1 + OTX2` = c("Ascl1", "Otx2"),
@@ -599,98 +586,98 @@ fig_path <- file.path(config$paths$figures, "random_pairs")
 
 # Save plots
 ggsave(
-  file.path(fig_path, "all_gene_violins.pdf"),
+  output_path(fig_path, "all_gene_violins.pdf"),
   all_cells_single_gene_plot,
   width = 7,
   height = 7
 )
 
 ggsave(
-  file.path(fig_path, "all_ascl1_otx2_capb5_scatter.pdf"),
+  output_path(fig_path, "all_ascl1_otx2_capb5_scatter.pdf"),
   all_cells_gene_pair_plot + geom_smooth(method = MASS::rlm),
   width = 4.5,
   height = 4
 )
 
 ggsave(
-  file.path(fig_path, "all_ascl1_otx2_capb5_detection.pdf"),
+  output_path(fig_path, "all_ascl1_otx2_capb5_detection.pdf"),
   all_cells_gene_pair_binary_plot,
   width = 6,
   height = 5
 )
 
 ggsave(
-  file.path(fig_path, "all_pairs_plot.pdf"),
+  output_path(fig_path, "all_pairs_plot.pdf"),
   all_cells_gene_pair_expression_plot,
   width = 10,
   height = 10
 )
 
 ggsave(
-  file.path(fig_path, "c5_gene_violins.pdf"),
+  output_path(fig_path, "c5_gene_violins.pdf"),
   cluster_5_single_gene_plot,
   width = 7,
   height = 5
 )
 
 ggsave(
-  file.path(fig_path, "c5_otx2_capb5_otx2_hes6_scatter.pdf"),
+  output_path(fig_path, "c5_otx2_capb5_otx2_hes6_scatter.pdf"),
   cluster_5_gene_pair_plot + geom_smooth(method = MASS::rlm),
   width = 4.5,
   height = 4
 )
 
 ggsave(
-  file.path(fig_path, "c5_otx2_capb5_otx2_hes6_detection.pdf"),
+  output_path(fig_path, "c5_otx2_capb5_otx2_hes6_detection.pdf"),
   cluster_5_gene_pair_binary_plot,
   width = 6,
   height = 5
 )
 
 ggsave(
-  file.path(fig_path, "c5_pairs_plot.pdf"),
+  output_path(fig_path, "c5_pairs_plot.pdf"),
   cluster_5_gene_pair_expression_plot,
   width = 8.5,
   height = 8
 )
 
 ggsave(
-  file.path(fig_path, "c4_gene_violins.pdf"),
+  output_path(fig_path, "c4_gene_violins.pdf"),
   cluster_4_single_gene_plot,
   width = 6.5,
   height = 5
 )
 
 ggsave(
-  file.path(fig_path, "c4_ascl1_otx2_ascl1_hes6_scatter.pdf"),
+  output_path(fig_path, "c4_ascl1_otx2_ascl1_hes6_scatter.pdf"),
   cluster_4_gene_pair_plot + geom_smooth(method = MASS::rlm),
   width = 4.5,
   height = 4
 )
 
 ggsave(
-  file.path(fig_path, "c4_ascl1_otx2_ascl1_hes6_detection.pdf"),
+  output_path(fig_path, "c4_ascl1_otx2_ascl1_hes6_detection.pdf"),
   cluster_4_gene_pair_binary_plot,
   width = 6,
   height = 5
 )
 
 ggsave(
-  file.path(fig_path, "c4_pairs_plot.pdf"),
+  output_path(fig_path, "c4_pairs_plot.pdf"),
   cluster_4_gene_pair_expression_plot,
   width = 6,
   height = 5
 )
 
 ggsave(
-  file.path(fig_path, "c5_ascl1_otx2_detection.pdf"),
+  output_path(fig_path, "c5_ascl1_otx2_detection.pdf"),
   c5_ascl1_otx2_binary_plot,
   width = 6,
   height = 4
 )
 
 ggsave(
-  file.path(fig_path, "c4_ascl1_otx2_detection.pdf"),
+  output_path(fig_path, "c4_ascl1_otx2_detection.pdf"),
   c4_ascl1_otx2_binary_plot,
   width = 6,
   height = 4

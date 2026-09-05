@@ -22,7 +22,6 @@ config <- publication_config()
 bootstrap_replicates <- 1000L
 progenitor_percentiles <- c(0.80, 0.90, 0.95)
 proliferation_percentiles <- c(0.25, 0.50)
-# ANALYSIS_OK[random-seeds]: fixed independent seeds make each gate bootstrap reproducible.
 bootstrap_seeds <- c(6247L, 3518L, 9076L, 4661L, 7384L, 1859L)
 
 primary_module_score_dir <- file.path(
@@ -34,20 +33,7 @@ primary_module_score_dir <- file.path(
 default_input_path <- file.path(primary_module_score_dir, "module_scores.tsv")
 input_path <- Sys.getenv("ESPI_MODULE_SCORE_TABLE", unset = default_input_path)
 output_dir <- here::here("exploratory", "neurogenic-proportion", "outputs")
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
-output_paths <- file.path(
-  output_dir,
-  c(
-    "threshold_grid_results.tsv",
-    "threshold_grid_sample_proportions.tsv",
-    "bootstrap_null_statistics.tsv",
-    "bootstrap_settings.tsv",
-    "threshold_grid_sample_proportions.png",
-    "threshold_grid_sample_proportions.pdf"
-  )
-)
-assert_output_available(output_paths, config$overwrite)
 
 if (!file.exists(input_path)) {
   cli::cli_abort(c(
@@ -114,7 +100,6 @@ threshold_grid <- tidyr::crossing(
 
 # ---- helpers ----
 
-# ANALYSIS_OK[R026]: local helper derives equal-sample-weighted control quantiles.
 weighted_empirical_quantile <- function(x, sample_id, probability) {
   sample_sizes <- table(sample_id)
   weights <- 1 / (length(sample_sizes) * as.numeric(sample_sizes[sample_id]))
@@ -124,7 +109,6 @@ weighted_empirical_quantile <- function(x, sample_id, probability) {
   sorted_values[which(cumulative_weight >= probability)[[1L]]]
 }
 
-# ANALYSIS_OK[R026]: local helper constructs one prespecified gate and its sample counts.
 build_gate_data <- function(
   gate,
   gate_index,
@@ -185,7 +169,6 @@ build_gate_data <- function(
   )
 }
 
-# ANALYSIS_OK[R026]: local helper retries sparse beta-binomial fits with BFGS.
 fit_bootstrap_response <- function(response, null_fit, full_fit, model_data) {
   default_result <- tryCatch(
     {
@@ -219,7 +202,6 @@ fit_bootstrap_response <- function(response, null_fit, full_fit, model_data) {
         optimizer = stats::optim,
         optArgs = list(method = "BFGS")
       )
-      # ANALYSIS_OK[contrast-definition]: one condition coefficient is the prespecified targeted contrast.
       null_refit <- suppressWarnings(glmmTMB::glmmTMB(
         response ~ 1,
         family = glmmTMB::betabinomial(link = "logit"),
@@ -253,10 +235,8 @@ fit_bootstrap_response <- function(response, null_fit, full_fit, model_data) {
   )
 }
 
-# ANALYSIS_OK[R026]: local helper runs and records one gate-specific null bootstrap.
 bootstrap_gate <- function(gate_data) {
   model_data <- gate_data$model_data
-  # ANALYSIS_OK[contrast-definition]: one condition coefficient is the prespecified targeted contrast.
   null_fit <- glmmTMB::glmmTMB(
     response ~ 1,
     family = glmmTMB::betabinomial(link = "logit"),
@@ -477,19 +457,19 @@ settings <- tibble::tibble(
 
 readr::write_tsv(
   threshold_results,
-  file.path(output_dir, "threshold_grid_results.tsv")
+  output_path(output_dir, "threshold_grid_results.tsv")
 )
 readr::write_tsv(
   sample_proportions,
-  file.path(output_dir, "threshold_grid_sample_proportions.tsv")
+  output_path(output_dir, "threshold_grid_sample_proportions.tsv")
 )
 readr::write_tsv(
   null_statistics,
-  file.path(output_dir, "bootstrap_null_statistics.tsv")
+  output_path(output_dir, "bootstrap_null_statistics.tsv")
 )
-readr::write_tsv(settings, file.path(output_dir, "bootstrap_settings.tsv"))
+readr::write_tsv(settings, output_path(output_dir, "bootstrap_settings.tsv"))
 ggplot2::ggsave(
-  file.path(output_dir, "threshold_grid_sample_proportions.png"),
+  output_path(output_dir, "threshold_grid_sample_proportions.png"),
   plot_sample_proportions,
   width = 10,
   height = 7.5,
@@ -497,7 +477,7 @@ ggplot2::ggsave(
   dpi = 300
 )
 ggplot2::ggsave(
-  file.path(output_dir, "threshold_grid_sample_proportions.pdf"),
+  output_path(output_dir, "threshold_grid_sample_proportions.pdf"),
   plot_sample_proportions,
   width = 10,
   height = 7.5,

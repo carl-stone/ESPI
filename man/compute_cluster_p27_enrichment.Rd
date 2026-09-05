@@ -2,7 +2,7 @@
 % Please edit documentation in R/publication-analysis.R
 \name{compute_cluster_p27_enrichment}
 \alias{compute_cluster_p27_enrichment}
-\title{Compute sample-aware cluster p27 enrichment z-scores.}
+\title{Compute sample-aware cluster p27 enrichment z-scores}
 \usage{
 compute_cluster_p27_enrichment(
   sobj,
@@ -19,31 +19,23 @@ compute_cluster_p27_enrichment(
 \arguments{
 \item{sobj}{Seurat object containing expression and metadata.}
 
-\item{cluster_col}{Metadata column containing cluster labels.}
+\item{cluster_col}{Cluster metadata column.}
 
-\item{gene}{Gene used for p27 expression. Defaults to \code{Cdkn1b}.}
+\item{gene}{Gene to summarize.}
 
-\item{layer}{Assay layer used for expression values.}
+\item{layer, assay}{Expression layer and assay.}
 
-\item{assay}{Assay containing \code{layer}.}
-
-\item{mouse_col}{Metadata column containing mouse labels.}
-
-\item{condition_col}{Metadata column containing condition labels.}
+\item{mouse_col, condition_col}{Sample metadata columns.}
 
 \item{n_perm}{Positive integer number of within-sample permutations.}
 
-\item{seed}{Random seed used for permutations.}
+\item{seed}{Random seed for permutations.}
 }
 \value{
-Data frame with one row per sorted cluster and columns \code{cluster},
-\code{n_cells}, \code{observed_mean}, \code{null_mean}, \code{null_sd}, and \code{z_score}.
+A data frame with cluster sizes, observed/null means, null SDs, and z-scores.
 }
 \description{
-Computes observed per-cluster p27 expression, then estimates a null
-distribution by permuting cluster labels within each Mouse x Condition
-sample. The permutation preserves each sample's p27 values and cluster-size
-composition. A cluster receives \code{NA} when its permutation null has zero or
-non-finite standard deviation, which can occur when p27 is constant within
-every sample.
+Permutes cluster labels within each Mouse x Condition sample, preserving
+sample-specific expression and cluster sizes. Reports NA for a cluster with
+zero or non-finite null standard deviation. Restores the caller's RNG state.
 }

@@ -11,10 +11,6 @@ suppressPackageStartupMessages({
 config <- publication_config()
 input_path <- config$selected$mg$path
 cluster_column <- config$selected$mg$column
-source_cluster_column <- "cluster_pflog_no_filter_cc_dims20_res0.3"
-assay <- "RNA"
-expression_layer <- "data"
-counts_layer <- "counts"
 
 # ---- inputs ----
 
@@ -24,30 +20,13 @@ cluster_values <- as.character(sobj[[cluster_column, drop = TRUE]])
 identity_levels <- as.character(sort(as.integer(unique(cluster_values))))
 marker_identities <- factor(cluster_values, levels = identity_levels)
 SeuratObject::Idents(sobj) <- marker_identities
-Idents(source_sobj) <- source_sobj$cluster_pflog_no_filter_cc_dims20_res0.3
+Idents(source_sobj) <- config$selected$source$column
 
-marker_table <- stack(cell_type_marker_genes) |>
-  tibble::as_tibble() |>
-  dplyr::rename(gene = values, cell_type = ind) |>
-  dplyr::mutate(
-    cell_type = as.character(cell_type),
-    cell_type_label = unname(cell_type_marker_labels[cell_type])
-  ) |>
-  dplyr::bind_rows(tibble::tibble(
-    gene = "Cdkn1b",
-    cell_type = "cdkn1b_standalone",
-    cell_type_label = "Cdkn1b"
-  ))
-
-# ---- plot UMAPS ---
-#
-# DimPlot(sobj)
-# DimPlot(source_sobj)
 
 # --- plot marker scores ---
 
 scoreMarkerList <- function(sobj) {
-  sobj <- AddModuleScore(
+  AddModuleScore(
     object = sobj,
     features = cell_type_marker_genes,
     name = cell_type_marker_labels,
@@ -57,10 +36,15 @@ scoreMarkerList <- function(sobj) {
 }
 
 source_sobj <- scoreMarkerList(source_sobj)
+score_features <- c(
+  paste0(cell_type_marker_labels, seq_along(cell_type_marker_labels)),
+  "Cdkn1b"
+)
+marker_names <- c(names(cell_type_marker_labels), "p27")
 
 full_marker_violin_plot <- VlnPlot(
   source_sobj,
-  features = c(paste0(cell_type_marker_labels, 1:11), "Cdkn1b"),
+  features = score_features,
   combine = FALSE
 ) |>
   lapply(\(x) {
@@ -69,14 +53,14 @@ full_marker_violin_plot <- VlnPlot(
       theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
   })
 
-full_marker_violin_plot[[12]] + canvas(4, 4)
+full_marker_violin_plot[[length(score_features)]] + canvas(4, 4)
 
 purrr::iwalk(full_marker_violin_plot, \(p, i) {
   ggsave(
-    filename = file.path(
+    filename = output_path(
       config$paths$figures,
       "full_marker_score_violins",
-      paste0(names(cell_type_marker_labels)[i], ".pdf")
+      paste0(marker_names[i], ".pdf")
     ),
     plot = p,
     width = 4,
@@ -84,22 +68,12 @@ purrr::iwalk(full_marker_violin_plot, \(p, i) {
   )
 })
 
-ggsave(
-  filename = file.path(
-    config$paths$figures,
-    "full_marker_score_violins",
-    "p27.pdf"
-  ),
-  plot = full_marker_violin_plot[[12]],
-  width = 4,
-  height = 4
-)
 
 sobj <- scoreMarkerList(sobj)
 
 mg_marker_scores <- FeaturePlot(
   sobj,
-  features = c(paste0(cell_type_marker_labels, 1:11), "Cdkn1b"),
+  features = score_features,
   stroke.size = NULL,
   pt.size = 0.2,
   order = TRUE,
@@ -115,14 +89,14 @@ mg_marker_scores <- FeaturePlot(
       )
   })
 
-mg_marker_scores[[12]] + canvas(4, 4)
+mg_marker_scores[[length(score_features)]] + canvas(4, 4)
 
 purrr::iwalk(mg_marker_scores, \(p, i) {
   ggsave(
-    filename = file.path(
+    filename = output_path(
       config$paths$figures,
       "mg_marker_score_umaps",
-      paste0(c(names(cell_type_marker_labels), "p27")[i], ".pdf")
+      paste0(marker_names[i], ".pdf")
     ),
     plot = p,
     width = 4,

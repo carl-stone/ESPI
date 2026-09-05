@@ -35,7 +35,4 @@ volcano_genes <- c(
   "Glul"
 )
 
-save(
-  volcano_genes,
-  file = "data/volcano_genes.rda"
-)
+save(volcano_genes, file = "data/volcano_genes.rda")

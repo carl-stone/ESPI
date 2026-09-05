@@ -2,7 +2,7 @@
 % Please edit documentation in R/publication-analysis.R
 \name{compute_cluster_abundance}
 \alias{compute_cluster_abundance}
-\title{Compute pooled cluster abundance enrichment by condition.}
+\title{Compute pooled cluster abundance enrichment by condition}
 \usage{
 compute_cluster_abundance(
   sobj,
@@ -19,16 +19,13 @@ compute_cluster_abundance(
 
 \item{condition_col}{Metadata column containing condition labels.}
 
-\item{control_label}{Control condition label.}
-
-\item{estim_label}{E-Stim condition label.}
+\item{control_label, estim_label}{Condition labels.}
 }
 \value{
-Data frame with per-cluster counts, CLR log2 enrichment, Fisher
-p-values, Holm-adjusted p-values, and enrichment direction.
+A data frame of counts, CLR effects, p-values, and directions.
 }
 \description{
-Uses pooled cell-level cluster x condition counts. Fisher tests use raw counts;
-CLR effects use counts plus a 0.5 pseudocount and are descriptive relative to
-the Mouse x Condition statistical unit used by differential analyses.
+Fisher tests use pooled cell counts, with Holm adjustment across clusters.
+CLR effects use a 0.5 pseudocount. These are descriptive cell-level summaries,
+not condition-level inference with Mouse x Condition replication.
 }

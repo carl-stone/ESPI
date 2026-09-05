@@ -2,7 +2,7 @@
 % Please edit documentation in R/publication-analysis.R
 \name{compute_sample_cluster_proportions}
 \alias{compute_sample_cluster_proportions}
-\title{Compute sample-level cluster proportions by Mouse x Condition.}
+\title{Compute cluster proportions for each Mouse x Condition sample}
 \usage{
 compute_sample_cluster_proportions(
   sobj,
@@ -16,21 +16,14 @@ compute_sample_cluster_proportions(
 \arguments{
 \item{sobj}{Seurat object containing cluster, mouse, and condition metadata.}
 
-\item{cluster_col}{Metadata column containing cluster labels.}
+\item{cluster_col, mouse_col, condition_col}{Metadata column names.}
 
-\item{mouse_col}{Metadata column containing mouse labels.}
-
-\item{condition_col}{Metadata column containing condition labels.}
-
-\item{control_label}{Control condition label.}
-
-\item{estim_label}{E-Stim condition label.}
+\item{control_label, estim_label}{Condition labels.}
 }
 \value{
-Data frame with one row per observed Mouse x Condition sample and
-cluster.
+A data frame with one row per observed sample and cluster.
 }
 \description{
-Emits one row for every observed Mouse x Condition sample and cluster,
-including zero-count clusters within observed samples.
+Includes zero-count clusters within observed samples, but does not invent
+samples for missing Mouse x Condition combinations.
 }

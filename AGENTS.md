@@ -17,7 +17,7 @@ backward-compatibility layers or unnecessary abstractions.
   No session logs, registries, manifest updates, or convention generation are
   required to edit files or finish a task. Record scientific methods and
   non-obvious choices in the relevant code or analysis prose, not duplicate logs.
-- Use `docs/study.md` when relevant to scientific terminology and `docs/setup.md`
+- Use `dev/study.md` when relevant to scientific terminology and `dev/setup.md`
   for environment setup. The README maps the workflow and manuscript scripts.
 
 ## Commands and generated files
@@ -29,10 +29,12 @@ Use `just --list` to discover recipes. The publication commands are:
   run one publication phase.
 - `just regenerate-frozen [start]`: deliberate regeneration from `all` or
   `mg-selection`, followed by downstream phases and notebook rendering.
-  See `docs/setup.md` for required writable directories.
+  See `dev/setup.md` for required writable directories.
 
 `overwrite` defaults to `false`; use `true` only when replacing publication
-outputs. The selected MG clustering uses 20 PCs, resolution 0.3, and seed 2847.
+outputs. The selected MG clustering uses 20 PCs, resolution 0.5, and seed 2847.
+Edit `publication_config()` in `R/config.R` to change the selected settings;
+column names derive from those settings. Do not add hard-coded cell/cluster counts.
 
 - Load the package with `devtools::load_all()` (`just load`).
 - After editing `R/`, run `devtools::document()` (`just document`). Edit roxygen
@@ -43,10 +45,10 @@ outputs. The selected MG clustering uses 20 PCs, resolution 0.3, and seed 2847.
   on-demand scilintr diagnostic, not a prerequisite for every edit or completion.
 - After changing notebook prose or figure inputs, render with
   `quarto render notebook/sc_analysis.qmd` when updating the HTML deliverable;
-  it embeds image bytes. Pipeline mirroring keeps only PNGs named by inline
-  Markdown image paths in the notebook; custom-marker manuscript figures live
-  in `notebook/figures/custom-markers/`. Keep the regular-file mirroring and
-  hash/dimension checks; never write through symlink destinations.
+  it embeds image bytes. Scripts choose which figures to copy with
+  `copy_notebook_figure()`; do not add notebook parsing, image hashing, or rollback
+  machinery. Use `output_path()` at file writes for overwrite opt-in and directory
+  creation. Do not maintain duplicate output inventories or write through symlinks.
 
 ## R conventions
 

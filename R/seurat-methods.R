@@ -10,7 +10,6 @@
 #'
 #' @return `sobj` with `pca` reduction and `misc$preprocessing` populated.
 #' @export
-# ANALYSIS_OK[smuggled-default]: intentional package API default for PCA dimensionality.
 run_log1p_pca <- function(sobj, n_pcs = 50) {
   stopifnot(length(n_pcs) == 1, is.numeric(n_pcs), is.finite(n_pcs), n_pcs > 0)
 
@@ -50,7 +49,6 @@ run_log1p_pca <- function(sobj, n_pcs = 50) {
 #'
 #' @return `sobj` with `pca` reduction and `misc$preprocessing` populated.
 #' @export
-# ANALYSIS_OK[smuggled-default]: intentional package API default for PCA dimensionality.
 run_pflog_pca <- function(sobj, n_pcs = 50) {
   stopifnot(length(n_pcs) == 1, is.numeric(n_pcs), is.finite(n_pcs), n_pcs > 0)
 
@@ -122,57 +120,21 @@ run_pflog_pca <- function(sobj, n_pcs = 50) {
 #'
 #' @return A list with `summary` and `pairwise` data frames, invisibly.
 #' @export
-# ANALYSIS_OK[R026]: exported grid-table entrypoint is called by the frozen-regeneration phase script.
 write_cluster_grid_tables <- function(
   grid_objects,
   branch_table,
   output_prefix,
   table_dir
 ) {
-  write_grid_tables_impl(
-    grid_objects = grid_objects,
-    branch_table = branch_table,
-    summary_path = file.path(table_dir, paste0(output_prefix, "_summary.tsv")),
-    stability_path = file.path(
-      table_dir,
-      paste0(output_prefix, "_stability_summary.tsv")
-    ),
-    pairwise_path = file.path(
-      table_dir,
-      paste0(output_prefix, "_pairwise_stability.tsv")
-    )
-  )
-}
-
-# Fixed-interface implementation; phase scripts own object loading and paths.
-# ANALYSIS_OK[R026]: private grid implementation is called by its exported entrypoint in this module.
-write_grid_tables_impl <- function(
-  grid_objects,
-  branch_table,
-  summary_path = NULL,
-  stability_path = NULL,
-  pairwise_path = NULL,
-  reference_column = DEFAULT_CLUSTER_REFERENCE_COLUMN,
-  small_cluster_cell_threshold = SMALL_CLUSTER_CELL_THRESHOLD
-) {
-  # ANALYSIS_OK[R026]: local parser helper is called by the grid implementation below.
+  reference_column <- "cluster_pflog_no_filter_cc_dims30_res0.3"
+  small_cluster_cell_threshold <- 50L
+  stable_child_fraction <- 0.8
   candidate_columns <- function(sobj, branch_tag) {
-    candidate_names <- sobj@misc$clustering$candidate_names
-    if (is.null(candidate_names) || length(candidate_names) == 0) {
-      candidate_names <- grep(
-        sprintf("^cluster_%s_dims[0-9]+_res", branch_tag),
-        colnames(sobj@meta.data),
-        value = TRUE
-      )
-    }
-    missing_columns <- setdiff(candidate_names, colnames(sobj@meta.data))
-    if (length(missing_columns) > 0) {
-      stop(
-        "Missing candidate cluster column(s): ",
-        paste(missing_columns, collapse = ", "),
-        call. = FALSE
-      )
-    }
+    candidate_names <- grep(
+      sprintf("^cluster_%s_dims[0-9]+_res", branch_tag),
+      colnames(sobj@meta.data),
+      value = TRUE
+    )
     if (length(candidate_names) == 0) {
       stop(
         "No candidate cluster columns found for branch: ",
@@ -180,33 +142,20 @@ write_grid_tables_impl <- function(
         call. = FALSE
       )
     }
-    parsed <- lapply(candidate_names, function(column) {
-      pattern <- sprintf("^cluster_%s_dims([0-9]+)_res(.+)$", branch_tag)
-      parts <- regmatches(column, regexec(pattern, column, perl = TRUE))[[1]]
-      capture_group_count <- 3L
-      if (length(parts) != capture_group_count) {
-        stop("Cannot parse cluster column: ", column, call. = FALSE)
-      }
-      dims_capture_index <- 2L
-      resolution_capture_index <- 3L
-      data.frame(
-        cluster_column = column,
-        dims = as.integer(parts[[dims_capture_index]]),
-        resolution = as.numeric(parts[[resolution_capture_index]]),
-        stringsAsFactors = FALSE
-      )
-    })
-    do.call(rbind, parsed)
+    parsed <- utils::strcapture(
+      sprintf("^cluster_%s_dims([0-9]+)_res(.+)$", branch_tag),
+      candidate_names,
+      proto = list(dims = integer(), resolution = numeric())
+    )
+    data.frame(cluster_column = candidate_names, parsed)
   }
 
-  # ANALYSIS_OK[R026]: local metadata-label helper is called by the grid implementation below.
   labels_for <- function(sobj, column) {
     labels <- sobj@meta.data[[column]]
     names(labels) <- rownames(sobj@meta.data)
     labels
   }
 
-  # ANALYSIS_OK[R026]: local similarity helper is called by the grid implementation below.
   best_jaccard <- function(labels, reference_labels) {
     contingency <- table(labels, reference_labels)
     cluster_sizes <- rowSums(contingency)
@@ -226,7 +175,6 @@ write_grid_tables_impl <- function(
     )
   }
 
-  # ANALYSIS_OK[R026]: local size-summary helper is called by the grid implementation below.
   size_summary <- function(labels) {
     cluster_sizes <- table(labels)
     small_clusters <- cluster_sizes[
@@ -282,12 +230,11 @@ write_grid_tables_impl <- function(
     metadata$dims,
     metadata$resolution
   )
-  # ANALYSIS_OK[R005]: reorder rows to the validated grid order without dropping any metadata rows.
   metadata <- metadata[ordered, ]
   rownames(metadata) <- NULL
-  # ANALYSIS_OK[R005]: reorder label vectors to the same validated grid order without dropping cells.
   labels <- labels[metadata$cluster_column]
-  candidate_map <- list(metadata = metadata, labels = labels)
+  dims_grid <- sort(unique(metadata$dims))
+  resolutions <- sort(unique(metadata$resolution))
 
   reference_hits <- vapply(
     grid_objects,
@@ -310,8 +257,8 @@ write_grid_tables_impl <- function(
 
   summary_rows <- lapply(seq_len(nrow(metadata)), function(candidate_idx) {
     candidate <- metadata[candidate_idx, ]
-    labels <- candidate_map$labels[[candidate$cluster_column]]
-    if (!setequal(names(labels), names(reference_labels))) {
+    candidate_labels <- labels[[candidate$cluster_column]]
+    if (!setequal(names(candidate_labels), names(reference_labels))) {
       stop(
         "Cell names differ between ",
         candidate$cluster_column,
@@ -320,7 +267,7 @@ write_grid_tables_impl <- function(
         call. = FALSE
       )
     }
-    ordered_labels <- labels[names(reference_labels)]
+    ordered_labels <- candidate_labels[names(reference_labels)]
     size <- size_summary(ordered_labels)
     jaccard <- best_jaccard(ordered_labels, reference_labels)
     data.frame(
@@ -344,12 +291,10 @@ write_grid_tables_impl <- function(
   grid_summary <- do.call(rbind, summary_rows)
   rownames(grid_summary) <- NULL
 
-  # ANALYSIS_OK[R026]: local entropy helper is called by pairwise grid calculations below.
   entropy <- function(labels) {
     proportions <- as.numeric(table(labels)) / length(labels)
-    -sum(proportions * log(proportions, base = ENTROPY_LOG_BASE))
+    -sum(proportions * log(proportions, base = 2))
   }
-  # ANALYSIS_OK[R026]: local pairwise-metrics helper is called by grid calculations below.
   pairwise_metrics <- function(labels_a, labels_b) {
     if (!setequal(names(labels_a), names(labels_b))) {
       stop("Cell names differ between pairwise clusterings.", call. = FALSE)
@@ -364,8 +309,7 @@ write_grid_tables_impl <- function(
     independent <- outer(row_probability, col_probability)
     nonzero <- joint > 0
     mutual_information <- sum(
-      joint[nonzero] *
-        log(joint[nonzero] / independent[nonzero], base = ENTROPY_LOG_BASE)
+      joint[nonzero] * log(joint[nonzero] / independent[nonzero], base = 2)
     )
     entropy_a <- entropy(ordered_a)
     entropy_b <- entropy(ordered_b)
@@ -403,7 +347,6 @@ write_grid_tables_impl <- function(
       stringsAsFactors = FALSE
     )
   }
-  # ANALYSIS_OK[R026]: local neighbor-axis helper is called by pairwise grid calculations below.
   neighbor_axis <- function(candidate_a, candidate_b) {
     changed_axes <- c(
       normalization = candidate_a$normalization != candidate_b$normalization,
@@ -417,23 +360,19 @@ write_grid_tables_impl <- function(
     }
     names(changed_axes)[changed_axes]
   }
-  # ANALYSIS_OK[R026]: local neighbor predicate is called by pairwise grid calculations below.
   is_local_neighbor <- function(candidate_a, candidate_b) {
     axis <- neighbor_axis(candidate_a, candidate_b)
     if (is.na(axis)) {
       return(FALSE)
     }
     if (axis == "dims") {
-      dim_positions <- match(
-        c(candidate_a$dims, candidate_b$dims),
-        DEFAULT_CLUSTER_DIMS
-      )
+      dim_positions <- match(c(candidate_a$dims, candidate_b$dims), dims_grid)
       return(abs(diff(dim_positions)) == 1L)
     }
     if (axis == "resolution") {
       resolution_positions <- match(
         c(candidate_a$resolution, candidate_b$resolution),
-        DEFAULT_CLUSTER_RESOLUTIONS
+        resolutions
       )
       return(abs(diff(resolution_positions)) == 1L)
     }
@@ -535,7 +474,6 @@ write_grid_tables_impl <- function(
   })
   pairwise_summary <- do.call(rbind, pairwise_summary_rows)
 
-  # ANALYSIS_OK[R026]: local clustree helper is called by the grid summary below.
   clustree_metrics <- function(labels_a, labels_b) {
     if (!setequal(names(labels_a), names(labels_b))) {
       stop("Cell names differ between clustree clusterings.", call. = FALSE)
@@ -548,7 +486,7 @@ write_grid_tables_impl <- function(
     child_counts <- rowSums(contingency > 0)
     child_entropy <- apply(contingency, 1, function(counts) {
       proportions <- counts[counts > 0] / sum(counts)
-      -sum(proportions * log(proportions, base = ENTROPY_LOG_BASE))
+      -sum(proportions * log(proportions, base = 2))
     })
     data.frame(
       clustree_weighted_largest_child_fraction = stats::weighted.mean(
@@ -563,16 +501,14 @@ write_grid_tables_impl <- function(
       clustree_mean_child_count = mean(child_counts),
       clustree_max_child_count = max(child_counts),
       clustree_splitting_clusters = sum(
-        largest_child_fraction < CLUSTREE_STABLE_CHILD_FRACTION
+        largest_child_fraction < stable_child_fraction
       ),
       stringsAsFactors = FALSE
     )
   }
   clustree_rows <- lapply(seq_len(nrow(metadata)), function(candidate_idx) {
     candidate <- metadata[candidate_idx, ]
-    next_resolutions <- DEFAULT_CLUSTER_RESOLUTIONS[
-      DEFAULT_CLUSTER_RESOLUTIONS > candidate$resolution
-    ]
+    next_resolutions <- resolutions[resolutions > candidate$resolution]
     next_resolution <- if (length(next_resolutions) > 0) {
       min(next_resolutions)
     } else {
@@ -627,30 +563,20 @@ write_grid_tables_impl <- function(
   )
   rownames(stability_summary) <- NULL
 
-  # ANALYSIS_OK[R026]: local TSV writer is called by the grid-table implementation below.
-  write_tsv <- function(data, path) {
-    if (is.null(path)) {
-      return(invisible(NULL))
-    }
-    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-    utils::write.table(
-      data,
-      path,
-      sep = "\t",
-      quote = FALSE,
-      row.names = FALSE,
-      na = ""
-    )
-  }
-  write_tsv(grid_summary, summary_path)
-  write_tsv(stability_summary, stability_path)
-  write_tsv(pairwise, pairwise_path)
+  readr::write_tsv(
+    grid_summary,
+    output_path(table_dir, paste0(output_prefix, "_summary.tsv")),
+    na = ""
+  )
+  readr::write_tsv(
+    stability_summary,
+    output_path(table_dir, paste0(output_prefix, "_stability_summary.tsv")),
+    na = ""
+  )
+  readr::write_tsv(
+    pairwise,
+    output_path(table_dir, paste0(output_prefix, "_pairwise_stability.tsv")),
+    na = ""
+  )
   invisible(list(summary = stability_summary, pairwise = pairwise))
 }
-
-DEFAULT_CLUSTER_DIMS <- c(20L, 30L, 50L)
-DEFAULT_CLUSTER_RESOLUTIONS <- c(0.3, 0.5, 0.8)
-DEFAULT_CLUSTER_REFERENCE_COLUMN <- "cluster_pflog_no_filter_cc_dims30_res0.3"
-SMALL_CLUSTER_CELL_THRESHOLD <- 50L
-ENTROPY_LOG_BASE <- 2
-CLUSTREE_STABLE_CHILD_FRACTION <- 0.8

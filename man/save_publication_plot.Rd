@@ -2,39 +2,22 @@
 % Please edit documentation in R/publication-plots.R
 \name{save_publication_plot}
 \alias{save_publication_plot}
-\title{Save a publication plot and mirror it only when the notebook references it.}
+\title{Save a publication plot as PNG and PDF and copy the PNG to the notebook}
 \usage{
-save_publication_plot(
-  plot,
-  output_stem,
-  width,
-  height,
-  notebook_basename,
-  dpi = 300
-)
+save_publication_plot(plot, output_stem, width, height, dpi = 300)
 }
 \arguments{
 \item{plot}{A ggplot object.}
 
 \item{output_stem}{Full output path without a file extension.}
 
-\item{width}{Figure width in inches.}
-
-\item{height}{Figure height in inches.}
-
-\item{notebook_basename}{PNG basename to mirror when referenced by the notebook.}
+\item{width, height}{Figure size in inches.}
 
 \item{dpi}{PNG resolution.}
 }
 \value{
-Named paths for the PNG and PDF, plus \code{notebook} when mirrored,
-invisibly.
+Named PNG, PDF, and notebook paths, invisibly.
 }
 \description{
-PNG and PDF outputs are always written. A PNG is mirrored only when its
-\verb{figures/<basename>} path appears in an inline Markdown image link in
-\code{notebook/sc_analysis.qmd}. Other outputs remain at their original output path.
-The notebook mirror is replaced through a temporary regular file. Existing
-symlinks are rejected so a publication run cannot write through the notebook
-tree into an external output directory.
+Save a publication plot as PNG and PDF and copy the PNG to the notebook
 }

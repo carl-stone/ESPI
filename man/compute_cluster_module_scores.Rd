@@ -2,7 +2,7 @@
 % Please edit documentation in R/publication-analysis.R
 \name{compute_cluster_module_scores}
 \alias{compute_cluster_module_scores}
-\title{Compute cluster-level cell-type marker module scores.}
+\title{Compute cluster-level cell-type marker module scores}
 \usage{
 compute_cluster_module_scores(
   sobj,
@@ -16,21 +16,17 @@ compute_cluster_module_scores(
 \arguments{
 \item{sobj}{Seurat object containing expression and cluster metadata.}
 
-\item{cluster_col}{Metadata column containing cluster labels.}
+\item{cluster_col}{Cluster metadata column.}
 
-\item{marker_genes}{Named non-empty list of marker-gene character vectors.}
+\item{marker_genes}{Named list of marker-gene vectors.}
 
-\item{assay}{Assay used for module scoring.}
+\item{assay, slot}{Assay and expression layer used by AddModuleScore.}
 
-\item{slot}{Assay slot/layer used by \code{\link[Seurat:AddModuleScore]{Seurat::AddModuleScore()}}.}
-
-\item{seed}{Random seed forwarded to \code{\link[Seurat:AddModuleScore]{Seurat::AddModuleScore()}}.}
+\item{seed}{Random seed for scoring.}
 }
 \value{
-Numeric matrix with marker-gene sets in rows, sorted clusters in
-columns, and mean module scores as values.
+A numeric matrix with modules in rows and sorted clusters in columns.
 }
 \description{
-Scores each cell for each named marker-gene set with
-\code{\link[Seurat:AddModuleScore]{Seurat::AddModuleScore()}}, then averages the module scores within clusters.
+Scores cells with \code{\link[Seurat:AddModuleScore]{Seurat::AddModuleScore()}} and averages scores within clusters.
 }

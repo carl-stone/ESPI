@@ -10,11 +10,7 @@ library(ggview)
 here::i_am("scripts/reprog_scoring.R")
 
 # --- helpers
-robust_z_score <- function(x) {
-  (x - median(x)) / mad(x)
-}
 
-# ANALYSIS_OK[script-helper]: called by observed and bootstrap decompositions below.
 decompose_module_scores <- function(sample_cluster_scores, sample_weights) {
   weighted_scores <- sample_weights |>
     dplyr::left_join(
@@ -57,7 +53,6 @@ decompose_module_scores <- function(sample_cluster_scores, sample_weights) {
 
 config <- publication_config()
 input_path <- config$selected$mg$path
-condition_col <- config$conditions$column
 cluster_col <- config$selected$mg$column
 control_label <- config$conditions$control
 estim_label <- config$conditions$estim
@@ -145,11 +140,6 @@ plot_mod_scores <- mod_scores |>
   theme_bw()
 
 plot_mod_scores
-
-scorelist <- grep("score$", colnames(mod_scores), value = TRUE)
-
-neuron_prolif_scores <- mod_scores |>
-  dplyr::mutate(neuro_mg = neuro_progen_score + cone_score - mg_score)
 
 
 plot_mg_v_activated <- mod_scores |>
@@ -371,10 +361,12 @@ decomposition_sample_cluster_scores <- mod_scores |>
     fill = list(cluster_cells = 0L, score_sum = 0)
   )
 
-sample_cluster_rows <- nrow(decomposition_sample_cluster_scores)
 decomposition_sample_cluster_scores <- decomposition_sample_cluster_scores |>
-  dplyr::left_join(sample_cell_counts, by = c("Sample", "Condition"))
-stopifnot(nrow(decomposition_sample_cluster_scores) == sample_cluster_rows)
+  dplyr::left_join(
+    sample_cell_counts,
+    by = c("Sample", "Condition"),
+    relationship = "many-to-one"
+  )
 
 decomposition_sample_cluster_scores <- decomposition_sample_cluster_scores |>
   dplyr::mutate(
@@ -442,13 +434,12 @@ decomposition_direct_contrasts <- mod_scores |>
   tidyr::pivot_wider(names_from = condition_role, values_from = score) |>
   dplyr::mutate(direct_total = estim - control)
 
-module_decomposition_rows <- nrow(decomposition_by_module)
 decomposition_by_module <- decomposition_by_module |>
   dplyr::left_join(
     decomposition_direct_contrasts |> dplyr::select(module, direct_total),
-    by = "module"
+    by = "module",
+    relationship = "one-to-one"
   )
-stopifnot(nrow(decomposition_by_module) == module_decomposition_rows)
 
 decomposition_by_module <- decomposition_by_module |>
   dplyr::mutate(reconstruction_error = total - direct_total)
@@ -467,7 +458,6 @@ set.seed(seed)
 decomposition_bootstrap_weights <- decomposition_sample_table |>
   dplyr::group_by(condition_role) |>
   dplyr::group_modify(\(data, key) {
-    # ANALYSIS_OK[random-seed-only]: RNG generates Bayesian-bootstrap weights.
     raw_weights <- matrix(
       stats::rexp(decomposition_draws * nrow(data)),
       nrow = decomposition_draws,
@@ -519,10 +509,12 @@ decomposition_estimates <- decomposition_by_module |>
     values_to = "estimate"
   )
 
-decomposition_summary_rows <- nrow(decomposition_summary)
 decomposition_summary <- decomposition_summary |>
-  dplyr::left_join(decomposition_estimates, by = c("module", "component"))
-stopifnot(nrow(decomposition_summary) == decomposition_summary_rows)
+  dplyr::left_join(
+    decomposition_estimates,
+    by = c("module", "component"),
+    relationship = "one-to-one"
+  )
 
 decomposition_summary <- decomposition_summary |>
   dplyr::mutate(
@@ -616,26 +608,6 @@ mod_pca_plot <- axis_pca_points |>
   theme_bw()
 
 mod_pca_plot
-
-mod_grid <- mod_scores[c(
-  "mg_score",
-  "activated_mg_score",
-  "neuro_progen_score",
-  "prolif_score"
-)] |>
-  summarize(across(
-    everything(),
-    .fns = list(min = min, median = median, max = max),
-    .names = "{.col}.{.fn}"
-  )) |>
-  pivot_longer(
-    cols = everything(),
-    names_to = c("module", "stat"),
-    names_sep = "\\.",
-    values_to = "value"
-  ) |>
-  dplyr::filter(stat != "median") |>
-  pivot_wider(names_from = module, values_from = value)
 
 
 fit_scores <- lm(

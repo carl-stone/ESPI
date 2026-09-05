@@ -18,12 +18,11 @@ selected_seed <- config$selected$mg$seed
 current_object_dir <- config$paths$current_objects
 figure_dir <- config$paths$figures
 table_dir <- config$paths$tables
-notebook_figure_dir <- config$paths$notebook_figures
 cluster_figure_dir <- file.path(figure_dir, "cluster")
 mg_figure_dir <- file.path(figure_dir, "mg_selected")
 mg_table_dir <- file.path(table_dir, "mg_selected")
-dims_grid <- c(20L, 30L, 50L)
-resolutions <- c(0.3, 0.5, 0.8)
+dims_grid <- config$grid$dimensions
+resolutions <- config$grid$resolutions
 small_cluster_threshold <- 50L
 mg_branch_tags <- c(
   "pflog_mg_selected_no_filter_cc",
@@ -55,101 +54,17 @@ if (any(!file.exists(mg_preprocess_paths))) {
   )
 }
 
-phase_output_paths <- c(
-  file.path(mg_table_dir, "mg_selected_cluster_grid_summary.tsv"),
-  file.path(table_dir, "frozen_object_numbers.tsv")
-)
-for (branch in mg_branch_tags) {
-  phase_output_paths <- c(
-    phase_output_paths,
-    file.path(current_object_dir, paste0("cluster_", branch, "_elbow20.rds"))
-  )
-  for (dims in dims_grid) {
-    phase_output_paths <- c(
-      phase_output_paths,
-      file.path(
-        cluster_figure_dir,
-        paste0("clustree_", branch, "_dims", dims, c(".png", ".pdf"))
-      ),
-      file.path(
-        mg_figure_dir,
-        paste0(
-          "mg_selected_umap_resolution_sweep_",
-          branch,
-          "_dims",
-          dims,
-          c(".png", ".pdf")
-        )
-      )
-    )
-    for (resolution in resolutions) {
-      column <- paste0("cluster_", branch, "_dims", dims, "_res", resolution)
-      umap <- sprintf("umap_%s_dims%d", branch, dims)
-      phase_output_paths <- c(
-        phase_output_paths,
-        file.path(
-          cluster_figure_dir,
-          paste0(umap, "_by_", column, c(".png", ".pdf"))
-        )
-      )
-    }
-  }
-}
-assert_output_available(unique(phase_output_paths), config$overwrite)
-purrr::walk(
-  c(cluster_figure_dir, mg_figure_dir, mg_table_dir),
-  dir.create,
-  recursive = TRUE,
-  showWarnings = FALSE
-)
 
 # ---- load frozen preprocessing branches ----
 
 mg_preprocessed <- mg_preprocess_paths |>
   purrr::map(readRDS) |>
   stats::setNames(mg_branch_tags)
-source_sobj <- readRDS(config$selected$source$path)
-assert_frozen_input(
-  config$selected$source$path,
-  source_sobj,
-  config$frozen$source
-)
-source_clustered <- stats::setNames(
-  list(source_sobj),
-  config$selected$source$branch
-)
-source_preprocess_tags <- c(
-  "log1p_no-filter-cc",
-  "log1p_filter-cc",
-  "pflog_no-filter-cc",
-  "pflog_filter-cc"
-)
-all_preprocess_tags <- c(source_preprocess_tags, mg_preprocess_tags)
-branch_numbers <- all_preprocess_tags |>
-  purrr::map(function(tag) {
-    path <- file.path(current_object_dir, paste0("preprocess_", tag, ".rds"))
-    preprocessed_sobj <- readRDS(path)
-    tibble::tibble(
-      object = tag,
-      path = path,
-      n_cells = ncol(preprocessed_sobj),
-      n_genes = nrow(preprocessed_sobj),
-      n_hvg = length(SeuratObject::VariableFeatures(preprocessed_sobj)),
-      selected_column = NA_character_,
-      n_clusters = NA_integer_
-    )
-  })
-
 # ---- both MG Leiden/UMAP grids and summaries ----
 
 mg_branches <- data.frame(
-  normalization = c("pflog", "pflog"),
   filtered_cell_cycle = c(FALSE, TRUE),
   branch_tag = mg_branch_tags,
-  branch_label = c(
-    "PFlog MG-selected, CC-HVG retained",
-    "PFlog MG-selected, CC-HVG filtered"
-  ),
   stringsAsFactors = FALSE
 )
 mg_clustered <- list()
@@ -237,17 +152,19 @@ for (branch_index in seq_len(nrow(mg_branches))) {
         cluster_figure_dir,
         paste0(reduction_name, "_by_", column, ".png")
       )
-      ggplot2::ggsave(png_path, plot, width = 5, height = 5)
+      ggplot2::ggsave(output_path(png_path), plot, width = 5, height = 5)
       ggplot2::ggsave(
-        sub("\\.png$", ".pdf", png_path),
+        output_path(sub("\\.png$", ".pdf", png_path)),
         plot,
         width = 5,
         height = 5
       )
-      ESPI:::.copy_notebook_figure(
-        png_path,
-        file.path(notebook_figure_dir, basename(png_path))
-      )
+      if (
+        column %in%
+          c(config$selected$mg$column, config$selected$mg_filter_cc$column)
+      ) {
+        copy_notebook_figure(png_path)
+      }
     }
     prefix <- sprintf("cluster_%s_dims%d_res", branch_info$branch_tag, dims)
     cluster_data <- branch_sobj@meta.data[,
@@ -260,9 +177,14 @@ for (branch_index in seq_len(nrow(mg_branches))) {
       cluster_figure_dir,
       sprintf("clustree_%s_dims%d.png", branch_info$branch_tag, dims)
     )
-    ggplot2::ggsave(clustree_png, clustree_plot, width = 6, height = 6)
     ggplot2::ggsave(
-      sub("\\.png$", ".pdf", clustree_png),
+      output_path(clustree_png),
+      clustree_plot,
+      width = 6,
+      height = 6
+    )
+    ggplot2::ggsave(
+      output_path(sub("\\.png$", ".pdf", clustree_png)),
       clustree_plot,
       width = 6,
       height = 6
@@ -277,12 +199,11 @@ for (branch_index in seq_len(nrow(mg_branches))) {
     elbow_n = 20L,
     candidate_names = candidate_names,
     candidate_seeds = candidate_seeds,
-    umap_seeds = umap_seeds,
-    clustree_plotted = TRUE
+    umap_seeds = umap_seeds
   )
   saveRDS(
     branch_sobj,
-    file.path(
+    output_path(
       current_object_dir,
       paste0("cluster_", branch_info$branch_tag, "_elbow20.rds")
     )
@@ -339,7 +260,7 @@ mg_summary_ordered <- mg_summary[
 ]
 utils::write.table(
   mg_summary_ordered,
-  file.path(mg_table_dir, "mg_selected_cluster_grid_summary.tsv"),
+  output_path(mg_table_dir, "mg_selected_cluster_grid_summary.tsv"),
   sep = "\t",
   quote = FALSE,
   row.names = FALSE,
@@ -395,88 +316,24 @@ for (branch_index in seq_len(nrow(mg_branches))) {
     )
     png_path <- file.path(mg_figure_dir, paste0(stem, ".png"))
     ggplot2::ggsave(
-      png_path,
+      output_path(png_path),
       sweep,
       width = 3.6 * nrow(dim_candidates),
       height = 4.2
     )
     ggplot2::ggsave(
-      file.path(mg_figure_dir, paste0(stem, ".pdf")),
+      output_path(mg_figure_dir, paste0(stem, ".pdf")),
       sweep,
       width = 3.6 * nrow(dim_candidates),
       height = 4.2
     )
-    ESPI:::.copy_notebook_figure(
-      png_path,
-      file.path(notebook_figure_dir, basename(png_path))
-    )
+    if (dims == config$selected$mg$dimensions) copy_notebook_figure(png_path)
   }
 }
 
-# ---- frozen-object numbers and structural assertions ----
-
-frozen_object_numbers <- dplyr::bind_rows(
-  tibble::tibble(
-    object = "pflog_no_filter_cc",
-    path = config$selected$source$path,
-    n_cells = ncol(source_clustered[[config$selected$source$branch]]),
-    n_genes = nrow(source_clustered[[config$selected$source$branch]]),
-    n_hvg = NA_integer_,
-    selected_column = config$selected$source$column,
-    n_clusters = dplyr::n_distinct(source_clustered[[
-      config$selected$source$branch
-    ]][[]][[config$selected$source$column]])
-  ),
-  tibble::tibble(
-    object = "pflog_mg_selected_no_filter_cc",
-    path = config$selected$mg$path,
-    n_cells = ncol(mg_clustered[[config$selected$mg$branch]]),
-    n_genes = nrow(mg_clustered[[config$selected$mg$branch]]),
-    n_hvg = NA_integer_,
-    selected_column = config$selected$mg$column,
-    n_clusters = dplyr::n_distinct(mg_clustered[[
-      config$selected$mg$branch
-    ]][[]][[config$selected$mg$column]])
-  ),
-  tibble::tibble(
-    object = "pflog_mg_selected_filter_cc",
-    path = config$selected$mg_filter_cc$path,
-    n_cells = ncol(mg_clustered[[config$selected$mg_filter_cc$branch]]),
-    n_genes = nrow(mg_clustered[[config$selected$mg_filter_cc$branch]]),
-    n_hvg = NA_integer_,
-    selected_column = config$selected$mg_filter_cc$column,
-    n_clusters = dplyr::n_distinct(mg_clustered[[
-      config$selected$mg_filter_cc$branch
-    ]][[]][[config$selected$mg_filter_cc$column]])
-  ),
-  dplyr::bind_rows(branch_numbers)
-)
-readr::write_tsv(
-  frozen_object_numbers,
-  file.path(table_dir, "frozen_object_numbers.tsv")
-)
-
-source_cells <- ncol(source_clustered[[config$selected$source$branch]])
-mg_cells <- ncol(mg_clustered[[config$selected$mg$branch]])
-selected_mg <- mg_clustered[[config$selected$mg$branch]]
-selected_mg_filter_cc <- mg_clustered[[config$selected$mg_filter_cc$branch]]
-assert_frozen_input(config$selected$mg$path, selected_mg, config$frozen$mg)
-assert_frozen_input(
-  config$selected$mg_filter_cc$path,
-  selected_mg_filter_cc,
-  config$frozen$mg_filter_cc
-)
-stopifnot(
-  mg_cells < source_cells,
-  ncol(selected_mg_filter_cc) == mg_cells,
-  selected_mg@misc$clustering$candidate_seeds[[config$selected$mg$column]] ==
-    selected_seed
-)
 message(
-  "MG clustering regeneration complete: source cells=",
-  source_cells,
-  "; MG cells=",
-  mg_cells,
-  "; selected seed=",
+  "MG clustering complete. Selected column: ",
+  config$selected$mg$column,
+  "; seed: ",
   selected_seed
 )

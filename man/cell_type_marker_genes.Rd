@@ -3,7 +3,8 @@
 \docType{data}
 \name{cell_type_marker_genes}
 \alias{cell_type_marker_genes}
-\title{Cell type marker genes}
+\title{Cell type marker genes
+Curated marker genes for broad retinal cell type annotation.}
 \format{
 A named list of mouse gene symbols.
 }
@@ -11,6 +12,7 @@ A named list of mouse gene symbols.
 cell_type_marker_genes
 }
 \description{
+Cell type marker genes
 Curated marker genes for broad retinal cell type annotation.
 }
 \keyword{datasets}

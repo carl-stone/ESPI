@@ -12,7 +12,7 @@ neurogenic reprogramming of Muller glia in the adult mouse retina*.
 This repository is a minimal R package plus manuscript and exploratory
 analyses. Install R and the dependencies in `DESCRIPTION`, Quarto, and
 `just`; configure the external data directory as described in
-[setup](docs/setup.md), then load local package code:
+[setup](dev/setup.md), then load local package code:
 
 ``` sh
 just load
@@ -36,12 +36,12 @@ pak::pak("carl-stone/ESPI")
 | `data-raw/` | Scripts that build the small package datasets. |
 | `data/` | Package datasets; large inputs and primary pipeline outputs remain in Box. |
 | `man/` | Generated R documentation. |
-| `docs/` | Setup, study design, data provenance, manuscript drafts, and reference material. |
+| `dev/` | Setup, study design, data provenance, manuscript drafts, and reference material. |
 
 ## Publication pipeline
 
-Four phases span five scripts. Routine publication commands validate and
-consume saved Seurat objects; they do not regenerate the frozen cohort:
+Four phases span five scripts. Routine publication commands consume
+saved Seurat objects; they do not recompute clustering:
 
 ``` sh
 just run [overwrite]       # phases 02 → 03 → 04, then render the notebook
@@ -70,8 +70,26 @@ notebook rendering with overwrite enabled.
 Phase 02 loads the selected source, MG, and cell-cycle-filtered
 sensitivity objects. Phase 03 marker outputs are descriptive and do not
 feed phase 04. Phase 04 independently loads the MG object and rebuilds
-curated marker overlap from package marker data plus `Cdkn1b`. Paths,
-selected columns, and input contracts live in `R/config.R`.
+curated marker overlap from package marker data plus `Cdkn1b`.
+
+**Change clustering settings in `publication_config()` in
+`R/config.R`.** The selected MG clustering uses 20 PCs, resolution 0.5,
+and seed 2847. Column names and plot labels derive from those settings.
+The source stays at resolution 0.3; the cell-cycle-filtered sensitivity
+uses resolution 0.5 and seed 1312.
+
+Changing settings selects a column in a saved object; it does not
+recompute that column. A seed change requires rerunning clustering. With
+both MG preprocessing objects already available, rerun just that stage
+with:
+
+``` sh
+ESPI_OVERWRITE=true Rscript scripts/01b-cluster-mg-sensitivity.R
+```
+
+Then update downstream outputs and the notebook deliberately. Existing
+reports and drafting notes are snapshots, not evidence that a new
+configuration has run.
 
 The other package modules have distinct jobs: `R/seurat-methods.R` owns
 PCA and cluster-grid summaries; `R/publication-analysis.R` owns
@@ -94,8 +112,9 @@ their presence here does not imply a shared execution order.
 
 Custom-marker figures live in `notebook/figures/custom-markers/`,
 including retained manuscript candidates not yet embedded in the report.
-The custom plotting script writes there; the other manuscript scripts
-retain their existing output behavior.
+The custom plotting script writes there. File writers use
+`output_path()` to create parent directories and require overwrite
+opt-in for existing files.
 
 ### Exploratory work
 
@@ -110,12 +129,12 @@ retain their existing output behavior.
 
 ## Documentation
 
-- [Setup and external paths](docs/setup.md)
-- [Study design and terminology](docs/study.md)
-- [Data provenance and output locations](docs/data.md)
-- [Methods and Results drafting material](docs/methods-results.md)
-- [Manuscript plan and interpretation notes](docs/manuscript-plan.md)
-- [Reference figure PDF](docs/references/pnas_sc_figures.pdf)
+- [Setup and external paths](dev/setup.md)
+- [Study design and terminology](dev/study.md)
+- [Data provenance and output locations](dev/data.md)
+- [Methods and Results drafting material](dev/methods-results.md)
+- [Manuscript plan and interpretation notes](dev/manuscript-plan.md)
+- [Reference figure PDF](dev/references/pnas_sc_figures.pdf)
 
 Drafting notes retain their evidence annotations; they are not
 automatically refreshed result reports.
@@ -130,6 +149,14 @@ required for a documentation edit.
 Render the report with `quarto render notebook/sc_analysis.qmd` after
 changing its prose or figure inputs when updating the HTML deliverable.
 It embeds image bytes. Pipeline writers retain their primary PNG/PDF
-outputs in Box and mirror only PNGs named by inline Markdown image paths
-in the notebook. Mirroring keeps the existing regular-file, hash, and
-dimension checks; it never writes through symlink destinations.
+outputs in Box and copy report figures into `notebook/figures/`. The
+scripts choose which figures to copy; they do not parse the notebook,
+hash images, or maintain rollback files. Grid stages copy the selected
+clustering views rather than every candidate.
+
+`output_path()` checks overwrite permission at each write and rejects
+symlink destinations. There is no separate output inventory; if a later
+write fails, earlier outputs from that run remain. Use
+`ESPI_OVERWRITE=true` for deliberate replacement when running scripts
+directly, or `output_path(..., overwrite = TRUE)` for an explicitly
+approved write in an interactive session.

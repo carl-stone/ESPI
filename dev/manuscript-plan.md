@@ -5,6 +5,10 @@ Status: manuscript drafting snapshot. The results and status descriptions below
 record an earlier write-up, not a live report. Recheck current code and outputs
 before carrying numbers or claims into the manuscript.
 
+The cluster-specific results below describe the earlier resolution-0.3 analysis.
+The configured MG choice is now resolution 0.5 with seed 2847; regenerate and
+review those results before updating this draft.
+
 ## Results to carry forward
 
 - The `mg-selected` branch starts from `cluster_pflog_no_filter_cc_dims20_res0.3` (PFlog/no-filter-CC, 20 PCs, resolution 0.3) with 3,902 source cells in 8 clusters, then removes clusters that meet the configured microglia/photoreceptor or high-`Cdkn1b` criteria.

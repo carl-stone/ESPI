@@ -24,15 +24,14 @@ significance_threshold <- 0.01
 
 table_dir <- file.path(config$paths$tables, "mg_selected")
 figure_dir <- file.path(config$paths$figures, "mg_selected")
-dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
 
-analysis_tag <- "data_pflog_mg_selected_no_filter_cc_dims20_res0.3"
-cluster_tag <- "pflog_mg_selected_no_filter_cc_dims20_res0.3"
+cluster_tag <- sub("^cluster_", "", cluster_column)
+analysis_tag <- paste(expression_layer, cluster_tag, sep = "_")
 dotplot_tag <- paste0(
   "mg_selected_cluster_marker_dotplot_",
   analysis_tag,
-  "_top5"
+  "_top",
+  top_n
 )
 full_marker_path <- file.path(
   table_dir,
@@ -40,29 +39,14 @@ full_marker_path <- file.path(
 )
 top_marker_path <- file.path(
   table_dir,
-  paste0("find_all_markers_wilcox_top5_", analysis_tag, ".csv")
+  paste0("find_all_markers_wilcox_top", top_n, "_", analysis_tag, ".csv")
 )
 summary_path <- file.path(
   table_dir,
   paste0("find_all_markers_summary_", analysis_tag, ".csv")
 )
-identity_map_path <- file.path(
-  table_dir,
-  paste0("find_all_markers_identity_map_", cluster_tag, ".csv")
-)
 figure_stem <- file.path(figure_dir, dotplot_tag)
 
-assert_output_available(
-  c(
-    full_marker_path,
-    top_marker_path,
-    summary_path,
-    identity_map_path,
-    paste0(figure_stem, ".png"),
-    paste0(figure_stem, ".pdf")
-  ),
-  config$overwrite
-)
 
 # ---- marker analysis ----
 
@@ -72,17 +56,6 @@ identity_levels <- as.character(sort(as.integer(unique(cluster_values))))
 marker_identities <- factor(cluster_values, levels = identity_levels)
 SeuratObject::Idents(sobj) <- marker_identities
 
-identity_map <- tibble::tibble(
-  source_cluster = identity_levels,
-  marker_identity = identity_levels,
-  n_cells = as.integer(table(marker_identities)),
-  decision_source = "confirmed_no_merge",
-  input_path = input_path,
-  cluster_column = cluster_column,
-  assay = assay,
-  expression_layer = expression_layer,
-  counts_layer = counts_layer
-)
 
 markers <- Seurat::FindAllMarkers(
   object = sobj,
@@ -144,8 +117,10 @@ top_markers <- markers |>
   dplyr::slice_head(n = top_n) |>
   dplyr::ungroup()
 
-marker_summary <- identity_map |>
-  dplyr::select(marker_identity, n_cells) |>
+marker_summary <- tibble::tibble(
+  marker_identity = identity_levels,
+  n_cells = as.integer(table(marker_identities))
+) |>
   dplyr::left_join(
     markers |>
       dplyr::count(cluster) |>
@@ -156,10 +131,10 @@ marker_summary <- identity_map |>
     top_markers |> dplyr::count(cluster) |> dplyr::rename(n_top_markers = n),
     by = c("marker_identity" = "cluster")
   ) |>
-  dplyr::mutate(
-    dplyr::across(dplyr::starts_with("n_"), ~ tidyr::replace_na(.x, 0L)),
-    decision_source = "confirmed_no_merge"
-  )
+  dplyr::mutate(dplyr::across(
+    dplyr::starts_with("n_"),
+    ~ tidyr::replace_na(.x, 0L)
+  ))
 
 # ---- marker dotplot ----
 
@@ -275,17 +250,30 @@ plot <- make_marker_dotplot(top_markers)
 
 # ---- output ----
 
-utils::write.csv(markers, full_marker_path, row.names = FALSE, na = "")
-utils::write.csv(top_markers, top_marker_path, row.names = FALSE, na = "")
-utils::write.csv(marker_summary, summary_path, row.names = FALSE, na = "")
-utils::write.csv(identity_map, identity_map_path, row.names = FALSE, na = "")
+utils::write.csv(
+  markers,
+  output_path(full_marker_path),
+  row.names = FALSE,
+  na = ""
+)
+utils::write.csv(
+  top_markers,
+  output_path(top_marker_path),
+  row.names = FALSE,
+  na = ""
+)
+utils::write.csv(
+  marker_summary,
+  output_path(summary_path),
+  row.names = FALSE,
+  na = ""
+)
 
 save_publication_plot(
   plot,
   figure_stem,
   width = max(7, 2.5 + 0.45 * length(identity_levels)),
-  height = max(5, 2 + 0.18 * nrow(top_markers)),
-  notebook_basename = paste0(dotplot_tag, ".png")
+  height = max(5, 2 + 0.18 * nrow(top_markers))
 )
 
 message("Saved MG-selected Wilcox marker tables and dotplot under ", table_dir)

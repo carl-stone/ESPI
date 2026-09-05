@@ -3,7 +3,6 @@ suppressPackageStartupMessages({
   devtools::load_all(here::here(), export_all = FALSE, quiet = TRUE)
   library(tidyverse)
   library(Seurat)
-  library(ggview)
 })
 
 # ---- parameters ----
@@ -12,8 +11,6 @@ config <- publication_config()
 input_path <- config$selected$mg$path
 cluster_column <- config$selected$mg$column
 assay <- "RNA"
-expression_layer <- "data"
-counts_layer <- "counts"
 
 # --- inputs ---
 sobj <- readRDS(input_path)
