@@ -63,6 +63,7 @@ Suggests:
     scilintr,
     stringr,
     SummarizedExperiment,
+    testthat (>= 3.0.0),
     tidyverse
 Remotes:
     cleartools/scclrR,
@@ -71,3 +72,4 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0
 URL: https://github.com/carl-stone/ESPI
 BugReports: https://github.com/carl-stone/ESPI/issues
+Config/testthat/edition: 3
