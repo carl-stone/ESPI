@@ -15,77 +15,128 @@ knitr::opts_chunk$set(
 
 # ESPI
 
-<!-- badges: start -->
-<!-- badges: end -->
+This is the companion code to Stone et al. (2026), *Electrical stimulation combined with p27Kip1 inactivation drives proliferative neurogenic reprogramming of Muller glia in the adult mouse retina*.
 
-This is the companion code to Stone~\textit{et~al.}~2026---\textit{Electrical stimulation combined with p27Kip1 inactivation drives proliferative neurogenic reprogramming of Muller glia in the adult mouse retina}.
+## Getting started
 
-## Installation
+This repository is a minimal R package plus manuscript and exploratory analyses.
+Install R and the dependencies in `DESCRIPTION`, Quarto, and `just`; configure
+the external data directory as described in [setup](docs/setup.md), then load
+local package code:
 
-You can install the development version of ESPI from the
-[project repository](https://github.com/carl-stone/ESPI) with:
+```sh
+just load
+```
 
-``` r
+To install the package from GitHub instead:
+
+```r
 # install.packages("pak")
 pak::pak("carl-stone/ESPI")
 ```
 
-## Publication workflow
+## Where things live
 
-The analysis has four fixed phases across five scripts and four focused package modules.
-Routine publication commands consume the checksummed frozen objects; they do
-not regenerate the frozen cohort:
+| Directory | Purpose |
+|---|---|
+| `R/` | Shared configuration, Seurat methods, statistics, and plotting functions. |
+| `scripts/` | Manuscript analyses: the numbered pipeline plus reprogramming, custom markers, and QC summaries. |
+| `notebook/` | Analysis report (`sc_analysis.qmd`), rendered HTML, and report/manuscript figures. |
+| `exploratory/` | Milo, plotting experiments, and neurogenic-proportion sensitivity analysis. |
+| `data-raw/` | Scripts that build the small package datasets. |
+| `data/` | Package datasets; large inputs and primary pipeline outputs remain in Box. |
+| `man/` | Generated R documentation. |
+| `docs/` | Setup, study design, data provenance, manuscript drafts, and reference material. |
+
+## Publication pipeline
+
+Four phases span five scripts. Routine publication commands validate and consume
+saved Seurat objects; they do not regenerate the frozen cohort:
 
 ```sh
 just run [overwrite]       # phases 02 → 03 → 04, then render the notebook
 just figures [overwrite]   # publication figures and descriptive tables
 just markers [overwrite]   # FindAllMarkers tables and dotplot
 just de [overwrite]        # pseudobulk DE and enrichment
-just regenerate-frozen [start] # regenerate, then phases 02–04 and notebook
+just regenerate-frozen [start] # deliberate regeneration, then downstream phases
 ```
 
-`overwrite` is `false` by default. Set it to `true` only when replacing
-existing publication outputs. Full frozen regeneration runs phase 01 through
-MG preprocessing, then `01b-cluster-mg-sensitivity.R` from the saved MG objects.
-It requires both frozen-object directories to be writable.
-`just regenerate-frozen mg-selection` resumes from the selected source RDS and
-requires only `seurat_objects/current` to be writable; it does not rebuild
-counts, QC, source preprocessing, or source grids. After rebuilding the MG
-grid, both start modes run phases 02–04 and render the notebook with overwrite
-enabled. The selected MG clustering uses 20 PCs, Leiden resolution 0.3, and
-seed 2847.
+`overwrite` is `false` by default. Set it to `true` only when replacing existing
+publication outputs. `start` is `all` (default) or `mg-selection`. Full
+regeneration requires writable input and current-object directories;
+`mg-selection` resumes from the selected source object and requires only the
+current-object directory. Both regeneration modes run the MG clustering grid,
+then phases 02–04 and notebook rendering with overwrite enabled.
 
-The fixed downstream inputs are:
-
-| Role | Path and chosen cluster column | Cells |
-|---|---|---:|
-| Final source | `current/cluster_pflog_no_filter_cc_elbow20.rds`; `cluster_pflog_no_filter_cc_dims20_res0.3` | 3,902 |
-| Final MG-selected | `current/cluster_pflog_mg_selected_no_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_no_filter_cc_dims20_res0.3` | 3,238 |
-| CC-filtered MG sensitivity | `current/cluster_pflog_mg_selected_filter_cc_elbow20.rds`; `cluster_pflog_mg_selected_filter_cc_dims20_res0.3` | 3,238 |
-
-Phase 02 loads all three inputs once and writes source, MG, and sensitivity
-figures. Phase 03 marker outputs are descriptive and do not feed phase 04.
-Phase 04 independently loads the final MG object and rebuilds curated marker
-overlap from package marker data plus `Cdkn1b`.
-
-## Repository map
-
-| Concern | Active files |
+| Step | Script |
 |---|---|
-| Frozen preprocessing and MG selection | `scripts/01-regenerate-frozen.R` |
-| MG clustering sensitivity grid | `scripts/01b-cluster-mg-sensitivity.R` |
-| Publication figures | `scripts/02-publication-figures.R` |
-| Marker analysis | `scripts/03-marker-analysis.R` |
-| DE and enrichment | `scripts/04-de-enrichment.R` |
-| Configuration and contracts | `R/config.R` |
-| Seurat methods and grid summaries | `R/seurat-methods.R` |
-| Publication statistics | `R/publication-analysis.R` |
-| Publication plot writers | `R/publication-plots.R` |
-| Notebook | `notebook/sc_analysis.qmd` |
+| Counts, QC, source preprocessing, and MG selection | `scripts/01-regenerate-frozen.R` |
+| MG clustering and sensitivity grid | `scripts/01b-cluster-mg-sensitivity.R` |
+| Publication figures and descriptive tables | `scripts/02-publication-figures.R` |
+| Cluster marker analysis | `scripts/03-marker-analysis.R` |
+| Pseudobulk DE and enrichment | `scripts/04-de-enrichment.R` |
 
-Retained maintenance recipes are `just load`, `just document`, `just readme`,
-`just format`, and `just lint`. Render the notebook with
-`quarto render notebook/sc_analysis.qmd` after changing figure sources.
-Notebook figure inputs remain regular files. Mirroring copies to a temporary
-regular sibling, checks the hash and dimensions, then atomically replaces the
-destination; phases never write through a symlink.
+Phase 02 loads the selected source, MG, and cell-cycle-filtered sensitivity
+objects. Phase 03 marker outputs are descriptive and do not feed phase 04.
+Phase 04 independently loads the MG object and rebuilds curated marker overlap
+from package marker data plus `Cdkn1b`. Paths, selected columns, and input
+contracts live in `R/config.R`.
+
+The other package modules have distinct jobs: `R/seurat-methods.R` owns PCA and
+cluster-grid summaries; `R/publication-analysis.R` owns abundance, sample
+proportions, randomization, and module/p27 statistics; `R/publication-plots.R`
+owns plot writers and notebook mirroring.
+
+### Additional manuscript work
+
+These scripts support the manuscript but are not automatically run by the
+numbered pipeline. Keep interactive analyses section-by-section; their presence
+here does not imply a shared execution order.
+
+| Work | Script |
+|---|---|
+| Reprogramming scores and score decomposition | `scripts/reprog_scoring.R` |
+| Marker-score violins and UMAPs | `scripts/plot-marker-scores.R` |
+| Custom curated marker heatmaps and dot plot | `scripts/custom-marker-plots.R` |
+| Interactive marker analysis with a cluster merge | `scripts/findmarkers.R` |
+| Sample-level QC summary | `scripts/qc_table.R` |
+
+Custom-marker figures live in `notebook/figures/custom-markers/`, including
+retained manuscript candidates not yet embedded in the report. The custom
+plotting script writes there; the other manuscript scripts retain their
+existing output behavior.
+
+### Exploratory work
+
+- [Milo](exploratory/milo/notes.md): neighborhood differential abundance in PCA
+  and module-score space.
+- [Plotting](exploratory/plotting/notes.md): interactive expression and detection
+  exploration, plus preserved prior exports.
+- [Neurogenic proportion](exploratory/neurogenic-proportion/notes.md): the
+  completed threshold-grid sensitivity analysis, with saved results alongside
+  its code. It consumes the module-score Milo table, not the PCA Milo results.
+
+## Documentation
+
+- [Setup and external paths](docs/setup.md)
+- [Study design and terminology](docs/study.md)
+- [Data provenance and output locations](docs/data.md)
+- [Methods and Results drafting material](docs/methods-results.md)
+- [Manuscript plan and interpretation notes](docs/manuscript-plan.md)
+- [Reference figure PDF](docs/references/pnas_sc_figures.pdf)
+
+Drafting notes retain their evidence annotations; they are not automatically
+refreshed result reports.
+
+## Editing and rendering
+
+Use `just document` after changing `R/`, and `just readme` after changing
+`README.Rmd`. `just format` formats first-party R code; `just lint` is an optional
+on-demand diagnostic. No full analysis run is required for a documentation edit.
+
+Render the report with `quarto render notebook/sc_analysis.qmd` after changing
+its prose or figure inputs when updating the HTML deliverable. It embeds image
+bytes. Pipeline writers retain their primary PNG/PDF outputs in Box and mirror
+only PNGs named by inline Markdown image paths in the notebook. Mirroring keeps
+the existing regular-file, hash, and dimension checks; it never writes through
+symlink destinations.

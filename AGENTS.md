@@ -3,8 +3,9 @@
 ## Scope and workflow
 
 This is a one-off scientific analysis in a minimal R package, not a reusable
-software framework. Helpers live in `R/`; executable analyses live in
-`scripts/`. Do not add backward-compatibility layers or unnecessary abstractions.
+software framework. Helpers live in `R/`; manuscript analyses live in `scripts/`;
+Milo and other exploratory work live in `exploratory/`. Do not add
+backward-compatibility layers or unnecessary abstractions.
 
 - Edit the requested source files directly, run checks relevant to the change,
   and report what changed and what you actually verified.
@@ -16,8 +17,8 @@ software framework. Helpers live in `R/`; executable analyses live in
   No session logs, registries, manifest updates, or convention generation are
   required to edit files or finish a task. Record scientific methods and
   non-obvious choices in the relevant code or analysis prose, not duplicate logs.
-- Use `CONTEXT.md` when relevant to scientific terminology and
-  `ENVIRONMENTS_INSTALLATIONS.md` for environment setup.
+- Use `docs/study.md` when relevant to scientific terminology and `docs/setup.md`
+  for environment setup. The README maps the workflow and manuscript scripts.
 
 ## Commands and generated files
 
@@ -28,7 +29,7 @@ Use `just --list` to discover recipes. The publication commands are:
   run one publication phase.
 - `just regenerate-frozen [start]`: deliberate regeneration from `all` or
   `mg-selection`, followed by downstream phases and notebook rendering.
-  See `ENVIRONMENTS_INSTALLATIONS.md` for required writable directories.
+  See `docs/setup.md` for required writable directories.
 
 `overwrite` defaults to `false`; use `true` only when replacing publication
 outputs. The selected MG clustering uses 20 PCs, resolution 0.3, and seed 2847.
@@ -42,7 +43,9 @@ outputs. The selected MG clustering uses 20 PCs, resolution 0.3, and seed 2847.
   on-demand scilintr diagnostic, not a prerequisite for every edit or completion.
 - After changing notebook prose or figure inputs, render with
   `quarto render notebook/sc_analysis.qmd` when updating the HTML deliverable;
-  it embeds image bytes. Keep the existing regular-file figure mirroring and
+  it embeds image bytes. Pipeline mirroring keeps only PNGs named by inline
+  Markdown image paths in the notebook; custom-marker manuscript figures live
+  in `notebook/figures/custom-markers/`. Keep the regular-file mirroring and
   hash/dimension checks; never write through symlink destinations.
 
 ## R conventions
@@ -70,5 +73,5 @@ outputs. The selected MG clustering uses 20 PCs, resolution 0.3, and seed 2847.
 ## Communication
 
 Be concise, use plain language and active voice, and state assumptions,
-decisions, and verification limits explicitly. Keep this file operational and
+decisions, inferences, and verification limits explicitly. Keep this file operational and
 compact; do not turn it into a session journal.

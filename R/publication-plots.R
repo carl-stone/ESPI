@@ -1,5 +1,8 @@
-#' Save a publication plot as PNG and PDF and mirror its PNG into the notebook.
+#' Save a publication plot and mirror it only when the notebook references it.
 #'
+#' PNG and PDF outputs are always written. A PNG is mirrored only when its
+#' `figures/<basename>` path appears in an inline Markdown image link in
+#' `notebook/sc_analysis.qmd`. Other outputs remain at their original output path.
 #' The notebook mirror is replaced through a temporary regular file. Existing
 #' symlinks are rejected so a publication run cannot write through the notebook
 #' tree into an external output directory.
@@ -8,10 +11,11 @@
 #' @param output_stem Full output path without a file extension.
 #' @param width Figure width in inches.
 #' @param height Figure height in inches.
-#' @param notebook_basename PNG basename to copy into `notebook/figures`.
+#' @param notebook_basename PNG basename to mirror when referenced by the notebook.
 #' @param dpi PNG resolution.
 #'
-#' @return Named paths for the PNG, PDF, and notebook PNG, invisibly.
+#' @return Named paths for the PNG and PDF, plus `notebook` when mirrored,
+#'   invisibly.
 #' @export
 # ANALYSIS_OK[R026]: exported plot writer is called directly by publication and DE phase scripts.
 # ANALYSIS_OK[smuggled-default]: exported plot writer preserves the publication PNG resolution default.
@@ -76,16 +80,25 @@ save_publication_plot <- function(
   notebook_dir <- here::here("notebook", "figures")
   dir.create(notebook_dir, recursive = TRUE, showWarnings = FALSE)
   notebook_path <- file.path(notebook_dir, notebook_basename)
-  .copy_notebook_figure(png_path, notebook_path)
+  notebook_path <- .copy_notebook_figure(png_path, notebook_path)
 
   invisible(c(png = png_path, pdf = pdf_path, notebook = notebook_path))
 }
 
-# ANALYSIS_OK[R026]: private mirror helper is called by the exported plot writer in this module.
+# ANALYSIS_OK[R026]: private mirror helper is called by the plot writer and executable phase scripts.
 # Replace a notebook figure only through a verified regular temporary file. POSIX
 # rename-over is attempted first; the fallback moves the old destination aside
 # and restores it if installation fails.
 .copy_notebook_figure <- function(source, destination) {
+  notebook_lines <- readLines(
+    here::here("notebook", "sc_analysis.qmd"),
+    warn = FALSE
+  )
+  image_path <- paste0("](figures/", basename(destination), ")")
+  if (!any(grepl(image_path, notebook_lines, fixed = TRUE))) {
+    return(invisible(NULL))
+  }
+
   destination_link <- Sys.readlink(destination)
   if (
     length(destination_link) == 1L &&

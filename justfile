@@ -52,13 +52,13 @@ readme:
 # Format first-party R code with Air
 [group: "Expert and maintenance"]
 format:
-    air format R scripts
+    air format R scripts data-raw exploratory
 
 # Run scilintr over first-party analysis code
 [group: "Expert and maintenance"]
 lint:
     #!/usr/bin/env bash
     set -euo pipefail
-    for scope in R scripts data-raw notebook/sc_analysis.qmd config.local.example.R; do
+    for scope in R scripts data-raw exploratory notebook/sc_analysis.qmd config.local.example.R; do
         Rscript -e 'scope <- commandArgs(trailingOnly = TRUE)[1]; quit(status = scilintr::main(scope))' "$scope"
     done
