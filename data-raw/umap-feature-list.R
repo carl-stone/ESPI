@@ -7,7 +7,11 @@ umap_feature_list <- c(
   "Otx2",
   "Cabp5",
   "Crx",
-  "Rho"
+  "Rho",
+  "Pcna",
+  "Mcm6",
+  "Cdk4",
+  "Glul"
 )
 
 save(

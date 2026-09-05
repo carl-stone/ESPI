@@ -365,40 +365,52 @@ for (branch in branches) {
     )
 
   cell_order <- rownames(sobj[[]])
-  embeddings <- SeuratObject::Embeddings(sobj, reduction = reduction)[
-    cell_order,
-    1:2,
-    drop = FALSE
-  ]
-  colnames(embeddings) <- c("UMAP_1", "UMAP_2")
-  expression <- SeuratObject::GetAssayData(
+  umap_columns <- SeuratObject::Embeddings(sobj, reduction = reduction) |>
+    colnames() |>
+    utils::head(2L)
+  umap_column_names <- stats::setNames(c("UMAP_1", "UMAP_2"), umap_columns)
+  feature_data <- SeuratObject::FetchData(
     sobj,
+    vars = c(umap_columns, umap_features),
+    cells = cell_order,
+    layer = expression_layer,
     assay = "RNA",
-    layer = expression_layer
-  )[umap_features, cell_order, drop = FALSE]
-
-  umap_span <- max(
-    diff(range(embeddings[, "UMAP_1"])),
-    diff(range(embeddings[, "UMAP_2"]))
-  )
-  umap_x_limits <- mean(range(embeddings[, "UMAP_1"])) +
-    c(-0.5, 0.5) * umap_span
-  umap_y_limits <- mean(range(embeddings[, "UMAP_2"])) +
-    c(-0.5, 0.5) * umap_span
-
-  feature_plots <- lapply(umap_features, function(feature) {
-    feature_expression <- as.numeric(expression[feature, ])
-    expression_range <- range(feature_expression)
-    scaled_expression <- if (diff(expression_range) > 0) {
-      (feature_expression - expression_range[[1]]) / diff(expression_range)
-    } else {
-      rep(0, length(feature_expression))
-    }
-    plot_data <- tibble::tibble(
-      UMAP_1 = embeddings[, "UMAP_1"],
-      UMAP_2 = embeddings[, "UMAP_2"],
-      scaled_expression
+    clean = "none"
+  ) |>
+    dplyr::rename_with(
+      \(columns) unname(umap_column_names[columns]),
+      dplyr::all_of(umap_columns)
     ) |>
+    tidyr::pivot_longer(
+      cols = dplyr::all_of(umap_features),
+      names_to = "feature",
+      values_to = "expression"
+    ) |>
+    dplyr::group_by(feature) |>
+    dplyr::mutate(scaled_expression = {
+      expression_range <- range(expression)
+      if (diff(expression_range) > 0) {
+        scales::rescale(expression, from = expression_range)
+      } else {
+        0
+      }
+    }) |>
+    dplyr::ungroup()
+
+  # Match Seurat::FeaturePlot() limits while keeping each panel physically square.
+  umap_x_limits <- c(
+    floor(min(feature_data$UMAP_1)),
+    ceiling(max(feature_data$UMAP_1))
+  )
+  umap_y_limits <- c(
+    floor(min(feature_data$UMAP_2)),
+    ceiling(max(feature_data$UMAP_2))
+  )
+
+  feature_plots <- purrr::map(umap_features, function(gene) {
+    plot_data <- feature_data |>
+      # ANALYSIS_OK[plot-filter]: selects one gene panel without dropping cells.
+      dplyr::filter(feature == gene) |>
       dplyr::arrange(scaled_expression)
 
     ggplot2::ggplot(
@@ -414,15 +426,13 @@ for (branch in branches) {
         labels = c("0", "1"),
         name = "Scaled expression"
       ) +
-      ggplot2::coord_equal(
-        xlim = umap_x_limits,
-        ylim = umap_y_limits,
-        expand = FALSE
-      ) +
-      ggplot2::ggtitle(feature) +
+      ggplot2::scale_x_continuous(limits = umap_x_limits) +
+      ggplot2::scale_y_continuous(limits = umap_y_limits) +
+      ggplot2::ggtitle(gene) +
       ggplot2::labs(x = "UMAP 1", y = "UMAP 2") +
       ggplot2::theme_classic() +
       ggplot2::theme(
+        aspect.ratio = 1,
         plot.title = ggplot2::element_text(size = 10, hjust = 0.5),
         legend.position = "right"
       )

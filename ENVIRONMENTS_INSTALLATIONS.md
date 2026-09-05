@@ -18,8 +18,8 @@ just load
 ```
 
 Use `just document` after changing package code, `just readme` after changing
-`README.Rmd`, `just format` for first-party R code, and `just lint` for
-scilintr checks.
+`README.Rmd`, and `just format` for first-party R code. `just lint` provides
+optional, on-demand scilintr checks; it is not a gate for routine edits.
 
 ## Five analysis commands
 
@@ -73,7 +73,7 @@ just format
 just lint
 ```
 
-Run a phase directly only when diagnosing a fixed-output failure:
+To run an individual phase directly:
 
 ```sh
 Rscript scripts/02-publication-figures.R
@@ -121,11 +121,3 @@ Important subdirectories include `seurat_objects/current/`,
 `figures/preprocess/`, `figures/cluster/`, `figures/mg_selected/`,
 `tables/mg_selected/`, `degs/mg_selected/`, and
 `enrichment/mg_selected/`.
-
-## Mycelium local hooks
-
-Mycelium created local Claude Code hooks in
-`.claude/settings.local.json`. The file points at the installed plugin cache;
-`.claude/` is gitignored because that path is machine-local. On a fresh clone
-or after a plugin upgrade, rerun Mycelium initialization or hook setup before
-expecting hooks to fire.

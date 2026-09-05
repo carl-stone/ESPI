@@ -217,7 +217,7 @@ $\pm 2$.
 The feature UMAP grid uses the marker feature list in `data/umap_feature_list.rda`
 and the same pink high-expression endpoint as the marker heatmap.
 
-![MG-selected 3 × 3 PFlog feature UMAP grid for the no-cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-feature-umap-grid}
+![MG-selected PFlog feature UMAP grid for the no-cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-feature-umap-grid}
 
 ![Per-cell Ascl1 / Hes6 coexpression for the MG-selected no-cell-cycle-filtered PFlog branch, colored by Leiden cluster. Axes show PFlog-normalized expression.](figures/mg_selected_ascl1_hes6_coexpression_pflog_mg_selected_no_filter_cc_dims20_res0.3.png){#fig-mg-selected-ascl1-hes6-coexpression}
 
@@ -234,7 +234,7 @@ UMAP panels as the no-cell-cycle-filtered branch.
 
 ![Per-cell marker-gene heatmap for the MG-selected PFlog clustering with cell-cycle HVGs filtered before PCA. Cluster numbers are shown on the top annotation bar; cell-type labels are shown on the left; marker genes are listed beside the heatmap.](figures/cell_type_marker_heatmap_pflog_pflog_mg_selected_filter_cc_cells_dims20_res0.3.png){#fig-mg-selected-filter-cc-cell-type-marker-heatmap}
 
-![MG-selected 3 × 3 PFlog feature UMAP grid for the cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.3.png){#fig-mg-selected-filter-cc-feature-umap-grid}
+![MG-selected PFlog feature UMAP grid for the cell-cycle-filtered branch.](figures/mg_selected_feature_umap_pflog_pflog_mg_selected_filter_cc_dims20_res0.3.png){#fig-mg-selected-filter-cc-feature-umap-grid}
 
 
 ## Differential expression

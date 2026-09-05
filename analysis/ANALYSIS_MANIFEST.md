@@ -1,7 +1,9 @@
 # Analysis Manifest
 
-ESPI's active executable analysis consists of four phases across five scripts
-and the Quarto notebook. Shared code lives in four focused package modules.
+The publication pipeline consists of four phases across five scripts and the
+Quarto notebook. Shared code lives in four focused package modules. This is a
+reference inventory, not a required bookkeeping step; code defines the current
+workflow.
 
 | Entry | Location | Type | Status | Notes |
 |-------|----------|------|--------|-------|
@@ -15,10 +17,8 @@ and the Quarto notebook. Shared code lives in four focused package modules.
 | Seurat methods | `R/seurat-methods.R` | R package module | active/current | Owns PFlog/log1p PCA and nonstandard cluster-grid summary/stability calculations. |
 | Publication analysis | `R/publication-analysis.R` | R package module | active/current | Owns cluster abundance, sample proportions, exact randomization, module scores, and p27 enrichment computations. |
 | Publication plots | `R/publication-plots.R` | R package module | active/current | Owns the publication theme, safe figure writer, curated marker heatmap, and module/p27 heatmap writers. |
-| Single-cell analysis notebook | `notebook/sc_analysis.qmd` | Quarto notebook | active/current | Consumer only. Visible prose, captions, order, and values remain locked; rendering uses notebook-relative regular-file figures. |
+| Single-cell analysis notebook | `notebook/sc_analysis.qmd` | Quarto notebook | active/current | Consumes saved analysis outputs and notebook-relative regular-file figures. Update prose and captions with the relevant evidence, then render the HTML deliverable. |
 | Cell type marker references | `data-raw/cell-type-marker-genes.R`, `data/cell_type_marker_genes.rda`, `data/cell_type_marker_labels.rda` | R package data | active | Curated broad retinal cell-type marker lists and display labels for annotation and curated marker overlap. |
-| Clustering criteria ideation | `analysis/ideas/2026-07-03-clustering-criteria-brainstorm/` | Mycelium ideation session | active | Persona-generated criteria ideas for label-blind selection of normalization, PC count, and Leiden resolution. |
-| Cluster proportion testing ideation | `analysis/ideas/2026-07-05-cluster-proportion-testing/` | Mycelium ideation session | active | Methods and design ideas for Mouse × Condition cluster proportion comparisons rather than cell-pooled inference. |
 | MG-selected manuscript write-up plan | `analysis/MG_SELECTED_WRITEUP_PLAN.md` | Markdown planning note | implemented/current | Records current MG-selected results, curated DE effects, primary volcano specification, enrichment themes, interpretation limits, and notebook endpoint. |
 | Sequential analysis write-up | `analysis/SEQUENTIAL_ANALYSIS_WRITEUP.md` | Markdown scientific prose | complete/current | Provides 17 standalone Methods and Results snippets in execution order, with hidden evidence comments and no added interpretation or conclusion. |
 | Targeted neurogenic proportion | `analysis/targeted-neurogenic-proportion/` | Standalone sensitivity analysis | complete/exploratory | Tests six prespecified progenitor-high, proliferation-low gates with sample-level beta-binomial models, null bootstraps, optimizer diagnostics, and fixed tabular outputs. |
@@ -26,7 +26,3 @@ and the Quarto notebook. Shared code lives in four focused package modules.
 
 Notebook mirrors reject symlink destinations, copy through a temporary regular
 sibling, verify hashes and dimensions, and atomically replace regular files.
-
-## For Future Mycelium Analyses
-
-Create a subdirectory under `analysis/` only for new standalone analysis reports. Each subdirectory should include an UPPER_SNAKE_CASE `.md` note describing inputs, commands, outputs, and validation.
