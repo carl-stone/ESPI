@@ -1,5 +1,15 @@
 cell_type_marker_genes <- list(
-  muller_glia = c("Rlbp1", "Glul", "Vim", "Slc1a3", "Sox9", "Hes1"),
+  muller_glia = c(
+    "Rlbp1",
+    "Glul",
+    "Vim",
+    "Slc1a3",
+    "Sox9",
+    "Hes1",
+    "Nfia",
+    "Nfib",
+    "Nfix"
+  ),
   activated_muller_glia = c("Gfap", "Lcn2", "Serpina3n", "Ccn1", "Il6"),
   proliferative = c("Pcna", "Mcm2", "Mcm6", "Ccnd1", "Cdk4", "Cdk6"),
   neurogenic_progenitor = c(
