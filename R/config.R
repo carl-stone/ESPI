@@ -62,7 +62,7 @@ publication_config <- function() {
     mg = list(
       branch = "pflog_mg_selected_no_filter_cc",
       dimensions = 20L,
-      resolution = 0.5,
+      resolution = 0.3,
       seed = 2847L
     ),
     mg_filter_cc = list(
