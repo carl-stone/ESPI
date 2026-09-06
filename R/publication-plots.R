@@ -42,6 +42,9 @@ copy_notebook_figure <- function(
 #' @param height Figure height in inches.
 #' @param cluster_cells Whether to cluster cells within cluster slices and
 #'   hierarchically reorder the slices.
+#' @param sequential_clusters Keep cluster blocks in sorted cluster-ID order,
+#'   preserving input cell order within blocks. Disables all column clustering
+#'   and overrides `cluster_cells` when TRUE.
 #'
 #' @return Named PNG and PDF paths, invisibly.
 #' @export
@@ -52,8 +55,12 @@ write_curated_marker_heatmap <- function(
   output_stem,
   width,
   height,
-  cluster_cells = FALSE
+  cluster_cells = FALSE,
+  sequential_clusters = FALSE
 ) {
+  if (isTRUE(sequential_clusters)) {
+    cluster_cells <- FALSE
+  }
   if (!cluster_column %in% colnames(sobj@meta.data)) {
     stop("Missing cluster metadata column: ", cluster_column, call. = FALSE)
   }
@@ -107,7 +114,7 @@ write_curated_marker_heatmap <- function(
   scaled_expression[scaled_expression > z_score_limit] <- z_score_limit
   scaled_expression[scaled_expression < -z_score_limit] <- -z_score_limit
   cluster_dendrogram <- NULL
-  if (!isTRUE(cluster_cells)) {
+  if (!isTRUE(cluster_cells) && !isTRUE(sequential_clusters)) {
     cluster_means <- vapply(
       cluster_levels,
       function(cluster_value) {
@@ -154,7 +161,7 @@ write_curated_marker_heatmap <- function(
     ),
     show_annotation_name = FALSE
   )
-  column_annotation <- if (isTRUE(cluster_cells)) {
+  column_annotation <- if (is.null(cluster_dendrogram)) {
     ComplexHeatmap::HeatmapAnnotation(
       Cluster = ComplexHeatmap::anno_block(
         height = grid::unit(4, "mm"),
@@ -211,11 +218,9 @@ write_curated_marker_heatmap <- function(
     cluster_column_slices = isTRUE(cluster_cells),
     show_row_names = FALSE,
     row_title = NULL,
+    column_title = NULL,
     use_raster = TRUE
   )
-  if (!isTRUE(cluster_cells)) {
-    heatmap_arguments$column_title <- NULL
-  }
   heatmap <- do.call(ComplexHeatmap::Heatmap, heatmap_arguments)
 
   paths <- output_path(paste0(output_stem, c(".png", ".pdf")))
@@ -228,7 +233,7 @@ write_curated_marker_heatmap <- function(
     units = "in",
     res = 300
   )
-  if (isTRUE(cluster_cells)) {
+  if (is.null(cluster_dendrogram)) {
     ComplexHeatmap::draw(
       heatmap,
       heatmap_legend_side = "right",
@@ -239,7 +244,7 @@ write_curated_marker_heatmap <- function(
   }
   grDevices::dev.off()
   grDevices::pdf(pdf_path, width = width, height = height)
-  if (isTRUE(cluster_cells)) {
+  if (is.null(cluster_dendrogram)) {
     ComplexHeatmap::draw(
       heatmap,
       heatmap_legend_side = "right",

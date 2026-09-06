@@ -568,6 +568,15 @@ for (branch in branches) {
     height = 9,
     cluster_cells = TRUE
   )
+  sequential_marker_paths <- write_curated_marker_heatmap(
+    sobj,
+    cluster_column,
+    expression_layer,
+    paste0(marker_stem, "_sequential"),
+    width = 10,
+    height = 9,
+    sequential_clusters = TRUE
+  )
   module_paths <- write_module_p27_heatmap(
     module_scores,
     p27_enrichment,
@@ -576,6 +585,7 @@ for (branch in branches) {
     height = 6
   )
   copy_notebook_figure(marker_paths[["png"]])
+  copy_notebook_figure(sequential_marker_paths[["png"]])
   copy_notebook_figure(module_paths[["png"]])
 
   save_publication_plot(cluster_plot, cluster_stem, width = 5.5, height = 5)

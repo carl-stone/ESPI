@@ -11,7 +11,8 @@ write_curated_marker_heatmap(
   output_stem,
   width,
   height,
-  cluster_cells = FALSE
+  cluster_cells = FALSE,
+  sequential_clusters = FALSE
 )
 }
 \arguments{
@@ -29,6 +30,10 @@ write_curated_marker_heatmap(
 
 \item{cluster_cells}{Whether to cluster cells within cluster slices and
 hierarchically reorder the slices.}
+
+\item{sequential_clusters}{Keep cluster blocks in sorted cluster-ID order,
+preserving input cell order within blocks. Disables all column clustering
+and overrides \code{cluster_cells} when TRUE.}
 }
 \value{
 Named PNG and PDF paths, invisibly.
