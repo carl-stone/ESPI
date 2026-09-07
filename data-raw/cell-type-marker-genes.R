@@ -26,7 +26,7 @@ cell_type_marker_genes <- list(
     "Rxrg"
   ),
   retinal_ganglion = c("Chrna4", "Rbpms", "Thy1", "Sncg", "Slc17a6"),
-  microglia = c("C1qa", "C1qb", "C1qc", "Cx3cr1", "Igf1", "Iba1"),
+  microglia = c("C1qa", "C1qb", "C1qc", "Cx3cr1", "Igf1", "Aif1"),
   horizontal = c("Onecut1", "Onecut2", "Lhx1", "Calb1", "Ntrk1"),
   amacrine = c("Tfap2a", "Tfap2b", "Calb2")
 )
