@@ -86,3 +86,15 @@ column names derive from those settings. Do not add hard-coded cell/cluster coun
 Be concise, use plain language and active voice, and state assumptions,
 decisions, inferences, and verification limits explicitly. Keep this file operational and
 compact; do not turn it into a session journal.
+
+## Analysis workflow
+
+This analysis follows these general steps.
+
+1. Count matrix import and cell-level QC and filtering.
+2. Normalization, dim reduction, clustering.
+3. Removal of contaminant microglia and photoreceptors (producing "MG-selected" dataset).
+4. Reprocessing of MG-selected dataset.
+5. Feature plots, DE analysis, enrichment, etc.
+
+Most manuscript figures should use the MG-selected, PFlog normalized, 20 PCs, res 0.3, no-CC-filtered data. Only plots explicitly showing QC, PC and resolution selection, and contaminant filtering will show other datasets.
