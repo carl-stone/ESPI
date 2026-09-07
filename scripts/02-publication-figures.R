@@ -20,6 +20,17 @@ estim_display_label <- config$conditions$estim_display
 expression_layer <- "pflog"
 nfi_features <- c("Nfia", "Nfib", "Nfix")
 module_score_layer <- "data"
+# Preserve the approved supplemental preview's control-gene sampling.
+supplemental_module_seed <- 7391L
+main_module_seed <- 7391L
+# Main heatmap markers from scripts/custom-marker-plots.R, plus activated MG.
+main_violin_markers <- list(
+  "MG" = c("Rlbp1", "Glul", "Vim", "Slc1a3", "Sox9", "Hes1", "Aqp4", "Kcnj10"),
+  "Activated MG" = c("Gfap", "Lcn2", "Serpina3n", "Ccn1"),
+  "Proliferative" = c("Pcna", "Mcm2", "Mcm6", "Ccnd1", "Cdk4", "Cdk6"),
+  "Neurogenic progenitor" = c("Ascl1", "Hes6", "Hes5", "Dll1", "Neurog2"),
+  "Cone bipolar" = c("Otx2", "Cabp5", "Scgn", "Lhx4", "Grik1", "Neurod1")
+)
 n_perm <- 2000L
 source_suffix <- paste0(
   "_dims",
@@ -64,6 +75,202 @@ mg_sobj <- readRDS(config$selected$mg$path)
 mg_filter_cc_sobj <- readRDS(config$selected$mg_filter_cc$path)
 load(here::here("data", "umap_feature_list.rda"))
 umap_features <- umap_feature_list
+
+# ---- supplemental MG-selected marker module violins ----
+
+supplemental_cluster_column <- config$selected$mg$column
+missing_module_markers <- setdiff(
+  unlist(cell_type_marker_genes, use.names = FALSE),
+  rownames(mg_sobj[["RNA"]])
+)
+if (length(missing_module_markers) > 0L) {
+  stop(
+    "Missing supplemental module markers: ",
+    paste(missing_module_markers, collapse = ", ")
+  )
+}
+stopifnot(
+  supplemental_cluster_column %in% colnames(mg_sobj[[]]),
+  !anyNA(mg_sobj[[]][[supplemental_cluster_column]]),
+  all(lengths(cell_type_marker_genes) > 0L),
+  !anyNA(cell_type_marker_labels[names(cell_type_marker_genes)])
+)
+
+# Score all full-heatmap sets separately, including MG and activated MG.
+supplemental_scored_sobj <- Seurat::AddModuleScore(
+  object = mg_sobj,
+  features = cell_type_marker_genes,
+  assay = "RNA",
+  slot = module_score_layer,
+  name = "supplemental_marker_",
+  nbin = 24,
+  ctrl = 100,
+  seed = supplemental_module_seed,
+  search = FALSE
+)
+supplemental_score_columns <- paste0(
+  "supplemental_marker_",
+  seq_along(cell_type_marker_genes)
+)
+supplemental_violin_data <- supplemental_scored_sobj[[]] |>
+  dplyr::select(
+    cluster = dplyr::all_of(supplemental_cluster_column),
+    dplyr::all_of(supplemental_score_columns)
+  ) |>
+  tidyr::pivot_longer(-cluster, names_to = "module", values_to = "score") |>
+  dplyr::mutate(
+    cluster = factor(
+      cluster,
+      levels = sort(unique(as.integer(as.character(cluster))))
+    ),
+    module = factor(
+      module,
+      levels = supplemental_score_columns,
+      labels = unname(cell_type_marker_labels[names(cell_type_marker_genes)])
+    )
+  )
+stopifnot(
+  !anyNA(supplemental_violin_data),
+  all(is.finite(supplemental_violin_data$score))
+)
+rm(supplemental_scored_sobj)
+
+supplemental_violin_stem <- file.path(
+  mg_figure_dir,
+  paste0(
+    "supplemental_cell_type_module_violins_",
+    config$selected$mg$branch,
+    "_dims",
+    config$selected$mg$dimensions,
+    "_res",
+    config$selected$mg$resolution
+  )
+)
+save_publication_plot(
+  ggplot2::ggplot(
+    supplemental_violin_data,
+    ggplot2::aes(x = cluster, y = score)
+  ) +
+    ggplot2::geom_violin(scale = "width") +
+    ggplot2::geom_boxplot(width = 0.15, fill = "grey80", outlier.shape = NA) +
+    ggplot2::facet_wrap(ggplot2::vars(module), ncol = 3) +
+    ggplot2::labs(x = "Cluster", y = "Module score") +
+    theme_stone(),
+  supplemental_violin_stem,
+  width = 10,
+  height = 8
+)
+
+# ---- main MG-selected marker module violins ----
+
+main_cluster_column <- config$selected$mg$column
+missing_main_markers <- setdiff(
+  unlist(main_violin_markers, use.names = FALSE),
+  rownames(mg_sobj[["RNA"]])
+)
+if (length(missing_main_markers) > 0L) {
+  stop(
+    "Missing main-figure module markers: ",
+    paste(missing_main_markers, collapse = ", ")
+  )
+}
+stopifnot(
+  main_cluster_column %in% colnames(mg_sobj[[]]),
+  !anyNA(mg_sobj[[]][[main_cluster_column]]),
+  all(lengths(main_violin_markers) > 0L)
+)
+main_scored_sobj <- Seurat::AddModuleScore(
+  object = mg_sobj,
+  features = main_violin_markers,
+  assay = "RNA",
+  slot = module_score_layer,
+  name = "main_marker_",
+  nbin = 24,
+  ctrl = 100,
+  seed = main_module_seed,
+  search = FALSE
+)
+main_score_columns <- paste0("main_marker_", seq_along(main_violin_markers))
+main_violin_data <- main_scored_sobj[[]] |>
+  dplyr::select(
+    cluster = dplyr::all_of(main_cluster_column),
+    dplyr::all_of(main_score_columns)
+  ) |>
+  tidyr::pivot_longer(-cluster, names_to = "module", values_to = "score") |>
+  dplyr::mutate(
+    cluster = factor(
+      cluster,
+      levels = sort(unique(as.integer(as.character(cluster))))
+    ),
+    module = factor(
+      module,
+      levels = main_score_columns,
+      labels = names(main_violin_markers)
+    )
+  )
+stopifnot(!anyNA(main_violin_data), all(is.finite(main_violin_data$score)))
+rm(main_scored_sobj)
+
+main_violin_stem <- file.path(
+  mg_figure_dir,
+  paste0(
+    "main_cell_type_module_violins_",
+    config$selected$mg$branch,
+    "_dims",
+    config$selected$mg$dimensions,
+    "_res",
+    config$selected$mg$resolution
+  )
+)
+save_publication_plot(
+  ggplot2::ggplot(main_violin_data, ggplot2::aes(x = cluster, y = score)) +
+    ggplot2::geom_violin(scale = "width") +
+    ggplot2::geom_boxplot(width = 0.15, fill = "grey80", outlier.shape = NA) +
+    ggplot2::scale_y_continuous(
+      breaks = function(limits) seq.int(floor(limits[1]), ceiling(limits[2])),
+      minor_breaks = NULL
+    ) +
+    ggplot2::facet_grid(
+      rows = ggplot2::vars(module),
+      scales = "free_y",
+      switch = "y",
+      labeller = ggplot2::labeller(
+        module = c(
+          "MG" = "MG",
+          "Activated MG" = "Activ. MG",
+          "Proliferative" = "Prolif.",
+          "Neurogenic progenitor" = "NP",
+          "Cone bipolar" = "CB"
+        )
+      )
+    ) +
+    ggplot2::labs(x = "Cluster", y = "Module score") +
+    theme_stone(base_size = 10) +
+    ggplot2::theme(
+      plot.margin = ggplot2::margin(3, 3, 3, 3, unit = "pt"),
+      panel.spacing.y = 0.75 *
+        ggplot2::calc_element("panel.spacing.y", theme_stone(base_size = 10)),
+      strip.placement = "outside",
+      strip.background = ggplot2::element_blank(),
+      strip.text.y.left = ggplot2::element_text(
+        size = 9,
+        angle = 90,
+        margin = ggplot2::margin(0, 0, 0, 0)
+      ),
+      strip.switch.pad.grid = grid::unit(2, "pt"),
+      axis.title = ggplot2::element_text(size = 10, face = "plain"),
+      axis.title.x = ggplot2::element_text(size = 9),
+      axis.title.y = ggplot2::element_text(
+        size = 8,
+        margin = ggplot2::margin(r = 1)
+      ),
+      axis.text = ggplot2::element_text(size = 9),
+      axis.text.y = ggplot2::element_text(margin = ggplot2::margin(r = 1))
+    ),
+  main_violin_stem,
+  width = 1.85,
+  height = 3.6
+)
 
 # ---- source annotation ----
 
