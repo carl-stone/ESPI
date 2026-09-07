@@ -91,10 +91,16 @@ compact; do not turn it into a session journal.
 
 This analysis follows these general steps.
 
-1. Count matrix import and cell-level QC and filtering.
-2. Normalization, dim reduction, clustering.
-3. Removal of contaminant microglia and photoreceptors (producing "MG-selected" dataset).
-4. Reprocessing of MG-selected dataset.
-5. Feature plots, DE analysis, enrichment, etc.
+1. Import count matrices and perform cell-level QC and filtering.
+2. Normalize, reduce dimensions, and cluster the source dataset.
+3. Remove contaminant microglia and photoreceptors to select MG cells.
+4. Reprocess the MG-selected cells from counts, then recompute dimensional reduction, clustering, and UMAP; do not reuse preselection embeddings.
+5. Use the final MG-selected object for feature plots, marker analysis, pseudobulk DE, enrichment, and other downstream analyses.
 
-Most manuscript figures should use the MG-selected, PFlog normalized, 20 PCs, res 0.3, no-CC-filtered data. Only plots explicitly showing QC, PC and resolution selection, and contaminant filtering will show other datasets.
+Unless explicitly showing QC, parameter selection, contaminant removal, or an alternative analysis approved by Carl, manuscript figures must use the final reprocessed object at `publication_config()$selected$mg$path` and cluster assignments from `publication_config()$selected$mg$column`. The current selection is PFlog, 20 PCs, resolution 0.3, with cell-cycle genes retained among variable features (`no_filter_cc`); this is not a rule about filtering cells.
+
+Do not substitute preselection objects, alternative branches, or objects already
+loaded in the session without verifying that they match the intended input.
+Ask Carl if the intended dataset is unclear. Follow the relevant analysis
+script's assay and expression-layer choices: PFlog identifies the selected
+processing branch, not a universal input layer; pseudobulk DE uses raw counts.

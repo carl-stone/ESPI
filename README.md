@@ -73,7 +73,7 @@ feed phase 04. Phase 04 independently loads the MG object and rebuilds
 curated marker overlap from package marker data plus `Cdkn1b`.
 
 **Change clustering settings in `publication_config()` in
-`R/config.R`.** The selected MG clustering uses 20 PCs, resolution 0.5,
+`R/config.R`.** The selected MG clustering uses 20 PCs, resolution 0.3,
 and seed 2847. Column names and plot labels derive from those settings.
 The source stays at resolution 0.3; the cell-cycle-filtered sensitivity
 uses resolution 0.5 and seed 1312.
