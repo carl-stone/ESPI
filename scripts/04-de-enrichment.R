@@ -545,7 +545,7 @@ save_publication_plot(
 )
 
 plot <- enrichplot::dotplot(s_gsea, showCategory = 15, split = ".sign") +
-  facet_grid(. ~ .sign) +
+  facet_wrap(~.sign, scales = "free_y", nrow = 1) +
   ggtitle("GO BP GSEA (simplified)")
 save_publication_plot(
   plot,
