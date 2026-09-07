@@ -10,23 +10,12 @@ cell_type_marker_genes <- list(
     "Nfib",
     "Nfix"
   ),
-  activated_muller_glia = c("Gfap", "Lcn2", "Serpina3n", "Ccn1", "Il6"),
+  activated_muller_glia = c("Gfap", "Lcn2", "Serpina3n", "Ccn1"),
   proliferative = c("Pcna", "Mcm2", "Mcm6", "Ccnd1", "Cdk4", "Cdk6"),
-  neurogenic_progenitor = c(
-    "Ascl1",
-    "Hes6",
-    "Hes5",
-    "Neurog2",
-    "Dll1",
-    "Dll3",
-    "Neurod1",
-    "Stmn1",
-    "Stmn2"
-  ),
-  cone_bipolar = c("Otx2", "Vsx2", "Cabp5", "Scgn", "Lhx4", "Grik1"),
-  rod_bipolar = c("Prkca", "Grm6", "Car8"),
+  neurogenic_progenitor = c("Ascl1", "Hes6", "Hes5", "Neurog2", "Dll1"),
+  cone_bipolar = c("Otx2", "Cabp5", "Scgn", "Lhx4", "Grik1", "Neurod1"),
+  rod_bipolar = c("Grm6", "Car8", "Bhlhe23"),
   photoreceptor = c(
-    "Crx",
     "Rcvrn",
     "Arr3",
     "Rho",
@@ -37,17 +26,9 @@ cell_type_marker_genes <- list(
     "Rxrg"
   ),
   retinal_ganglion = c("Chrna4", "Rbpms", "Thy1", "Sncg", "Slc17a6"),
-  microglia = c("C1qa", "C1qb", "C1qc", "Cx3cr1", "Igf1"),
-  horizontal = c(
-    "Onecut1",
-    "Onecut2",
-    "Lhx1",
-    "Prox1",
-    "Calb1",
-    "Megf10",
-    "Ntrk1"
-  ),
-  amacrine = c("Tfap2a", "Tfap2b", "Pax6", "Calb2")
+  microglia = c("C1qa", "C1qb", "C1qc", "Cx3cr1", "Igf1", "Iba1"),
+  horizontal = c("Onecut1", "Onecut2", "Lhx1", "Calb1", "Ntrk1"),
+  amacrine = c("Tfap2a", "Tfap2b", "Calb2")
 )
 
 cell_type_marker_labels <- c(
