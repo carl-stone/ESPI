@@ -1,0 +1,2 @@
+old_root,new_root,same_root,rank_correlation,median_percentile_shift,shared_top_quartile
+S3_AAAATTTCAAATCCAT,S3_AAAATTTCAAATCCAT,TRUE,1,0,810

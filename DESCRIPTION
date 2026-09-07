@@ -45,16 +45,20 @@ Imports:
     tidyr,
     withr
 Suggests:
+    BiocNeighbors,
     biomaRt,
     brms,
     broom,
     cli,
+    destiny,
     devtools,
     digest,
     forcats,
+    ggbeeswarm,
     ggplotify,
     ggview,
     glmmTMB,
+    igraph,
     jsonlite,
     lme4,
     miloR,
@@ -64,7 +68,8 @@ Suggests:
     stringr,
     SummarizedExperiment,
     testthat (>= 3.0.0),
-    tidyverse
+    tidyverse,
+    viridisLite
 Remotes:
     cleartools/scclrR,
     erocoar/gghalves

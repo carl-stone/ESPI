@@ -32,7 +32,7 @@ Use `just --list` to discover recipes. The publication commands are:
   See `dev/setup.md` for required writable directories.
 
 `overwrite` defaults to `false`; use `true` only when replacing publication
-outputs. The selected MG clustering uses 20 PCs, resolution 0.5, and seed 2847.
+outputs. The selected MG clustering uses 20 PCs, resolution 0.3, and seed 2847.
 Edit `publication_config()` in `R/config.R` to change the selected settings;
 column names derive from those settings. Do not add hard-coded cell/cluster counts.
 
@@ -53,6 +53,15 @@ column names derive from those settings. Do not add hard-coded cell/cluster coun
 ## R conventions
 
 - Prefer tidyverse solutions, `<-` assignment, and the native `|>` pipe.
+- Use `theme_stone()` by default for every plot in this repo, including exploratory
+  plots. Set it with `ggplot2::theme_set(theme_stone())` for plotting sessions.
+- Keep plot text minimal: short axis labels with units, concise facet labels, and
+  legends only when needed to decode mappings. Avoid subtitles, captions, verbose
+  legend text, and redundant titles unless requested or essential to interpretation.
+- Do not put routine statistical caveats or methodological disclaimers in plots
+  (e.g. "descriptive, not mouse-level inference"). Omit reminders of familiar
+  limitations; put genuinely necessary qualifications in analysis prose or chat,
+  not on the image.
 - Use a map function followed by `list_rbind()` or `list_cbind()`, not superseded
   purrr helpers such as `map_dfr()` or `map_dfc()` and their indexed variants.
 - Prefer explicit namespaces such as `dplyr::filter()` over conflict-resolution
